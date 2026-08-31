@@ -15,7 +15,7 @@ public class TownFoodSystem {
         int produced = 0;
         for (RegisteredTownBuilding farm : data.getRegisteredBuildings()) {
             if (!"farm".equals(farm.type())) continue;
-            int base = Math.max(1, farm.cropState() / 12);
+            int base = Math.max(3, farm.tier() * 3);
             int performance = BuildingPerformance.outputPercent(data, farm)
                     * Math.max(0, data.getEventFarmOutputPercent()) / 100;
             if (performance > 0) produced += BuildingPerformance.roundOutput(base, performance);

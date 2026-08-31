@@ -21,5 +21,6 @@ class BuildingPerformanceTest {
     void productionUsesHalfUpRounding() {
         assertEquals(3, BuildingPerformance.roundOutput(3, 110));
         assertEquals(4, BuildingPerformance.roundOutput(3, 117));
+        assertEquals(11, BuildingPerformance.roundOutput(10, 105));
     }
 }

@@ -535,7 +535,7 @@ public class TownBlueprintScreen extends Screen {
     private String outputLine(TownBlueprintView.BuildingEntry building) {
         String line = "Output: " + building.output() + "%";
         if ("farm".equals(building.type())) {
-            int base = Math.max(1, building.cropState() / 12);
+            int base = Math.max(3, building.tier() * 3);
             int food = BuildingPerformance.roundOutput(base, building.output());
             line += " (+" + food + " Food/Day)";
         }
