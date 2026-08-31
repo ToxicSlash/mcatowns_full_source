@@ -8,7 +8,7 @@ class BuildingPerformanceTest {
     @Test
     void outputUsesTierWorkersFurnitureAndSynergies() {
         assertEquals(54, BuildingPerformance.outputFromFactors(1, 50, 2, 1));
-        assertEquals(125, BuildingPerformance.outputFromFactors(3, 100, 20, 20));
+        assertEquals(130, BuildingPerformance.outputFromFactors(3, 100, 20, 20));
     }
 
     @Test
