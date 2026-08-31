@@ -6,6 +6,7 @@ on:
       - main
       - town-system-overhaul
       - town-hardening-pass
+      - building-output-ui
   pull_request:
 
 jobs:
