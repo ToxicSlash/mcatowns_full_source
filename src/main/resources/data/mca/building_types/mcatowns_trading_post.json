@@ -1,0 +1,13 @@
+{
+  "color": "ff42a5f5",
+  "visible": true,
+  "priority": 4,
+  "icon": true,
+  "blocks": {
+    "minecraft:lectern": 1,
+    "minecraft:cartography_table": 1,
+    "minecraft:barrel": 1
+  },
+  "iconU": 2,
+  "iconV": 3
+}

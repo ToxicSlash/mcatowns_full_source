@@ -1,0 +1,16 @@
+{
+  "margin": 8,
+  "color": "ffe0c97f",
+  "visible": true,
+  "priority": 4,
+  "noBeds": true,
+  "icon": true,
+  "grouped": true,
+  "mergeRange": 16,
+  "blocks": {
+    "minecraft:barrel": 1,
+    "minecraft:hay_block": 4
+  },
+  "iconU": 4,
+  "iconV": 3
+}

@@ -1,0 +1,13 @@
+{
+  "color": "ff9e9e9e",
+  "visible": true,
+  "priority": 5,
+  "icon": true,
+  "blocks": {
+    "minecraft:bell": 1,
+    "minecraft:lectern": 1,
+    "minecraft:chest": 2
+  },
+  "iconU": 5,
+  "iconV": 3
+}

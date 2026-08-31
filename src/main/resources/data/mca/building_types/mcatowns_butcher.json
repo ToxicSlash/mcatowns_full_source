@@ -1,0 +1,11 @@
+{
+  "color": "ffaaaaaa",
+  "visible": true,
+  "priority": 1,
+  "icon": true,
+  "blocks": {
+    "minecraft:smoker": 1
+  },
+  "iconU": 0,
+  "iconV": 3
+}

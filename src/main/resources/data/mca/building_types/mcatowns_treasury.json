@@ -1,0 +1,13 @@
+{
+  "color": "ff2e86de",
+  "visible": true,
+  "priority": 5,
+  "icon": true,
+  "blocks": {
+    "minecraft:gold_block": 1,
+    "minecraft:chest": 1,
+    "minecraft:iron_door": 1
+  },
+  "iconU": 3,
+  "iconV": 1
+}

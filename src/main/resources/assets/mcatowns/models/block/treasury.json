@@ -1,0 +1,8 @@
+{
+  "parent": "minecraft:block/cube_bottom_top",
+  "textures": {
+    "bottom": "mcatowns:block/treasury_bottom",
+    "side": "mcatowns:block/treasury_side",
+    "top": "mcatowns:block/treasury_top"
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "parent": "minecraft:block/cube_bottom_top",
+  "textures": {
+    "bottom": "mcatowns:block/silo_bottom",
+    "side": "mcatowns:block/silo_side",
+    "top": "mcatowns:block/silo_top"
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "color": "ff8d6e63",
+  "visible": true,
+  "priority": 4,
+  "icon": true,
+  "blocks": {
+    "minecraft:crafting_table": 1,
+    "minecraft:smithing_table": 1,
+    "minecraft:chest": 1
+  },
+  "iconU": 2,
+  "iconV": 0
+}

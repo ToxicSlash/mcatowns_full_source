@@ -1,0 +1,16 @@
+{
+  "margin": 8,
+  "color": "ff4caf50",
+  "visible": true,
+  "priority": 5,
+  "noBeds": true,
+  "icon": true,
+  "grouped": true,
+  "mergeRange": 24,
+  "blocks": {
+    "minecraft:composter": 1,
+    "minecraft:hay_block": 4
+  },
+  "iconU": 9,
+  "iconV": 2
+}

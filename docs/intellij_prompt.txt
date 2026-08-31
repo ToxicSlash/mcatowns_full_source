@@ -1,0 +1,46 @@
+Continue this Fabric 1.20.1 addon project called MCA Towns.
+
+The starter source already includes:
+- Mayor Desk block + screen + networking
+- Treasury and Barracks blocks
+- TownSavedData
+- Weekly taxes in emerald-value integers
+- Tax slider
+- Happiness, unrest, defense, immigration, food, and festival systems
+- Treasury building support
+- Barracks 3-level upgrade logic
+- MCA integration stubs
+- Guard Villagers integration stub
+- Villager Business compatibility stub
+
+Please finish the project with these goals:
+
+1. Hook Mayor rank check into actual MCA Reborn rank data
+2. Replace the MCA building snapshot stub with real MCA building detection
+3. Replace the MCA population/rank stub with real data
+4. Push live TownSavedData values into the MayorDesk PropertyDelegate each tick/open
+5. Add proper town scoping instead of using world spawn as the anchor
+6. Add Town Center detection and bind Mayor Desk to the nearest valid MCA town
+7. Implement Treasury Building detection from addon blocks
+8. Implement Barracks detection from addon blocks
+9. Make barracks upgrades apply actual stat bonuses to MCA guards and Guard Villagers guards:
+   - health
+   - armor
+   - damage
+   - equipment quality
+10. Add raid hooks so raids increase unrest and can scale from population
+11. Add death hooks so Graveyard buildings reduce death-related happiness penalties
+12. Finish Villager Business compatibility:
+   - find nearby Sales Stands / Request Stands
+   - let MCA villagers use them with lightweight periodic checks
+   - do not run expensive pathing every tick
+13. Improve Mayor Desk UI:
+   - show treasury cap
+   - show barracks level
+   - show building bonus sources
+   - disable buttons when funds/food are too low
+14. Add proper config loading and JSON/cloth-config if desired
+15. Add assets/textures/models later if needed
+
+Keep everything Fabric 1.20.1 and multiplayer-safe.
+Use MCA data where possible instead of duplicating village logic.

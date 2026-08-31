@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "id": "mcatowns",
+  "version": "${version}",
+  "name": "MCA Towns",
+  "description": "Town governance and building systems for MCA Reborn villages",
+  "authors": ["OpenAI", "User"],
+  "contact": {},
+  "license": "MIT",
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "com.example.mcatowns.MCATowns"
+    ],
+    "client": [
+      "com.example.mcatowns.MCATownsClient"
+    ],
+    "modmenu": [
+      "com.example.mcatowns.compat.ModMenuIntegration"
+    ]
+  },
+  "mixins": [
+    "mcatowns.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=0.19.5",
+    "fabric-api": "*",
+    "minecraft": "1.20.1"
+  },
+  "suggests": {
+    "mca": "*",
+    "guardvillagers": "*",
+    "villagerbusiness": "*",
+    "modmenu": "*",
+    "cloth-config": "*"
+  }
+}

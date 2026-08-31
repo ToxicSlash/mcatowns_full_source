@@ -1,0 +1,12 @@
+{
+  "color": "ff8e8e93",
+  "visible": true,
+  "priority": 5,
+  "icon": true,
+  "blocks": {
+    "minecraft:iron_block": 1,
+    "minecraft:red_bed": 2
+  },
+  "iconU": 3,
+  "iconV": 0
+}

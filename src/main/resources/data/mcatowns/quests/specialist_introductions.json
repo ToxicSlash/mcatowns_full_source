@@ -1,0 +1,17 @@
+{
+  "title": { "fallback": "Introductions" },
+  "summary": { "fallback": "Help an unemployed specialist get back on their feet and prove they are ready for town work." },
+  "dialogue": {
+    "intro": { "fallback": "I know a trade, but I need help getting established before I can promise my work to a town." },
+    "return": { "fallback": "You came back. That tells me more than the supplies do." },
+    "reward": { "fallback": "I am ready to discuss a proper position in your town." },
+    "done": { "fallback": "We have been introduced properly. If you have a workplace, I am ready." }
+  },
+  "goals": [
+    { "id": "food", "collect": "minecraft:bread", "amount": 6 },
+    { "id": "tools", "collect": "minecraft:iron_ingot", "amount": 2 },
+    { "id": "return", "return": true, "amount": 1 }
+  ],
+  "rewards": { "xp": 80 },
+  "traits": { "complete": ["mcatowns_specialist_introduced"] }
+}

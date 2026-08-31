@@ -1,0 +1,8 @@
+{
+  "parent": "minecraft:block/cube_bottom_top",
+  "textures": {
+    "bottom": "mcatowns:block/mayor_desk_bottom",
+    "side": "mcatowns:block/mayor_desk_side",
+    "top": "mcatowns:block/mayor_desk_top"
+  }
+}

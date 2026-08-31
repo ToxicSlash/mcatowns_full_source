@@ -1,0 +1,13 @@
+{
+  "color": "ff6d6d6d",
+  "visible": true,
+  "priority": 4,
+  "icon": true,
+  "blocks": {
+    "minecraft:stonecutter": 1,
+    "minecraft:furnace": 1,
+    "minecraft:chest": 1
+  },
+  "iconU": 3,
+  "iconV": 3
+}
