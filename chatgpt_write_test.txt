@@ -1,2 +1,0 @@
-ChatGPT GitHub write test.
-Created to verify that the GitHub plugin can commit changes to this repository.
