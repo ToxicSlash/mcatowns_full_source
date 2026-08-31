@@ -51,6 +51,11 @@ public final class BuildingPerformance {
         return Math.min(150, staffing + bonuses * staffing / 100);
     }
 
+    /** Normal half-up rounding for displayed production quantities. */
+    public static int roundOutput(int baseUnits, int outputPercent) {
+        return Math.max(0, Math.round(Math.max(0, baseUnits) * Math.max(0, outputPercent) / 100.0f));
+    }
+
     public static int outputPercent(TownSavedData data, RegisteredTownBuilding building) {
         if (building.status() == BuildingStatus.INFRASTRUCTURE_BLOCKED
                 || building.status() == BuildingStatus.NEEDS_INSPECTION) return 0;

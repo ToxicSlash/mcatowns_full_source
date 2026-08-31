@@ -18,7 +18,7 @@ public class TownFoodSystem {
             int base = Math.max(1, farm.cropState() / 12);
             int performance = BuildingPerformance.outputPercent(data, farm)
                     * Math.max(0, data.getEventFarmOutputPercent()) / 100;
-            if (performance > 0) produced += (base * performance + 99) / 100;
+            if (performance > 0) produced += BuildingPerformance.roundOutput(base, performance);
         }
         data.setDailyFoodConsumed(consumed);
         data.setDailyFoodProduced(produced);

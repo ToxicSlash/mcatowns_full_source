@@ -6,6 +6,7 @@ import com.example.mcatowns.network.ModNetworking;
 import com.example.mcatowns.network.TownBlueprintView;
 import com.example.mcatowns.town.TownBuildingDefinition;
 import com.example.mcatowns.town.TownBuildingCategory;
+import com.example.mcatowns.town.BuildingPerformance;
 import com.example.mcatowns.util.TownTextHelper;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.ConfirmScreen;
@@ -535,7 +536,7 @@ public class TownBlueprintScreen extends Screen {
         String line = "Output: " + building.output() + "%";
         if ("farm".equals(building.type())) {
             int base = Math.max(1, building.cropState() / 12);
-            int food = (base * building.output() + 99) / 100;
+            int food = BuildingPerformance.roundOutput(base, building.output());
             line += " (+" + food + " Food/Day)";
         }
         return line;

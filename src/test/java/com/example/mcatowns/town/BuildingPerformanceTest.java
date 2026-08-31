@@ -16,4 +16,10 @@ class BuildingPerformanceTest {
         assertEquals(0, BuildingPerformance.outputFromFactors(-5, -20, -2, -3));
         assertEquals(130, BuildingPerformance.outputFromFactors(50, 500, 500, 500));
     }
+
+    @Test
+    void productionUsesHalfUpRounding() {
+        assertEquals(3, BuildingPerformance.roundOutput(3, 110));
+        assertEquals(4, BuildingPerformance.roundOutput(3, 117));
+    }
 }
