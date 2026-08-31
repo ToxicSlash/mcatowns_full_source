@@ -16,7 +16,7 @@ public final class TownManagerService {
         TownBuildingService.refreshDerivedValues(data);
         TownRequest request = data.getActiveRequest();
         ModNetworking.openTownManager(player, new TownManagerView(
-                data.getTownName(), data.getTownRank(), data.getProsperity(), data.getProsperityFloor(),
+                data.getTownName(), data.getTownRank(), data.getProsperity(), data.getProsperityBase(),
                 data.getTownTokens(), data.getFoodReserves(), data.getFoodCapacity(), data.getPopulation(),
                 data.getPopulationCapacity(), data.getRegisteredBuildingCount(), data.getSpecialistCount(),
                 TownManager.hasMayorAuthority(player, town), TownRemovalHandler.canRemove(player, bellPos),

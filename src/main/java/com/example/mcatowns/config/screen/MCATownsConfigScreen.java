@@ -57,9 +57,9 @@ public final class MCATownsConfigScreen {
 
         ConfigCategory progression = builder.getOrCreateCategory(Text.literal("Town Progression"));
         progression.addEntry(entries.startIntField(Text.literal("Founded Town Starting Prosperity"), draft.foundedTownStartingProsperity)
-                .setDefaultValue(3)
+                .setDefaultValue(10)
                 .setMin(0)
-                .setMax(15)
+                .setMax(30)
                 .setSaveConsumer(v -> draft.foundedTownStartingProsperity = v)
                 .build());
         progression.addEntry(entries.startIntField(Text.literal("Prosperity Decay Per Day"), draft.prosperityDecayPerDay)

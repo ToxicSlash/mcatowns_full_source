@@ -23,6 +23,16 @@ public final class TownResearchService {
         if (!"architect".equals(data.getSpecialists().get(architectId)) || data.isBuildingUnlocked(research.buildingId())) {
             return;
         }
+        String missingInfrastructure = research.infrastructureThresholds().entrySet().stream()
+                .filter(entry -> data.getInfrastructureProvided(entry.getKey()) < entry.getValue())
+                .map(entry -> entry.getKey().displayName() + " " + data.getInfrastructureProvided(entry.getKey())
+                        + "/" + entry.getValue())
+                .findFirst().orElse("");
+        if (!missingInfrastructure.isBlank()) {
+            player.sendMessage(Text.translatable("text.mcatowns.research_infrastructure_missing",
+                    missingInfrastructure), true);
+            return;
+        }
 
         MCATownsConfig config = MCATownsConfig.get();
         Item currency = item(config.currencyItemId);

@@ -36,6 +36,7 @@ public final class VillagerRecruitmentService {
                 && hearts >= MCATownsConfig.get().residentFriendshipHearts
                 && introduced
                 && (specialist == null || data.hasBuilding(specialist.workplace())
+                && (data.getTownRank() != TownRank.UNRANKED || specialist == SpecialistType.ARCHITECT)
                 && data.getSpecialists().size() < data.getTownRank().maxSpecialists()
                 && !data.getSpecialists().containsValue(specialist.id()));
         List<VillagerTownView.ResearchOption> research = employed && specialist == SpecialistType.ARCHITECT
@@ -62,6 +63,7 @@ public final class VillagerRecruitmentService {
         Item currency = currencyItem();
         boolean specialistReady = specialist == null || QuestIntegration.introductionsComplete(player, villagerId)
                 && data.hasBuilding(specialist.workplace())
+                && (data.getTownRank() != TownRank.UNRANKED || specialist == SpecialistType.ARCHITECT)
                 && data.getSpecialists().size() < data.getTownRank().maxSpecialists()
                 && !data.getSpecialists().containsValue(specialist.id());
         if (data.getResidents().contains(villagerId) || data.getResidents().size() >= data.getPopulationCapacity()

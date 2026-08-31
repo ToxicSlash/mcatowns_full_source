@@ -11,7 +11,7 @@ public record TownManagerView(
         String name,
         TownRank rank,
         int prosperity,
-        int prosperityFloor,
+        int prosperityBase,
         int townTokens,
         int food,
         int foodCapacity,
@@ -36,7 +36,7 @@ public record TownManagerView(
         buf.writeString(name, 64);
         buf.writeEnumConstant(rank);
         buf.writeVarInt(prosperity);
-        buf.writeVarInt(prosperityFloor);
+        buf.writeVarInt(prosperityBase);
         buf.writeVarInt(townTokens);
         buf.writeVarInt(food);
         buf.writeVarInt(foodCapacity);

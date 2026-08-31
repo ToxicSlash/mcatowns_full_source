@@ -16,8 +16,48 @@ public record TownBuildingDefinition(
         int prosperityRequired,
         int populationCapacity,
         int foodCapacity,
-        int prosperityFloor
+        int prosperityBase
 ) {
+    public Map<InfrastructureType, Integer> providedInfrastructure() {
+        return switch (id) {
+            case "residence" -> Map.of(InfrastructureType.COMMUNITY, 1);
+            case "farm" -> Map.of(InfrastructureType.AGRICULTURE, 2);
+            case "granary" -> Map.of(InfrastructureType.LOGISTICS, 2);
+            case "campfire" -> Map.of(InfrastructureType.COMMUNITY, 2);
+            case "park" -> Map.of(InfrastructureType.COMMUNITY, 3);
+            case "inn" -> Map.of(InfrastructureType.COMMERCE, 2);
+            case "storehouse" -> Map.of(InfrastructureType.LOGISTICS, 3);
+            case "bounty_board" -> Map.of(InfrastructureType.SECURITY, 1, InfrastructureType.COMMERCE, 1);
+            case "civic_office" -> Map.of(InfrastructureType.COMMUNITY, 4,
+                    InfrastructureType.LOGISTICS, 2, InfrastructureType.COMMERCE, 1);
+            case "guard_post" -> Map.of(InfrastructureType.SECURITY, 3);
+            case "blacksmith" -> Map.of(InfrastructureType.SECURITY, 1, InfrastructureType.COMMERCE, 1);
+            case "jeweler" -> Map.of(InfrastructureType.COMMERCE, 2);
+            case "scholar" -> Map.of(InfrastructureType.COMMUNITY, 1);
+            default -> Map.of();
+        };
+    }
+
+    public Map<InfrastructureType, Integer> reservedInfrastructure() {
+        return switch (id) {
+            case "farm" -> Map.of(InfrastructureType.COMMUNITY, 1);
+            case "granary" -> Map.of(InfrastructureType.AGRICULTURE, 1);
+            case "inn" -> Map.of(InfrastructureType.COMMUNITY, 2, InfrastructureType.LOGISTICS, 1);
+            case "storehouse", "bounty_board" -> Map.of(InfrastructureType.COMMUNITY, 1);
+            case "guard_post" -> Map.of(InfrastructureType.LOGISTICS, 1, InfrastructureType.COMMUNITY, 1);
+            case "blacksmith", "jeweler", "scholar" -> Map.of(InfrastructureType.LOGISTICS, 1);
+            default -> Map.of();
+        };
+    }
+
+    public int workersRequired() {
+        return switch (id) {
+            case "farm", "granary", "storehouse", "civic_office", "blacksmith", "jeweler", "scholar" -> 1;
+            case "inn", "guard_post" -> 2;
+            default -> 0;
+        };
+    }
+
     public static final List<TownBuildingDefinition> ALL = List.of(
             new TownBuildingDefinition("residence", "Residence", TownBuildingCategory.RESIDENTIAL,
                     "+2 population capacity. Requires an MCA-valid enclosed home with a bed.", true, 0, 2, 0, 2, 0, 0),

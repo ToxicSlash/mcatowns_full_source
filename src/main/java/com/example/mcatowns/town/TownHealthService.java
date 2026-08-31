@@ -9,9 +9,9 @@ public final class TownHealthService {
 
     public static void tickDaily(ServerWorld world, TownContext context, TownSavedData data, long day) {
         if (day <= data.getLastProgressionDay()) return;
-        TownBuildingService.refreshDerivedValues(data);
+        TownBuildingService.refreshInspectionState(world, data, day);
 
-        int decayed = Math.max(data.getProsperityFloor(),
+        int decayed = Math.max(data.getProsperityBase(),
                 data.getProsperity() - MCATownsConfig.get().prosperityDecayPerDay);
         data.addProsperity(decayed - data.getProsperity());
 

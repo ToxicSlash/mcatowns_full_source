@@ -21,6 +21,7 @@ import net.minecraft.util.math.BlockPos;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 
 public final class TownBuildingService {
     private static final Identifier BLUEPRINT = new Identifier("mca", "blueprint");
@@ -53,6 +54,11 @@ public final class TownBuildingService {
             player.sendMessage(Text.translatable("text.mcatowns.need_prosperity", definition.prosperityRequired()), true);
             return;
         }
+        if (!canAllocateInfrastructure(data, definition)) {
+            player.sendMessage(Text.translatable("text.mcatowns.infrastructure_missing",
+                    infrastructureShortage(data, definition)), true);
+            return;
+        }
         Identifier currencyId = Identifier.tryParse(MCATownsConfig.get().currencyItemId);
         Item currency = currencyId != null && Registries.ITEM.containsId(currencyId)
                 ? Registries.ITEM.get(currencyId) : Registries.ITEM.get(new Identifier("minecraft", "emerald"));
@@ -74,7 +80,19 @@ public final class TownBuildingService {
             player.sendMessage(Text.translatable("text.mcatowns.invalid_building", definition.displayName()), true);
             return;
         }
-        if (!data.registerBuilding(type, pos)) return;
+        MCAIntegration.BuildingBounds detectedBounds = MCAIntegration.getBuildingBoundsAt(world, pos)
+                .orElseGet(() -> "farm".equals(type)
+                        ? new MCAIntegration.BuildingBounds(pos.add(-8, -3, -8), pos.add(8, 3, 8))
+                        : new MCAIntegration.BuildingBounds(pos, pos));
+        int cropCount = "farm".equals(type)
+                ? countNearby(world, pos, 8, block -> block instanceof net.minecraft.block.CropBlock) : 0;
+        int tier = cropCount >= 48 ? 3 : cropCount >= 24 ? 2 : 1;
+        int cropState = Math.min(100, cropCount * 100 / 48);
+        int quality = "farm".equals(type) ? Math.max(25, cropState) : 50;
+        RegisteredTownBuilding registered = new RegisteredTownBuilding(UUID.randomUUID(), type, tier, pos,
+                detectedBounds.min(), detectedBounds.max(), BuildingStatus.ACTIVE, quality, List.of(),
+                TownManager.getDay(world), cropState);
+        if (!data.registerBuilding(registered)) return;
 
         if (!player.getAbilities().creativeMode) {
             data.spendTownTokens(definition.registrationTokens());
@@ -114,18 +132,72 @@ public final class TownBuildingService {
     }
 
     public static void refreshDerivedValues(TownSavedData data) {
+        refreshInfrastructureStatuses(data);
+        TownWorkforceSystem.refresh(data);
         int populationCapacity = 0;
         int foodCapacity = 0;
         int floor = 0;
         for (RegisteredTownBuilding building : data.getRegisteredBuildings()) {
             TownBuildingDefinition definition = TownBuildingDefinition.get(building.type());
-            if (definition == null) continue;
+            if (definition == null || building.status() == BuildingStatus.INFRASTRUCTURE_BLOCKED) continue;
             populationCapacity += definition.populationCapacity();
             foodCapacity += definition.foodCapacity();
-            floor += definition.prosperityFloor();
+            floor += definition.prosperityBase();
         }
         data.setProgressionCapacities(Math.min(data.getTownRank().maxOccupancy(), populationCapacity), foodCapacity);
-        data.setProsperityFloor(Math.min(data.getTownRank().maxProsperity(), floor));
+        data.setProsperityBase(Math.min(data.getTownRank().maxProsperity(), floor));
+    }
+
+    public static void refreshInspectionState(ServerWorld world, TownSavedData data, long day) {
+        for (RegisteredTownBuilding building : data.getRegisteredBuildings()) {
+            if (!"farm".equals(building.type())) continue;
+            int crops = countNearby(world, building.anchor(), 8,
+                    block -> block instanceof net.minecraft.block.CropBlock);
+            int cropState = Math.min(100, crops * 100 / 48);
+            int tier = crops >= 48 ? 3 : crops >= 24 ? 2 : 1;
+            int quality = Math.max(0, Math.min(100, cropState));
+            RegisteredTownBuilding updated = building.inspected(day, quality, cropState, tier);
+            updated = updated.withStatus(crops < 12 ? BuildingStatus.NEEDS_INSPECTION : BuildingStatus.ACTIVE);
+            data.replaceBuilding(updated);
+        }
+        refreshDerivedValues(data);
+    }
+
+    public static boolean canAllocateInfrastructure(TownSavedData data, TownBuildingDefinition candidate) {
+        for (InfrastructureType type : InfrastructureType.values()) {
+            int provided = data.getInfrastructureProvided(type)
+                    + candidate.providedInfrastructure().getOrDefault(type, 0);
+            int reserved = data.getInfrastructureReserved(type)
+                    + candidate.reservedInfrastructure().getOrDefault(type, 0);
+            if (reserved > provided) return false;
+        }
+        return true;
+    }
+
+    private static String infrastructureShortage(TownSavedData data, TownBuildingDefinition candidate) {
+        return java.util.Arrays.stream(InfrastructureType.values())
+                .filter(type -> data.getInfrastructureReserved(type)
+                        + candidate.reservedInfrastructure().getOrDefault(type, 0)
+                        > data.getInfrastructureProvided(type)
+                        + candidate.providedInfrastructure().getOrDefault(type, 0))
+                .map(InfrastructureType::displayName)
+                .findFirst().orElse("Infrastructure");
+    }
+
+    private static void refreshInfrastructureStatuses(TownSavedData data) {
+        Set<InfrastructureType> shortages = java.util.Arrays.stream(InfrastructureType.values())
+                .filter(type -> data.getInfrastructureReserved(type) > data.getInfrastructureProvided(type))
+                .collect(java.util.stream.Collectors.toSet());
+        for (RegisteredTownBuilding building : data.getRegisteredBuildings()) {
+            TownBuildingDefinition definition = TownBuildingDefinition.get(building.type());
+            if (definition == null) continue;
+            boolean blocked = definition.reservedInfrastructure().keySet().stream().anyMatch(shortages::contains);
+            if (blocked && building.status() != BuildingStatus.INFRASTRUCTURE_BLOCKED) {
+                data.replaceBuilding(building.withStatus(BuildingStatus.INFRASTRUCTURE_BLOCKED));
+            } else if (!blocked && building.status() == BuildingStatus.INFRASTRUCTURE_BLOCKED) {
+                data.replaceBuilding(building.withStatus(BuildingStatus.ACTIVE));
+            }
+        }
     }
 
     public static void unregisterNearest(ServerPlayerEntity player) {

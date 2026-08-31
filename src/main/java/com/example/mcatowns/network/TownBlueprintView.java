@@ -15,6 +15,8 @@ public record TownBlueprintView(
         String playerRank,
         TownRank rank,
         int prosperity,
+        int prosperityBase,
+        String infrastructureSummary,
         int happiness,
         int population,
         int populationCapacity,
@@ -46,6 +48,8 @@ public record TownBlueprintView(
         buf.writeString(playerRank, 32);
         buf.writeEnumConstant(rank);
         buf.writeVarInt(prosperity);
+        buf.writeVarInt(prosperityBase);
+        buf.writeString(infrastructureSummary, 256);
         buf.writeVarInt(happiness);
         buf.writeVarInt(population);
         buf.writeVarInt(populationCapacity);
@@ -79,6 +83,8 @@ public record TownBlueprintView(
                 buf.readString(32),
                 buf.readEnumConstant(TownRank.class),
                 buf.readVarInt(),
+                buf.readVarInt(),
+                buf.readString(256),
                 buf.readVarInt(),
                 buf.readVarInt(),
                 buf.readVarInt(),
@@ -166,18 +172,28 @@ public record TownBlueprintView(
         }
     }
 
-    public record BuildingEntry(String type, String name, BlockPos pos, String icon, BlockPos minPos, BlockPos maxPos) {
+    public record BuildingEntry(UUID id, String type, String name, BlockPos pos, String icon,
+                                BlockPos minPos, BlockPos maxPos, int tier, String status,
+                                int quality, int workerCount, int cropState) {
         void write(PacketByteBuf buf) {
+            buf.writeUuid(id);
             buf.writeString(type, 64);
             buf.writeString(name, 64);
             buf.writeBlockPos(pos);
             buf.writeString(icon, 64);
             buf.writeBlockPos(minPos);
             buf.writeBlockPos(maxPos);
+            buf.writeVarInt(tier);
+            buf.writeString(status, 32);
+            buf.writeVarInt(quality);
+            buf.writeVarInt(workerCount);
+            buf.writeVarInt(cropState);
         }
 
         static BuildingEntry read(PacketByteBuf buf) {
-            return new BuildingEntry(buf.readString(64), buf.readString(64), buf.readBlockPos(), buf.readString(64), buf.readBlockPos(), buf.readBlockPos());
+            return new BuildingEntry(buf.readUuid(), buf.readString(64), buf.readString(64), buf.readBlockPos(),
+                    buf.readString(64), buf.readBlockPos(), buf.readBlockPos(), buf.readVarInt(),
+                    buf.readString(32), buf.readVarInt(), buf.readVarInt(), buf.readVarInt());
         }
     }
 }

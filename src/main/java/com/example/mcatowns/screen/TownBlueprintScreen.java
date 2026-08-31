@@ -295,7 +295,8 @@ public class TownBlueprintScreen extends Screen {
 
     private void drawEstablished(DrawContext context, int left, int top) {
         context.drawTextWithShadow(textRenderer, Text.literal(view.name()).styled(style -> style.withBold(true)), left + 28, top + 8, 0xFFFFFF);
-        context.drawTextWithShadow(textRenderer, Text.literal("Prosperity " + view.prosperity() + "/" + view.rank().maxProsperity()), left + 10, top + 19, 0xFFE080);
+        context.drawTextWithShadow(textRenderer, Text.literal("Prosperity " + view.prosperity() + "/" + view.rank().maxProsperity()
+                + "  Base " + view.prosperityBase()), left + 10, top + 19, 0xFFE080);
         context.drawTextWithShadow(textRenderer, Text.literal("Food " + view.food() + "/" + view.foodCapacity()), left + 110, top + 8, 0xFFFFFF);
         context.drawTextWithShadow(textRenderer, Text.literal("Population " + view.population() + "/" + view.populationCapacity()), left + 166, top + 8, 0xFFFFFF);
         context.drawTextWithShadow(textRenderer, Text.literal("Specialists " + view.specialists() + "/" + view.rank().maxSpecialists()), left + 244, top + 8, 0xFFFFFF);
@@ -314,9 +315,10 @@ public class TownBlueprintScreen extends Screen {
         context.drawTextWithShadow(textRenderer, Text.literal("Player Rank: " + view.playerRank()), left + 18, top + 48, 0xFFFFFF);
         context.drawTextWithShadow(textRenderer,
                 Text.literal("Tier: " + view.rank().displayName() + " > " + nextTier), left + 18, top + 64, 0xFFE080);
+        context.drawTextWithShadow(textRenderer, Text.literal(view.infrastructureSummary()), left + 18, top + 76, 0xB8D8FF);
         for (int i = 0; i < Math.min(8, view.rankChecklist().size()); i++) {
             String line = view.rankChecklist().get(i);
-            context.drawTextWithShadow(textRenderer, Text.literal(line), left + 18, top + 84 + i * 13,
+            context.drawTextWithShadow(textRenderer, Text.literal(line), left + 18, top + 92 + i * 13,
                     line.startsWith("✓") || line.startsWith("âœ“") ? 0x80D080 : 0xE08080);
         }
     }
@@ -382,8 +384,15 @@ public class TownBlueprintScreen extends Screen {
         context.drawCenteredTextWithShadow(textRenderer, Text.literal("Player " + posText(view.playerPos())), mapX + size / 2, mapY + size + 15, 0x40A0FF);
         context.drawTextWithShadow(textRenderer, Text.literal("Buildings: " + view.registeredBuildings().size()), left + 190, top + 90, 0xFFFFFF);
         context.drawTextWithShadow(textRenderer, Text.literal("Detected: " + view.detectedBuildings().size()), left + 190, top + 104, 0xE0C060);
+        for (int i = 0; i < Math.min(4, view.registeredBuildings().size()); i++) {
+            TownBlueprintView.BuildingEntry building = view.registeredBuildings().get(i);
+            String detail = building.name() + " T" + building.tier() + " " + titleCase(building.status())
+                    + " " + building.workerCount() + "w Q" + building.quality();
+            context.drawTextWithShadow(textRenderer, Text.literal(detail), left + 190, top + 120 + i * 13,
+                    "ACTIVE".equals(building.status()) ? 0x80D080 : 0xE0A060);
+        }
         if (advancedControls) {
-            drawWrapped(context, "Advanced controls reuse existing refresh and tier progression, plus direct building unregister for nearby registered buildings.", left + 190, top + 124, 150, 3, 0xCCCCCC);
+            drawWrapped(context, "Advanced controls include direct unregister for nearby buildings.", left + 190, top + 178, 150, 2, 0xCCCCCC);
         }
     }
 

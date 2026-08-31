@@ -269,7 +269,8 @@ public abstract class BlueprintScreenMixin extends Screen {
         context.fill(x - 4, y - 4, x + 142, y + 52, 0xCC252525);
         context.drawTextWithShadow(textRenderer, Text.literal(view.name()), x, y, 0xFFFFFF);
         context.drawTextWithShadow(textRenderer,
-                Text.literal(view.rank().displayName() + "  Prosperity " + view.prosperity() + "/" + view.rank().maxProsperity()),
+                Text.literal(view.rank().displayName() + "  Prosperity " + view.prosperity() + "/" + view.rank().maxProsperity()
+                        + "  Base " + view.prosperityBase()),
                 x, y + 12, 0xFFE080);
         context.drawTextWithShadow(textRenderer, Text.literal("Food " + view.food() + "/" + view.foodCapacity()),
                 x, y + 24, 0xFFFFFF);

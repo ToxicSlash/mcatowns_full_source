@@ -167,6 +167,6 @@ public class TownManagerScreen extends Screen {
         if (filled > 0) context.fill(x + 1, y + 1, x + filled, y + 12, 0xFF6FAF4B);
         context.drawCenteredTextWithShadow(textRenderer,
                 Text.translatable("screen.mcatowns.town_manager.prosperity",
-                        view.prosperity(), max, view.prosperityFloor()), width / 2, y + 2, 0xFFFFFF);
+                        view.prosperity(), max, view.prosperityBase()), width / 2, y + 2, 0xFFFFFF);
     }
 }

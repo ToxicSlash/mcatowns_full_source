@@ -1,6 +1,7 @@
 package com.example.mcatowns.config;
 
 import com.example.mcatowns.MCATowns;
+import com.example.mcatowns.town.TownRank;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonParseException;
@@ -38,7 +39,7 @@ public class MCATownsConfig {
     public int raidUnrestCooldownTicks = 1200;
     public int deathHappinessPenalty = 6;
     public int mcaTaxContributionPercent = 100;
-    public int foundedTownStartingProsperity = 3;
+    public int foundedTownStartingProsperity = 10;
     public int prosperityDecayPerDay = 1;
     public String currencyItemId = "minecraft:emerald";
     public String greatEssenceItemId = "";
@@ -125,7 +126,7 @@ public class MCATownsConfig {
         raidUnrestCooldownTicks = clamp(raidUnrestCooldownTicks, 20, 72000);
         deathHappinessPenalty = clamp(deathHappinessPenalty, 0, 100);
         mcaTaxContributionPercent = clamp(mcaTaxContributionPercent, 0, 300);
-        foundedTownStartingProsperity = clamp(foundedTownStartingProsperity, 0, 15);
+        foundedTownStartingProsperity = clamp(foundedTownStartingProsperity, 0, TownRank.UNRANKED.maxProsperity());
         prosperityDecayPerDay = clamp(prosperityDecayPerDay, 0, 100);
         residentFriendshipHearts = clamp(residentFriendshipHearts, 0, 1000);
         residentRecruitmentCost = clamp(residentRecruitmentCost, 0, 1024);

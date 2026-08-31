@@ -110,7 +110,9 @@ public final class BlueprintTownCreationHandler {
         int scraps = InventoryHelper.count(player.getInventory(), ModItems.BLUEPRINT_SCRAP);
         if (town == null) {
             ModNetworking.openTownBlueprint(player, new TownBlueprintView(
-                    true, "New Camp", "Founder", TownRank.CAMP, 0, 50, 0, 0, 0, 0, 0, 0, 1, true, false,
+                    true, "New Settlement", "Founder", TownRank.UNRANKED,
+                    com.example.mcatowns.config.MCATownsConfig.get().foundedTownStartingProsperity,
+                    0, "No infrastructure", 50, 1, 0, 0, 0, 0, 0, 1, true, false,
                     BlockPos.ORIGIN, BlockPos.ORIGIN, player.getBlockPos(),
                     player.getAbilities().creativeMode || crown != null && InventoryHelper.count(player.getInventory(), crown) > 0,
                     player.getAbilities().creativeMode ? FOUNDING_SCRAP_COST : scraps,
@@ -126,7 +128,8 @@ public final class BlueprintTownCreationHandler {
                 : TownManager.hasMayorAuthority(player, town));
         if (data.getTownCenter().equals(BlockPos.ORIGIN)) data.setTownCenter(town.center());
         ModNetworking.openTownBlueprint(player, new TownBlueprintView(
-                false, data.getTownName(), playerRank(player, town), data.getTownRank(), data.getProsperity(), data.getHappiness(), data.getPopulation(),
+                false, data.getTownName(), playerRank(player, town), data.getTownRank(), data.getProsperity(),
+                data.getProsperityBase(), infrastructureSummary(data), data.getHappiness(), data.getPopulation(),
                 data.getPopulationCapacity(), data.getFoodReserves(), data.getFoodCapacity(),
                 data.getRegisteredBuildingCount(), data.getSpecialistCount(), data.getTaxRate(),
                 canManage, TownRemovalHandler.canRemove(player, town.anchor()),
@@ -150,14 +153,29 @@ public final class BlueprintTownCreationHandler {
                 data.getRegisteredBuildings().stream().map(building -> {
                     TownBuildingDefinition definition = TownBuildingDefinition.get(building.type());
                     String name = definition == null ? building.type() : definition.displayName();
-                    return buildingEntry(player.getServerWorld(), building.type(), name, building.pos(), "");
+                    return buildingEntry(building, name, "");
                 }).toList()));
     }
 
     private static TownBlueprintView.BuildingEntry buildingEntry(ServerWorld world, String type, String name, BlockPos pos, String icon) {
         MCAIntegration.BuildingBounds bounds = MCAIntegration.getBuildingBoundsAt(world, pos)
                 .orElse(new MCAIntegration.BuildingBounds(pos, pos));
-        return new TownBlueprintView.BuildingEntry(type, name, pos, icon, bounds.min(), bounds.max());
+        return new TownBlueprintView.BuildingEntry(new java.util.UUID(0L, 0L), type, name, pos, icon,
+                bounds.min(), bounds.max(), 1, "DETECTED", 0, 0, 0);
+    }
+
+    private static TownBlueprintView.BuildingEntry buildingEntry(com.example.mcatowns.town.RegisteredTownBuilding building,
+                                                                  String name, String icon) {
+        return new TownBlueprintView.BuildingEntry(building.id(), building.type(), name, building.anchor(), icon,
+                building.minPos(), building.maxPos(), building.tier(), building.status().name(), building.quality(),
+                building.workers().size(), building.cropState());
+    }
+
+    private static String infrastructureSummary(TownSavedData data) {
+        return java.util.Arrays.stream(com.example.mcatowns.town.InfrastructureType.values())
+                .map(type -> type.displayName().substring(0, 3) + " " + data.getInfrastructureAvailable(type)
+                        + "/" + data.getInfrastructureProvided(type))
+                .collect(java.util.stream.Collectors.joining("  "));
     }
 
     private static String playerRank(ServerPlayerEntity player, TownContext town) {

@@ -91,6 +91,8 @@
   "text.mcatowns.outside_town_boundary": "You must be within your town boundary.",
   "text.mcatowns.building_locked": "Research this building before registering it.",
   "text.mcatowns.need_prosperity": "This action requires at least %s Prosperity.",
+  "text.mcatowns.infrastructure_missing": "This building needs more available %s infrastructure.",
+  "text.mcatowns.research_infrastructure_missing": "Research threshold not met: %s.",
   "text.mcatowns.registration_cost_missing": "Registration requires %s Town Tokens and %s Emeralds.",
   "text.mcatowns.invalid_building": "The structure does not meet the validation rules for %s.",
   "text.mcatowns.food_contributed": "Contributed %s Town Food.",

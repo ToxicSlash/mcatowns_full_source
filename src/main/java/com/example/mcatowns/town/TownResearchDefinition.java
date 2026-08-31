@@ -13,6 +13,19 @@ public record TownResearchDefinition(
         int currency,
         int townTokens
 ) {
+    public Map<InfrastructureType, Integer> infrastructureThresholds() {
+        return switch (id) {
+            case "granary" -> Map.of(InfrastructureType.AGRICULTURE, 2, InfrastructureType.LOGISTICS, 2);
+            case "park" -> Map.of(InfrastructureType.COMMUNITY, 3);
+            case "inn" -> Map.of(InfrastructureType.COMMUNITY, 4, InfrastructureType.LOGISTICS, 2);
+            case "guard_post" -> Map.of(InfrastructureType.SECURITY, 2, InfrastructureType.LOGISTICS, 2);
+            case "blacksmith" -> Map.of(InfrastructureType.SECURITY, 1, InfrastructureType.LOGISTICS, 2);
+            case "jeweler" -> Map.of(InfrastructureType.COMMERCE, 2, InfrastructureType.LOGISTICS, 2);
+            case "scholar" -> Map.of(InfrastructureType.COMMUNITY, 4, InfrastructureType.LOGISTICS, 2);
+            default -> Map.of();
+        };
+    }
+
     public static final List<TownResearchDefinition> ALL = List.of(
             new TownResearchDefinition("granary", "granary", 3, 1, 8, 3),
             new TownResearchDefinition("park", "park", 3, 1, 10, 3),

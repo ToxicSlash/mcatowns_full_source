@@ -71,7 +71,7 @@ public class PlayerTownRegistry extends PersistentState {
         towns.add(entry);
 
         TownSavedData data = TownSavedData.get(world, townId);
-        data.setPopulation(0);
+        data.setPopulation(1);
         data.setJobless(0);
         data.setFoodReserves(0);
         data.setWeeklyTaxIncome(0);

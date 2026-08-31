@@ -1,40 +1,75 @@
 package com.example.mcatowns.town;
 
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+
+/** Assigns actual recruited residents to registered buildings and derives the legacy summary fields. */
 public final class TownWorkforceSystem {
-    private static final int FARM_WORKERS = 1;
-    private static final int MARKET_WORKERS = 2;
-    private static final int BARRACKS_WORKERS = 2;
-    private static final int QUARRY_WORKERS = 3;
-    private static final int WORKSHOP_WORKERS = 2;
-    private static final int MIN_EFFICIENCY_IF_UNDERSTAFFED = 25;
+    private TownWorkforceSystem() { }
 
-    private TownWorkforceSystem() {
-    }
+    public static void refresh(TownSavedData data) {
+        Set<UUID> assigned = new LinkedHashSet<>();
+        List<UUID> generalResidents = data.getResidents().stream()
+                .filter(id -> !data.getSpecialists().containsKey(id))
+                .sorted(Comparator.comparing(UUID::toString))
+                .toList();
+        int requiredTotal = 0;
+        int assignedTotal = 0;
 
-    public static void refresh(TownSavedData data, TownBuildingSnapshot snapshot) {
-        int effectivePopulation = Math.max(0, data.getPopulation() + data.getRefugeePopulationBonus() + data.getCaravanPopulationBonus());
-        int available = Math.max(0, effectivePopulation - data.getJobless());
-        int required = snapshot.farms() * FARM_WORKERS
-                + snapshot.markets() * MARKET_WORKERS
-                + snapshot.tradingPosts() * MARKET_WORKERS
-                + Math.max(snapshot.armories(), data.getDetectedBarracksBuildings()) * BARRACKS_WORKERS
-                + snapshot.quarries() * QUARRY_WORKERS
-                + snapshot.workshops() * WORKSHOP_WORKERS;
+        for (RegisteredTownBuilding building : data.getRegisteredBuildings()) {
+            TownBuildingDefinition definition = TownBuildingDefinition.get(building.type());
+            if (definition == null) continue;
+            int required = definition.workersRequired();
+            requiredTotal += required;
 
-        int efficiency;
-        if (required <= 0) {
-            efficiency = 100;
-        } else {
-            efficiency = available * 100 / required;
-            if (efficiency < 100) {
-                efficiency = Math.max(MIN_EFFICIENCY_IF_UNDERSTAFFED, efficiency);
-            } else {
-                efficiency = 100;
+            if (building.status() == BuildingStatus.INFRASTRUCTURE_BLOCKED
+                    || building.status() == BuildingStatus.NEEDS_INSPECTION) {
+                data.replaceBuilding(building.withWorkers(List.of(), building.status()));
+                continue;
             }
+
+            List<UUID> workers = new ArrayList<>();
+            findRequiredSpecialist(building.type(), data.getSpecialists()).ifPresent(id -> {
+                if (assigned.add(id)) workers.add(id);
+            });
+            for (UUID resident : generalResidents) {
+                if (workers.size() >= required) break;
+                if (assigned.add(resident)) workers.add(resident);
+            }
+
+            assignedTotal += workers.size();
+            BuildingStatus status = workers.size() >= required ? BuildingStatus.ACTIVE : BuildingStatus.UNDERSTAFFED;
+            data.replaceBuilding(building.withWorkers(workers, status));
         }
 
-        data.setWorkforceAvailable(available);
-        data.setWorkforceRequired(required);
+        int effectivePopulation = Math.max(data.getPopulation(), data.getResidents().size())
+                + data.getRefugeePopulationBonus() + data.getCaravanPopulationBonus();
+        int efficiency = requiredTotal <= 0 ? 100 : Math.min(100, assignedTotal * 100 / requiredTotal);
+        data.setWorkforceAvailable(Math.max(0, effectivePopulation - assignedTotal));
+        data.setWorkforceRequired(requiredTotal);
         data.setWorkforceEfficiencyPercent(efficiency);
+    }
+
+    /** Compatibility entry point for old detected-building callers. */
+    public static void refresh(TownSavedData data, TownBuildingSnapshot ignored) {
+        refresh(data);
+    }
+
+    private static java.util.Optional<UUID> findRequiredSpecialist(String buildingType, Map<UUID, String> specialists) {
+        return specialists.entrySet().stream()
+                .filter(entry -> {
+                    try {
+                        return SpecialistType.valueOf(entry.getValue().toUpperCase(java.util.Locale.ROOT)).workplace().equals(buildingType);
+                    } catch (IllegalArgumentException ignored) {
+                        return false;
+                    }
+                })
+                .map(Map.Entry::getKey)
+                .findFirst();
     }
 }

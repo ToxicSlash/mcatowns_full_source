@@ -3,7 +3,7 @@ package com.example.mcatowns.town;
 import java.util.Locale;
 
 public enum TownRank {
-    UNRANKED("Unranked Settlement", 15, 4, 8, 1, 0, 0, 0),
+    UNRANKED("Unranked Settlement", 30, 4, 8, 1, 0, 0, 0),
     CAMP("Camp", 30, 8, 10, 1, 10, 6, 0),
     HAMLET("Hamlet", 50, 12, 16, 2, 25, 8, 4),
     VILLAGE("Village", 80, 24, 24, 3, 45, 12, 8),
@@ -43,7 +43,7 @@ public enum TownRank {
     public static TownRank fromName(String name) {
         if (name != null) {
             return switch (name.toUpperCase(Locale.ROOT)) {
-                case "UNRANKED" -> CAMP;
+                case "UNRANKED" -> UNRANKED;
                 case "SETTLEMENT" -> TOWNSHIP;
                 case "STRONGHOLD", "CITY" -> TOWN;
                 default -> parseCurrentName(name);

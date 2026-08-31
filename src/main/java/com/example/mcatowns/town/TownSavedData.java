@@ -71,12 +71,12 @@ public class TownSavedData extends PersistentState {
     private BlockPos townCenter = BlockPos.ORIGIN;
     private TownRank townRank = TownRank.UNRANKED;
     private int prosperity = 0;
-    private int prosperityFloor = 0;
+    private int prosperityBase = 0;
     private int townTokens = 0;
     private int specialistCount = 0;
     private int populationCapacity = 0;
     private int foodCapacity = 0;
-    private final Map<Long, String> registeredBuildings = new LinkedHashMap<>();
+    private final Map<Long, RegisteredTownBuilding> registeredBuildings = new LinkedHashMap<>();
     private final Set<String> researchUnlocks = new HashSet<>();
     private final Set<UUID> residents = new HashSet<>();
     private final Map<UUID, String> specialists = new HashMap<>();
@@ -166,17 +166,37 @@ public class TownSavedData extends PersistentState {
         // Saves made before progression ranks existed started at Camp.
         data.townRank = nbt.contains("TownRank") ? TownRank.fromName(nbt.getString("TownRank")) : TownRank.CAMP;
         data.prosperity = Math.max(0, Math.min(data.townRank.maxProsperity(), nbt.getInt("Prosperity")));
-        data.prosperityFloor = Math.max(0, Math.min(data.townRank.maxProsperity(), nbt.getInt("ProsperityFloor")));
+        int savedProsperityBase = nbt.contains("ProsperityBase")
+                ? nbt.getInt("ProsperityBase") : nbt.getInt("ProsperityFloor");
+        data.prosperityBase = Math.max(0, Math.min(data.townRank.maxProsperity(), savedProsperityBase));
         data.townTokens = Math.max(0, nbt.getInt("TownTokens"));
         data.specialistCount = Math.max(0, nbt.getInt("SpecialistCount"));
         for (long position : nbt.getLongArray("RegisteredBuildings")) {
-            data.registeredBuildings.put(position, "legacy");
+            data.registeredBuildings.put(position, RegisteredTownBuilding.legacy("legacy", BlockPos.fromLong(position)));
         }
         NbtList buildings = nbt.getList("TypedBuildings", NbtElement.COMPOUND_TYPE);
         for (int i = 0; i < buildings.size(); i++) {
             NbtCompound building = buildings.getCompound(i);
             String type = building.getString("Type");
-            if (!type.isBlank()) data.registeredBuildings.put(building.getLong("Pos"), type);
+            if (!type.isBlank()) {
+                BlockPos anchor = BlockPos.fromLong(building.getLong("Pos"));
+                UUID id = building.containsUuid("Id") ? building.getUuid("Id") : UUID.randomUUID();
+                int tier = building.contains("Tier") ? building.getInt("Tier") : 1;
+                BlockPos min = building.contains("MinPos") ? BlockPos.fromLong(building.getLong("MinPos")) : anchor;
+                BlockPos max = building.contains("MaxPos") ? BlockPos.fromLong(building.getLong("MaxPos")) : anchor;
+                BuildingStatus status = BuildingStatus.fromName(building.getString("Status"));
+                int quality = building.contains("Quality") ? building.getInt("Quality") : 50;
+                List<UUID> workers = new ArrayList<>();
+                NbtList workerList = building.getList("Workers", NbtElement.COMPOUND_TYPE);
+                for (int workerIndex = 0; workerIndex < workerList.size(); workerIndex++) {
+                    NbtCompound worker = workerList.getCompound(workerIndex);
+                    if (worker.containsUuid("Id")) workers.add(worker.getUuid("Id"));
+                }
+                long inspected = building.contains("LastInspectionDay") ? building.getLong("LastInspectionDay") : -1L;
+                int cropState = building.getInt("CropState");
+                data.registeredBuildings.put(anchor.asLong(), new RegisteredTownBuilding(id, type, tier, anchor,
+                        min, max, status, quality, workers, inspected, cropState));
+            }
         }
         for (String unlock : nbt.getList("ResearchUnlocks", NbtElement.STRING_TYPE).stream()
                 .map(NbtElement::asString).toList()) {
@@ -293,15 +313,24 @@ public class TownSavedData extends PersistentState {
         nbt.putLong("TownCenter", townCenter.asLong());
         nbt.putString("TownRank", townRank.name());
         nbt.putInt("Prosperity", prosperity);
-        nbt.putInt("ProsperityFloor", prosperityFloor);
+        nbt.putInt("ProsperityBase", prosperityBase);
         nbt.putInt("TownTokens", townTokens);
         nbt.putInt("SpecialistCount", specialistCount);
         nbt.putLongArray("RegisteredBuildings", registeredBuildings.keySet().stream().mapToLong(Long::longValue).toArray());
         NbtList buildings = new NbtList();
-        registeredBuildings.forEach((pos, type) -> {
+        registeredBuildings.forEach((pos, registered) -> {
             NbtCompound building = new NbtCompound();
             building.putLong("Pos", pos);
-            building.putString("Type", type);
+            building.putUuid("Id", registered.id());
+            building.putString("Type", registered.type());
+            building.putInt("Tier", registered.tier());
+            building.putLong("MinPos", registered.minPos().asLong());
+            building.putLong("MaxPos", registered.maxPos().asLong());
+            building.putString("Status", registered.status().name());
+            building.putInt("Quality", registered.quality());
+            building.put("Workers", writeUuids(registered.workers()));
+            building.putLong("LastInspectionDay", registered.lastInspectionDay());
+            building.putInt("CropState", registered.cropState());
             buildings.add(building);
         });
         nbt.put("TypedBuildings", buildings);
@@ -570,7 +599,7 @@ public class TownSavedData extends PersistentState {
     public String getTownName() { return townName; }
     public BlockPos getTownCenter() { return townCenter; }
     public int getProsperity() { return prosperity; }
-    public int getProsperityFloor() { return prosperityFloor; }
+    public int getProsperityBase() { return prosperityBase; }
     public int getTownTokens() { return townTokens; }
     public int getSpecialistCount() { return specialistCount; }
     public int getRegisteredBuildingCount() { return registeredBuildings.size(); }
@@ -584,13 +613,11 @@ public class TownSavedData extends PersistentState {
     public Set<UUID> getResidents() { return Collections.unmodifiableSet(residents); }
     public Map<UUID, String> getSpecialists() { return Collections.unmodifiableMap(specialists); }
     public List<RegisteredTownBuilding> getRegisteredBuildings() {
-        return registeredBuildings.entrySet().stream()
-                .map(entry -> new RegisteredTownBuilding(entry.getValue(), BlockPos.fromLong(entry.getKey())))
-                .toList();
+        return List.copyOf(registeredBuildings.values());
     }
 
     public int countBuildings(String type) {
-        return (int) registeredBuildings.values().stream().filter(type::equals).count();
+        return (int) registeredBuildings.values().stream().filter(building -> type.equals(building.type())).count();
     }
 
     public boolean hasBuilding(String type) { return countBuildings(type) > 0; }
@@ -658,6 +685,7 @@ public class TownSavedData extends PersistentState {
 
     public boolean addSpecialist(UUID id, String type) {
         if (id == null || type == null || type.isBlank() || specialists.containsValue(type)
+                || townRank == TownRank.UNRANKED && !"architect".equals(type)
                 || specialists.size() >= townRank.maxSpecialists()) return false;
         specialists.put(id, type);
         specialistCount = specialists.size();
@@ -669,6 +697,15 @@ public class TownSavedData extends PersistentState {
     public void removeResident(UUID id) {
         boolean changed = residents.remove(id);
         changed |= specialists.remove(id) != null;
+        for (Map.Entry<Long, RegisteredTownBuilding> entry : registeredBuildings.entrySet()) {
+            RegisteredTownBuilding building = entry.getValue();
+            if (building.workers().contains(id)) {
+                List<UUID> workers = new ArrayList<>(building.workers());
+                workers.remove(id);
+                entry.setValue(building.withWorkers(workers, BuildingStatus.UNDERSTAFFED));
+                changed = true;
+            }
+        }
         if (changed) {
             specialistCount = specialists.size();
             population = residents.size();
@@ -684,10 +721,10 @@ public class TownSavedData extends PersistentState {
         }
     }
 
-    public void setProsperityFloor(int prosperityFloor) {
-        int value = Math.max(0, Math.min(townRank.maxProsperity(), prosperityFloor));
-        if (value != this.prosperityFloor) {
-            this.prosperityFloor = value;
+    public void setProsperityBase(int prosperityBase) {
+        int value = Math.max(0, Math.min(townRank.maxProsperity(), prosperityBase));
+        if (value != this.prosperityBase) {
+            this.prosperityBase = value;
             markDirty();
         }
     }
@@ -734,9 +771,9 @@ public class TownSavedData extends PersistentState {
     }
 
     public void initializeFoundedTown(int startingProsperity) {
-        townRank = TownRank.CAMP;
+        townRank = TownRank.UNRANKED;
         prosperity = Math.max(0, Math.min(townRank.maxProsperity(), startingProsperity));
-        prosperityFloor = 0;
+        prosperityBase = 0;
         townTokens = 0;
         specialistCount = 0;
         registeredBuildings.clear();
@@ -771,13 +808,26 @@ public class TownSavedData extends PersistentState {
     }
 
     public boolean registerBuilding(String type, BlockPos pos) {
+        return registerBuilding(RegisteredTownBuilding.legacy(type, pos));
+    }
+
+    public boolean registerBuilding(RegisteredTownBuilding building) {
+        String type = building == null ? "" : building.type();
+        BlockPos pos = building == null ? null : building.anchor();
         if (TownBuildingDefinition.get(type) == null || pos == null || registeredBuildings.containsKey(pos.asLong())) {
             return false;
         }
         if (registeredBuildings.size() >= townRank.maxBuildings()) {
             return false;
         }
-        registeredBuildings.put(pos.asLong(), type);
+        registeredBuildings.put(pos.asLong(), building);
+        markDirty();
+        return true;
+    }
+
+    public boolean replaceBuilding(RegisteredTownBuilding building) {
+        if (building == null || !registeredBuildings.containsKey(building.anchor().asLong())) return false;
+        registeredBuildings.put(building.anchor().asLong(), building);
         markDirty();
         return true;
     }
@@ -786,6 +836,30 @@ public class TownSavedData extends PersistentState {
         boolean removed = registeredBuildings.remove(pos.asLong()) != null;
         if (removed) markDirty();
         return removed;
+    }
+
+    public int getInfrastructureProvided(InfrastructureType type) {
+        return registeredBuildings.values().stream()
+                .map(TownSavedData::definition)
+                .filter(Objects::nonNull)
+                .mapToInt(definition -> definition.providedInfrastructure().getOrDefault(type, 0))
+                .sum();
+    }
+
+    public int getInfrastructureReserved(InfrastructureType type) {
+        return registeredBuildings.values().stream()
+                .map(TownSavedData::definition)
+                .filter(Objects::nonNull)
+                .mapToInt(definition -> definition.reservedInfrastructure().getOrDefault(type, 0))
+                .sum();
+    }
+
+    public int getInfrastructureAvailable(InfrastructureType type) {
+        return Math.max(0, getInfrastructureProvided(type) - getInfrastructureReserved(type));
+    }
+
+    private static TownBuildingDefinition definition(RegisteredTownBuilding building) {
+        return TownBuildingDefinition.get(building.type());
     }
 
     public int getMcaNormalTaxIncome() { return mcaNormalTaxIncome; }
