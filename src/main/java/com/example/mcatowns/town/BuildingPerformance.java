@@ -10,7 +10,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.Collection;
 
-/** Shared, deliberately small quality/output calculation used by every town production system. */
+/** Shared, deliberately small output calculation used by every town production system. */
 public final class BuildingPerformance {
     private static final int FURNITURE_RADIUS = 4;
     private static final int SYNERGY_RADIUS_SQUARED = 32 * 32;
@@ -31,7 +31,7 @@ public final class BuildingPerformance {
 
     private BuildingPerformance() { }
 
-    public static int calculateQuality(ServerWorld world, TownSavedData data, RegisteredTownBuilding building) {
+    public static int calculateOutput(ServerWorld world, TownSavedData data, RegisteredTownBuilding building) {
         TownBuildingDefinition definition = TownBuildingDefinition.get(building.type());
         if (definition == null) return 0;
         int requiredWorkers = definition.workersRequired();
@@ -39,15 +39,16 @@ public final class BuildingPerformance {
                 : Math.min(100, building.workers().size() * 100 / requiredWorkers);
         int furniture = countFurniture(world, building.anchor());
         int synergies = countSynergies(data.getRegisteredBuildings(), building);
-        return qualityFromFactors(building.tier(), staffingPercent, furniture, synergies);
+        return outputFromFactors(building.tier(), staffingPercent, furniture, synergies);
     }
 
-    public static int qualityFromFactors(int tier, int staffingPercent, int furnitureCount, int synergyCount) {
-        int tierScore = Math.max(1, Math.min(3, tier)) * 12;
-        int workerScore = Math.max(0, Math.min(100, staffingPercent)) * 24 / 100;
-        int furnitureScore = Math.min(20, Math.max(0, furnitureCount) * 4);
-        int synergyScore = Math.min(20, Math.max(0, synergyCount) * 10);
-        return Math.min(100, tierScore + workerScore + furnitureScore + synergyScore);
+    public static int outputFromFactors(int tier, int staffingPercent, int furnitureCount, int synergyCount) {
+        int staffing = Math.max(0, Math.min(100, staffingPercent));
+        if (staffing == 0) return 0;
+        int bonuses = Math.max(0, Math.min(2, tier - 1)) * 5
+                + Math.min(10, Math.max(0, furnitureCount) * 2)
+                + Math.min(10, Math.max(0, synergyCount) * 5);
+        return Math.min(150, staffing + bonuses * staffing / 100);
     }
 
     public static int outputPercent(TownSavedData data, RegisteredTownBuilding building) {
@@ -56,11 +57,7 @@ public final class BuildingPerformance {
         TownBuildingDefinition definition = TownBuildingDefinition.get(building.type());
         int required = definition == null ? 0 : definition.workersRequired();
         int staffing = required == 0 ? 100 : Math.min(100, building.workers().size() * 100 / required);
-        int prosperity = data.getTownRank().maxProsperity() <= 0 ? 100
-                : data.getProsperity() * 100 / data.getTownRank().maxProsperity();
-        int prosperityModifier = prosperity >= 60 ? 100 : prosperity >= 30 ? 85 : 65;
-        int qualityModifier = 50 + building.quality() / 2;
-        return Math.max(0, Math.min(100, staffing * qualityModifier / 100 * prosperityModifier / 100));
+        return Math.max(0, Math.min(150, building.output()));
     }
 
     public static int averageOutputPercent(TownSavedData data, Collection<String> buildingTypes, int fallback) {

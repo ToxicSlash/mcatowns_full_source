@@ -6,14 +6,14 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class BuildingPerformanceTest {
     @Test
-    void qualityUsesTierWorkersFurnitureAndSynergies() {
-        assertEquals(42, BuildingPerformance.qualityFromFactors(1, 50, 2, 1));
-        assertEquals(100, BuildingPerformance.qualityFromFactors(3, 100, 20, 20));
+    void outputUsesTierWorkersFurnitureAndSynergies() {
+        assertEquals(54, BuildingPerformance.outputFromFactors(1, 50, 2, 1));
+        assertEquals(125, BuildingPerformance.outputFromFactors(3, 100, 20, 20));
     }
 
     @Test
-    void qualityClampsUnsafeInputs() {
-        assertEquals(12, BuildingPerformance.qualityFromFactors(-5, -20, -2, -3));
-        assertEquals(100, BuildingPerformance.qualityFromFactors(50, 500, 500, 500));
+    void outputClampsUnsafeInputs() {
+        assertEquals(0, BuildingPerformance.outputFromFactors(-5, -20, -2, -3));
+        assertEquals(130, BuildingPerformance.outputFromFactors(50, 500, 500, 500));
     }
 }

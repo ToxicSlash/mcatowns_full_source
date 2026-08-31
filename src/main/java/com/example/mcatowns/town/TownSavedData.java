@@ -188,7 +188,8 @@ public class TownSavedData extends PersistentState {
                 BlockPos min = building.contains("MinPos") ? BlockPos.fromLong(building.getLong("MinPos")) : anchor;
                 BlockPos max = building.contains("MaxPos") ? BlockPos.fromLong(building.getLong("MaxPos")) : anchor;
                 BuildingStatus status = BuildingStatus.fromName(building.getString("Status"));
-                int quality = building.contains("Quality") ? building.getInt("Quality") : 50;
+                int output = building.contains("Output") ? building.getInt("Output")
+                        : building.contains("Quality") ? building.getInt("Quality") : 100;
                 List<UUID> workers = new ArrayList<>();
                 NbtList workerList = building.getList("Workers", NbtElement.COMPOUND_TYPE);
                 for (int workerIndex = 0; workerIndex < Math.min(workerList.size(), MAX_SAVED_WORKERS_PER_BUILDING); workerIndex++) {
@@ -198,7 +199,7 @@ public class TownSavedData extends PersistentState {
                 long inspected = building.contains("LastInspectionDay") ? building.getLong("LastInspectionDay") : -1L;
                 int cropState = building.getInt("CropState");
                 data.registeredBuildings.put(anchor.asLong(), new RegisteredTownBuilding(id, type, tier, anchor,
-                        min, max, status, quality, workers, inspected, cropState));
+                        min, max, status, output, workers, inspected, cropState));
             }
         }
         for (String unlock : nbt.getList("ResearchUnlocks", NbtElement.STRING_TYPE).stream()
@@ -331,7 +332,7 @@ public class TownSavedData extends PersistentState {
             building.putLong("MinPos", registered.minPos().asLong());
             building.putLong("MaxPos", registered.maxPos().asLong());
             building.putString("Status", registered.status().name());
-            building.putInt("Quality", registered.quality());
+            building.putInt("Output", registered.output());
             building.put("Workers", writeUuids(registered.workers()));
             building.putLong("LastInspectionDay", registered.lastInspectionDay());
             building.putInt("CropState", registered.cropState());

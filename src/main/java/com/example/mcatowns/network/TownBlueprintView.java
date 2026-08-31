@@ -193,7 +193,7 @@ public record TownBlueprintView(
 
     public record BuildingEntry(UUID id, String type, String name, BlockPos pos, String icon,
                                 BlockPos minPos, BlockPos maxPos, int tier, String status,
-                                int quality, int workerCount, int workerSlots, int cropState) {
+                                int output, int workerCount, int workerSlots, int cropState) {
         void write(PacketByteBuf buf) {
             buf.writeUuid(id);
             buf.writeString(type, 64);
@@ -204,7 +204,7 @@ public record TownBlueprintView(
             buf.writeBlockPos(maxPos);
             buf.writeVarInt(tier);
             buf.writeString(status, 32);
-            buf.writeVarInt(quality);
+            buf.writeVarInt(output);
             buf.writeVarInt(workerCount);
             buf.writeVarInt(workerSlots);
             buf.writeVarInt(cropState);

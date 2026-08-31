@@ -13,7 +13,7 @@ public record RegisteredTownBuilding(
         BlockPos minPos,
         BlockPos maxPos,
         BuildingStatus status,
-        int quality,
+        int output,
         List<UUID> workers,
         long lastInspectionDay,
         int cropState
@@ -30,7 +30,7 @@ public record RegisteredTownBuilding(
         maxPos = new BlockPos(Math.max(rawMin.getX(), rawMax.getX()), Math.max(rawMin.getY(), rawMax.getY()),
                 Math.max(rawMin.getZ(), rawMax.getZ()));
         status = status == null ? BuildingStatus.ACTIVE : status;
-        quality = Math.max(0, Math.min(100, quality));
+        output = Math.max(0, Math.min(150, output));
         workers = workers == null ? List.of() : List.copyOf(workers);
         cropState = Math.max(0, Math.min(FarmFieldScanner.MAX_CONTRIBUTING_CROPS, cropState));
     }
@@ -44,16 +44,16 @@ public record RegisteredTownBuilding(
 
     public RegisteredTownBuilding withStatus(BuildingStatus newStatus) {
         return new RegisteredTownBuilding(id, type, tier, anchor, minPos, maxPos,
-                newStatus, quality, workers, lastInspectionDay, cropState);
+                newStatus, output, workers, lastInspectionDay, cropState);
     }
 
     public RegisteredTownBuilding withWorkers(List<UUID> assignedWorkers, BuildingStatus newStatus) {
         return new RegisteredTownBuilding(id, type, tier, anchor, minPos, maxPos,
-                newStatus, quality, assignedWorkers, lastInspectionDay, cropState);
+                newStatus, output, assignedWorkers, lastInspectionDay, cropState);
     }
 
-    public RegisteredTownBuilding inspected(long day, int newQuality, int newCropState, int newTier) {
+    public RegisteredTownBuilding inspected(long day, int newOutput, int newCropState, int newTier) {
         return new RegisteredTownBuilding(id, type, newTier, anchor, minPos, maxPos,
-                status, newQuality, workers, day, newCropState);
+                status, newOutput, workers, day, newCropState);
     }
 }

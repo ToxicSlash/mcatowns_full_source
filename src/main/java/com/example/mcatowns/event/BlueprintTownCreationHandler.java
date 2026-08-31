@@ -176,7 +176,7 @@ public final class BlueprintTownCreationHandler {
                                                                   String name, String icon) {
         TownBuildingDefinition definition = TownBuildingDefinition.get(building.type());
         return new TownBlueprintView.BuildingEntry(building.id(), building.type(), name, building.anchor(), icon,
-                building.minPos(), building.maxPos(), building.tier(), building.status().name(), building.quality(),
+                building.minPos(), building.maxPos(), building.tier(), building.status().name(), building.output(),
                 building.workers().size(), definition == null ? 0 : definition.workersRequired(), building.cropState());
     }
 

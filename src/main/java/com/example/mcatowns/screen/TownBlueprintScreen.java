@@ -36,6 +36,8 @@ public class TownBlueprintScreen extends Screen {
     private TownBlueprintView.BuildingOption selectedBuilding;
     private TownBlueprintView.ResidentEntry selectedResident;
     private List<TownBlueprintView.ResidentEntry> visibleResidents = List.of();
+    private TownBlueprintView.BuildingEntry selectedRegisteredBuilding;
+    private boolean showOutputBonuses;
     private boolean showSpecialists;
     private boolean advancedControls;
     private String page = "map";
@@ -72,6 +74,7 @@ public class TownBlueprintScreen extends Screen {
         if (page.equals("villagers")) addVillagerButtons(left, top);
         if (page.equals("rules")) addRuleButtons(left, top);
         if (page.equals("map")) addMapButtons(left, top);
+        if (page.equals("buildings")) addBuildingButtons(left, top);
         if (page.equals("rank")) addRankButtons(left, top);
         if (view.canManage()) {
             addDrawableChild(ButtonWidget.builder(Text.literal("E"), button -> client.setScreen(new RenameTownScreen(this, view.anchorPos(), view.name())))
@@ -94,7 +97,7 @@ public class TownBlueprintScreen extends Screen {
     }
 
     private void addTabs(int left, int top) {
-        String[] pages = {"map", "rank", "catalog", "villagers", "rules", "refresh"};
+        String[] pages = {"map", "buildings", "rank", "catalog", "villagers", "rules", "refresh"};
         for (int i = 0; i < pages.length; i++) {
             String target = pages[i];
             ButtonWidget button = ButtonWidget.builder(Text.literal(titleCase(target)), ignored -> {
@@ -261,6 +264,36 @@ public class TownBlueprintScreen extends Screen {
         addDrawableChild(up);
     }
 
+    private void addBuildingButtons(int left, int top) {
+        List<TownBlueprintView.BuildingEntry> buildings = view.registeredBuildings().stream().limit(10).toList();
+        if (selectedRegisteredBuilding == null || !buildings.contains(selectedRegisteredBuilding)) {
+            selectedRegisteredBuilding = buildings.isEmpty() ? null : buildings.get(0);
+        }
+        for (int i = 0; i < buildings.size(); i++) {
+            TownBlueprintView.BuildingEntry building = buildings.get(i);
+            ButtonWidget button = ButtonWidget.builder(Text.literal(building.name()), ignored -> {
+                        selectedRegisteredBuilding = building;
+                        showOutputBonuses = false;
+                        clearChildren();
+                        init();
+                    })
+                    .dimensions(left + 16, top + 46 + i * 16, 150, 15)
+                    .tooltip(Tooltip.of(Text.literal(outputLine(building))))
+                    .build();
+            button.active = !building.equals(selectedRegisteredBuilding);
+            addDrawableChild(button);
+        }
+        if (selectedRegisteredBuilding != null) {
+            ButtonWidget bonuses = ButtonWidget.builder(Text.literal(showOutputBonuses ? "Overview" : "Bonuses"), ignored -> {
+                        showOutputBonuses = !showOutputBonuses;
+                        clearChildren();
+                        init();
+                    })
+                    .dimensions(left + 250, top + 174, 82, 18).build();
+            addDrawableChild(bonuses);
+        }
+    }
+
     private void addMapButtons(int left, int top) {
         ButtonWidget detect = ButtonWidget.builder(Text.literal("Detect"), button -> {
                     McaBlueprintScreenBridge.openNextOn("map");
@@ -271,6 +304,19 @@ public class TownBlueprintScreen extends Screen {
                 .build();
         detect.active = view.canManage();
         addDrawableChild(detect);
+
+        List<TownBlueprintView.BuildingEntry> buildings = view.registeredBuildings().stream().limit(4).toList();
+        for (int i = 0; i < buildings.size(); i++) {
+            TownBlueprintView.BuildingEntry building = buildings.get(i);
+            ButtonWidget select = ButtonWidget.builder(Text.literal(building.name()), ignored -> {
+                        selectedRegisteredBuilding = building;
+                        page = "buildings";
+                        clearChildren();
+                        init();
+                    }).dimensions(left + 190, top + 118 + i * 16, 150, 15)
+                    .tooltip(Tooltip.of(Text.literal(outputLine(building)))).build();
+            addDrawableChild(select);
+        }
 
         ButtonWidget advanced = ButtonWidget.builder(Text.literal(advancedControls ? "Basic" : "Advanced"), button -> {
                     advancedControls = !advancedControls;
@@ -363,6 +409,7 @@ public class TownBlueprintScreen extends Screen {
             case "rank" -> drawRank(context, left, top);
             case "villagers" -> drawVillagers(context, left, top);
             case "catalog" -> drawCatalog(context, left, top);
+            case "buildings" -> drawBuildings(context, left, top);
             case "rules" -> drawRules(context, left, top);
             default -> drawMap(context, left, top);
         }
@@ -421,6 +468,31 @@ public class TownBlueprintScreen extends Screen {
         context.drawTextWithShadow(textRenderer, Text.literal("Work: " + selectedResident.assignedBuildingName()), x, y + 28, 0xB8D8FF);
     }
 
+    private void drawBuildings(DrawContext context, int left, int top) {
+        context.drawTextWithShadow(textRenderer, Text.literal("Registered Buildings"), left + 18, top + 30, 0xFFE080);
+        if (selectedRegisteredBuilding == null) {
+            context.drawTextWithShadow(textRenderer, Text.literal("No buildings registered"), left + 190, top + 72, 0xAAAAAA);
+            return;
+        }
+        TownBlueprintView.BuildingEntry building = selectedRegisteredBuilding;
+        int x = left + 188;
+        int y = top + 52;
+        context.drawTextWithShadow(textRenderer, Text.literal(building.name()), x, y, 0xFFE080);
+        context.drawTextWithShadow(textRenderer, Text.literal("Tier " + building.tier() + "  Status " + titleCase(building.status())), x, y + 16, 0xFFFFFF);
+        context.drawTextWithShadow(textRenderer, Text.literal("Workers " + building.workerCount() + "/" + building.workerSlots()), x, y + 32, 0xFFFFFF);
+        context.drawTextWithShadow(textRenderer, Text.literal(outputLine(building)), x, y + 48, 0x80D080);
+        if ("farm".equals(building.type())) {
+            context.drawTextWithShadow(textRenderer, Text.literal("Crops: " + building.cropState()), x, y + 64, 0xB8D8FF);
+        }
+        if (showOutputBonuses) {
+            context.drawTextWithShadow(textRenderer, Text.literal("Output bonuses"), x, y + 82, 0xFFE080);
+            context.drawTextWithShadow(textRenderer, Text.literal("Base output: 100%"), x, y + 96, 0xDDDDDD);
+            context.drawTextWithShadow(textRenderer, Text.literal("Tier: +" + Math.max(0, building.tier() - 1) * 5 + "%"), x, y + 108, 0xDDDDDD);
+            context.drawTextWithShadow(textRenderer, Text.literal("Workers: " + building.workerCount() + "/" + building.workerSlots()), x, y + 120, 0xDDDDDD);
+            context.drawTextWithShadow(textRenderer, Text.literal("Furniture: up to +10%; synergies: up to +10%"), x, y + 132, 0xDDDDDD);
+        }
+    }
+
     private void drawMap(DrawContext context, int left, int top) {
         int mapX = left + 24;
         int mapY = top + 48;
@@ -449,7 +521,7 @@ public class TownBlueprintScreen extends Screen {
         for (int i = 0; i < Math.min(4, view.registeredBuildings().size()); i++) {
             TownBlueprintView.BuildingEntry building = view.registeredBuildings().get(i);
             String detail = building.name() + " T" + building.tier() + " " + titleCase(building.status())
-                    + " " + building.workerCount() + "/" + building.workerSlots() + "w Q" + building.quality()
+                    + " " + building.workerCount() + "/" + building.workerSlots() + "w Output " + building.output() + "%"
                     + ("farm".equals(building.type()) ? " C" + building.cropState() : "");
             context.drawTextWithShadow(textRenderer, Text.literal(detail), left + 190, top + 120 + i * 13,
                     "ACTIVE".equals(building.status()) ? 0x80D080 : 0xE0A060);
@@ -457,6 +529,16 @@ public class TownBlueprintScreen extends Screen {
         if (advancedControls) {
             drawWrapped(context, "Advanced controls include direct unregister for nearby buildings.", left + 190, top + 178, 150, 2, 0xCCCCCC);
         }
+    }
+
+    private String outputLine(TownBlueprintView.BuildingEntry building) {
+        String line = "Output: " + building.output() + "%";
+        if ("farm".equals(building.type())) {
+            int base = Math.max(1, building.cropState() / 12);
+            int food = (base * building.output() + 99) / 100;
+            line += " (+" + food + " Food/Day)";
+        }
+        return line;
     }
 
     private void drawBuildingFootprint(DrawContext context, TownBlueprintView.BuildingEntry building,

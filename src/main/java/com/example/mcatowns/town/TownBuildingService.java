@@ -156,10 +156,10 @@ public final class TownBuildingService {
                     FarmFieldScanner.Result field = FarmFieldScanner.scan(world, building.anchor());
                     updated = new RegisteredTownBuilding(building.id(), building.type(), field.tier(), field.anchor(),
                             field.min(), field.max(), field.valid() ? BuildingStatus.ACTIVE : BuildingStatus.NEEDS_INSPECTION,
-                            building.quality(), building.workers(), day, field.contributingCrops());
+                            building.output(), building.workers(), day, field.contributingCrops());
                 }
-                int quality = BuildingPerformance.calculateQuality(world, data, updated);
-                updated = updated.inspected(day, quality, updated.cropState(), updated.tier());
+                int output = BuildingPerformance.calculateOutput(world, data, updated);
+                updated = updated.inspected(day, output, updated.cropState(), updated.tier());
                 data.replaceBuilding(updated);
             } catch (RuntimeException exception) {
                 com.example.mcatowns.MCATowns.LOGGER.warn("Could not inspect town building {} at {}",
