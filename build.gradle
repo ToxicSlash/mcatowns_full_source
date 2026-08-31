@@ -28,7 +28,10 @@ dependencies {
     modImplementation "me.shedaniel.cloth:cloth-config-fabric:11.1.136"
     modImplementation "com.terraformersmc:modmenu:7.2.2"
     modRuntimeOnly "dev.architectury:architectury-fabric:9.2.14"
-    modRuntimeOnly files("libs/minecraft-comes-alive-7.6.15+1.20.1-universal.jar")
+    def localMcaJar = file("libs/minecraft-comes-alive-7.6.15+1.20.1-universal.jar")
+    if (localMcaJar.exists()) {
+        modRuntimeOnly files(localMcaJar)
+    }
 
     // Optional dev dependencies:
     // modImplementation "curse.maven:minecraft-comes-alive-reborn-535291:<file-id>"
