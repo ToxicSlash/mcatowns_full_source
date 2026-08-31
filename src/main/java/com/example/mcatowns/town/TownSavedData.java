@@ -10,6 +10,9 @@ import net.minecraft.world.PersistentState;
 import java.util.*;
 
 public class TownSavedData extends PersistentState {
+    private static final int DATA_VERSION = 2;
+    private static final int MAX_SAVED_BUILDINGS = 256;
+    private static final int MAX_SAVED_WORKERS_PER_BUILDING = 16;
     private String townId = "default";
     private int treasury = 0;
     private int happiness = 50;
@@ -175,7 +178,7 @@ public class TownSavedData extends PersistentState {
             data.registeredBuildings.put(position, RegisteredTownBuilding.legacy("legacy", BlockPos.fromLong(position)));
         }
         NbtList buildings = nbt.getList("TypedBuildings", NbtElement.COMPOUND_TYPE);
-        for (int i = 0; i < buildings.size(); i++) {
+        for (int i = 0; i < Math.min(buildings.size(), MAX_SAVED_BUILDINGS); i++) {
             NbtCompound building = buildings.getCompound(i);
             String type = building.getString("Type");
             if (!type.isBlank()) {
@@ -188,7 +191,7 @@ public class TownSavedData extends PersistentState {
                 int quality = building.contains("Quality") ? building.getInt("Quality") : 50;
                 List<UUID> workers = new ArrayList<>();
                 NbtList workerList = building.getList("Workers", NbtElement.COMPOUND_TYPE);
-                for (int workerIndex = 0; workerIndex < workerList.size(); workerIndex++) {
+                for (int workerIndex = 0; workerIndex < Math.min(workerList.size(), MAX_SAVED_WORKERS_PER_BUILDING); workerIndex++) {
                     NbtCompound worker = workerList.getCompound(workerIndex);
                     if (worker.containsUuid("Id")) workers.add(worker.getUuid("Id"));
                 }
@@ -252,6 +255,7 @@ public class TownSavedData extends PersistentState {
 
     @Override
     public NbtCompound writeNbt(NbtCompound nbt) {
+        nbt.putInt("MCATownsDataVersion", DATA_VERSION);
         nbt.putString("TownId", townId);
         nbt.putInt("Treasury", treasury);
         nbt.putInt("Happiness", happiness);
@@ -826,7 +830,15 @@ public class TownSavedData extends PersistentState {
     }
 
     public boolean replaceBuilding(RegisteredTownBuilding building) {
-        if (building == null || !registeredBuildings.containsKey(building.anchor().asLong())) return false;
+        if (building == null) return false;
+        Long currentKey = registeredBuildings.entrySet().stream()
+                .filter(entry -> entry.getValue().id().equals(building.id()))
+                .map(Map.Entry::getKey).findFirst().orElse(null);
+        if (currentKey == null) return false;
+        RegisteredTownBuilding current = registeredBuildings.get(currentKey);
+        if (building.equals(current)) return true;
+        if (currentKey != building.anchor().asLong() && registeredBuildings.containsKey(building.anchor().asLong())) return false;
+        registeredBuildings.remove(currentKey);
         registeredBuildings.put(building.anchor().asLong(), building);
         markDirty();
         return true;

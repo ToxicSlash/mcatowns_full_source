@@ -80,17 +80,16 @@ public final class TownBuildingService {
             player.sendMessage(Text.translatable("text.mcatowns.invalid_building", definition.displayName()), true);
             return;
         }
-        MCAIntegration.BuildingBounds detectedBounds = MCAIntegration.getBuildingBoundsAt(world, pos)
-                .orElseGet(() -> "farm".equals(type)
-                        ? new MCAIntegration.BuildingBounds(pos.add(-8, -3, -8), pos.add(8, 3, 8))
-                        : new MCAIntegration.BuildingBounds(pos, pos));
-        int cropCount = "farm".equals(type)
-                ? countNearby(world, pos, 8, block -> block instanceof net.minecraft.block.CropBlock) : 0;
-        int tier = cropCount >= 48 ? 3 : cropCount >= 24 ? 2 : 1;
-        int cropState = Math.min(100, cropCount * 100 / 48);
-        int quality = "farm".equals(type) ? Math.max(25, cropState) : 50;
-        RegisteredTownBuilding registered = new RegisteredTownBuilding(UUID.randomUUID(), type, tier, pos,
-                detectedBounds.min(), detectedBounds.max(), BuildingStatus.ACTIVE, quality, List.of(),
+        FarmFieldScanner.Result farm = "farm".equals(type) ? FarmFieldScanner.scan(world, pos) : null;
+        MCAIntegration.BuildingBounds detectedBounds = farm != null
+                ? new MCAIntegration.BuildingBounds(farm.min(), farm.max())
+                : MCAIntegration.getBuildingBoundsAt(world, pos)
+                .orElse(new MCAIntegration.BuildingBounds(pos, pos));
+        BlockPos anchor = farm == null ? pos : farm.anchor();
+        int tier = farm == null ? 1 : farm.tier();
+        int cropState = farm == null ? 0 : farm.contributingCrops();
+        RegisteredTownBuilding registered = new RegisteredTownBuilding(UUID.randomUUID(), type, tier, anchor,
+                detectedBounds.min(), detectedBounds.max(), BuildingStatus.ACTIVE, 0, List.of(),
                 TownManager.getDay(world), cropState);
         if (!data.registerBuilding(registered)) return;
 
@@ -98,7 +97,7 @@ public final class TownBuildingService {
             data.spendTownTokens(definition.registrationTokens());
             InventoryHelper.remove(player.getInventory(), currency, definition.registrationCurrency());
         }
-        refreshDerivedValues(data);
+        refreshInspectionState(world, data, TownManager.getDay(world));
         player.sendMessage(Text.translatable("text.mcatowns.building_registered_named", definition.displayName()), false);
     }
 
@@ -150,15 +149,23 @@ public final class TownBuildingService {
 
     public static void refreshInspectionState(ServerWorld world, TownSavedData data, long day) {
         for (RegisteredTownBuilding building : data.getRegisteredBuildings()) {
-            if (!"farm".equals(building.type())) continue;
-            int crops = countNearby(world, building.anchor(), 8,
-                    block -> block instanceof net.minecraft.block.CropBlock);
-            int cropState = Math.min(100, crops * 100 / 48);
-            int tier = crops >= 48 ? 3 : crops >= 24 ? 2 : 1;
-            int quality = Math.max(0, Math.min(100, cropState));
-            RegisteredTownBuilding updated = building.inspected(day, quality, cropState, tier);
-            updated = updated.withStatus(crops < 12 ? BuildingStatus.NEEDS_INSPECTION : BuildingStatus.ACTIVE);
-            data.replaceBuilding(updated);
+            if (!world.isChunkLoaded(building.anchor())) continue;
+            try {
+                RegisteredTownBuilding updated = building;
+                if ("farm".equals(building.type())) {
+                    FarmFieldScanner.Result field = FarmFieldScanner.scan(world, building.anchor());
+                    updated = new RegisteredTownBuilding(building.id(), building.type(), field.tier(), field.anchor(),
+                            field.min(), field.max(), field.valid() ? BuildingStatus.ACTIVE : BuildingStatus.NEEDS_INSPECTION,
+                            building.quality(), building.workers(), day, field.contributingCrops());
+                }
+                int quality = BuildingPerformance.calculateQuality(world, data, updated);
+                updated = updated.inspected(day, quality, updated.cropState(), updated.tier());
+                data.replaceBuilding(updated);
+            } catch (RuntimeException exception) {
+                com.example.mcatowns.MCATowns.LOGGER.warn("Could not inspect town building {} at {}",
+                        building.id(), building.anchor(), exception);
+                data.replaceBuilding(building.withStatus(BuildingStatus.NEEDS_INSPECTION));
+            }
         }
         refreshDerivedValues(data);
     }
@@ -240,7 +247,7 @@ public final class TownBuildingService {
         };
     }
 
-    private static TownContext editableTown(ServerPlayerEntity player) {
+    static TownContext editableTown(ServerPlayerEntity player) {
         ServerWorld world = player.getServerWorld();
         if (TownRemovalHandler.hasAdminAccess(player)) {
             return TownManager.findExistingTown(world, player.getBlockPos(), Math.max(64, TownManager.getTownSearchMargin())).orElse(null);
@@ -250,6 +257,10 @@ public final class TownBuildingService {
 
     private static BlockPos detectPosition(ServerWorld world, ServerPlayerEntity player) {
         BlockPos lookedAt = lookedAt(player);
+        if (world.getBlockState(lookedAt).isOf(Blocks.FARMLAND)
+                || world.getBlockState(lookedAt).getBlock() instanceof net.minecraft.block.CropBlock) {
+            return lookedAt;
+        }
         MCAIntegration.registerBuilding(world, lookedAt);
         return MCAIntegration.getBuildingCenterAt(world, lookedAt)
                 .or(() -> MCAIntegration.getBuildingCenterAt(world, player.getBlockPos()))
@@ -270,9 +281,9 @@ public final class TownBuildingService {
                     new BlueprintSessionService.RequirementLine("- 1x Bed", 0)
             );
             case "farm" -> List.of(
-                    new BlueprintSessionService.RequirementLine("- 1x Composter or Hay Bale", 0),
-                    new BlueprintSessionService.RequirementLine("- 4x Hay Bale", 0),
-                    new BlueprintSessionService.RequirementLine("- 12x Nearby Crop", 0)
+                    new BlueprintSessionService.RequirementLine("- Select crop or farmland", 0),
+                    new BlueprintSessionService.RequirementLine("- 12 connected crops", 0),
+                    new BlueprintSessionService.RequirementLine("- Tier caps: 25 / 64 / 144", 0)
             );
             case "campfire" -> List.of(new BlueprintSessionService.RequirementLine("- Campfire", 0));
             case "bounty_board" -> List.of(new BlueprintSessionService.RequirementLine("- Bounty Board", 0));
@@ -296,16 +307,19 @@ public final class TownBuildingService {
     private static List<BlueprintSessionService.RequirementLine> furnitureRequirementLines(ServerWorld world, BlockPos target,
                                                                                            TownBuildingDefinition definition,
                                                                                            boolean passed) {
+        if ("farm".equals(definition.id())) {
+            FarmFieldScanner.Result field = FarmFieldScanner.scan(world, target);
+            return List.of(
+                    new BlueprintSessionService.RequirementLine("- Select crop or farmland", field.crops() > 0 ? 1 : -1),
+                    new BlueprintSessionService.RequirementLine("- 12 connected crops", field.valid() ? 1 : -1),
+                    new BlueprintSessionService.RequirementLine("- Tier caps: 25 / 64 / 144", 1)
+            );
+        }
         return switch (definition.id()) {
             case "residence" -> List.of(
                     new BlueprintSessionService.RequirementLine("- Enclosed Building",
                             isEnclosedBuilding(world, target) || MCAIntegration.getBuildingTypeAt(world, target).filter(RESIDENCE_TYPES::contains).isPresent() ? 1 : -1),
                     new BlueprintSessionService.RequirementLine("- 1x Bed", hasBed(world, target) ? 1 : -1)
-            );
-            case "farm" -> List.of(
-                    new BlueprintSessionService.RequirementLine("- 1x Composter or Hay Bale", isEither(world, target, Blocks.COMPOSTER, Blocks.HAY_BLOCK) ? 1 : -1),
-                    new BlueprintSessionService.RequirementLine("- 4x Hay Bale", countNearby(world, target, 6, block -> block == Blocks.HAY_BLOCK) >= 4 ? 1 : -1),
-                    new BlueprintSessionService.RequirementLine("- 12x Nearby Crop", countNearby(world, target, 8, block -> block instanceof net.minecraft.block.CropBlock) >= 12 ? 1 : -1)
             );
             case "campfire" -> List.of(new BlueprintSessionService.RequirementLine("- Campfire", isEither(world, target, Blocks.CAMPFIRE, Blocks.SOUL_CAMPFIRE) ? 1 : -1));
             case "bounty_board" -> List.of(new BlueprintSessionService.RequirementLine("- Bounty Board", isBlock(world, target, "bountiful:bountyboard") ? 1 : -1));
@@ -334,9 +348,7 @@ public final class TownBuildingService {
     }
 
     private static boolean validateFarm(ServerWorld world, BlockPos center) {
-        return isEither(world, center, Blocks.COMPOSTER, Blocks.HAY_BLOCK)
-                && countNearby(world, center, 6, block -> block == Blocks.HAY_BLOCK) >= 4
-                && countNearby(world, center, 8, block -> block instanceof net.minecraft.block.CropBlock) >= 12;
+        return FarmFieldScanner.scan(world, center).valid();
     }
 
     private static boolean hasBed(ServerWorld world, BlockPos center) {

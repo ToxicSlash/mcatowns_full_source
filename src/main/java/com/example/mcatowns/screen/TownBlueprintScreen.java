@@ -35,6 +35,7 @@ public class TownBlueprintScreen extends Screen {
     private TownBuildingCategory category = TownBuildingCategory.RESIDENTIAL;
     private TownBlueprintView.BuildingOption selectedBuilding;
     private TownBlueprintView.ResidentEntry selectedResident;
+    private List<TownBlueprintView.ResidentEntry> visibleResidents = List.of();
     private boolean showSpecialists;
     private boolean advancedControls;
     private String page = "map";
@@ -185,6 +186,63 @@ public class TownBlueprintScreen extends Screen {
         }).dimensions(left + 108, top + 44, 86, 18).build();
         specialists.active = !showSpecialists;
         addDrawableChild(specialists);
+
+        visibleResidents = view.residents().stream()
+                .filter(entry -> entry.specialist() == showSpecialists).limit(7).toList();
+        List<TownBlueprintView.ResidentEntry> entries = visibleResidents;
+        if (selectedResident == null || !entries.contains(selectedResident)) {
+            selectedResident = entries.isEmpty() ? null : entries.get(0);
+        }
+        for (int i = 0; i < entries.size(); i++) {
+            TownBlueprintView.ResidentEntry entry = entries.get(i);
+            ButtonWidget select = ButtonWidget.builder(Text.literal(entry.name()), ignored -> {
+                        selectedResident = entry;
+                        clearChildren();
+                        init();
+                    })
+                    .dimensions(left + 16, top + 68 + i * 18, 166, 16)
+                    .tooltip(Tooltip.of(Text.literal("Assigned: " + entry.assignedBuildingName())))
+                    .build();
+            select.active = !entry.equals(selectedResident);
+            addDrawableChild(select);
+        }
+
+        ButtonWidget autoAssign = ButtonWidget.builder(Text.literal("Auto Assign"), ignored -> {
+                    McaBlueprintScreenBridge.openNextOn("villagers");
+                    ModNetworking.sendAutoAssignTownWorkers();
+                })
+                .dimensions(left + 256, top + 44, 86, 18)
+                .tooltip(Tooltip.of(Text.literal("Fill empty worker slots without changing valid assignments.")))
+                .build();
+        autoAssign.active = view.canManage() && !view.residents().isEmpty();
+        addDrawableChild(autoAssign);
+
+        if (selectedResident == null) return;
+        ButtonWidget unassign = ButtonWidget.builder(Text.literal("Unassign"), ignored -> {
+                    McaBlueprintScreenBridge.openNextOn("villagers");
+                    ModNetworking.sendAssignTownWorker(selectedResident.id(), new java.util.UUID(0L, 0L));
+                })
+                .dimensions(left + 192, top + 104, 72, 16)
+                .build();
+        unassign.active = view.canManage() && selectedResident.assignedBuildingId().getLeastSignificantBits() != 0L;
+        addDrawableChild(unassign);
+
+        List<TownBlueprintView.BuildingEntry> workplaces = view.registeredBuildings().stream()
+                .filter(building -> building.workerSlots() > 0).limit(5).toList();
+        for (int i = 0; i < workplaces.size(); i++) {
+            TownBlueprintView.BuildingEntry building = workplaces.get(i);
+            String label = building.name() + " " + building.workerCount() + "/" + building.workerSlots();
+            ButtonWidget assign = ButtonWidget.builder(Text.literal(label), ignored -> {
+                        McaBlueprintScreenBridge.openNextOn("villagers");
+                        ModNetworking.sendAssignTownWorker(selectedResident.id(), building.id());
+                    })
+                    .dimensions(left + 270, top + 104 + i * 18, 72, 16)
+                    .tooltip(Tooltip.of(Text.literal("Assign to " + building.name())))
+                    .build();
+            assign.active = view.canManage() && !building.id().equals(selectedResident.assignedBuildingId())
+                    && building.workerCount() < building.workerSlots();
+            addDrawableChild(assign);
+        }
     }
 
     private void addRuleButtons(int left, int top) {
@@ -315,10 +373,17 @@ public class TownBlueprintScreen extends Screen {
         context.drawTextWithShadow(textRenderer, Text.literal("Player Rank: " + view.playerRank()), left + 18, top + 48, 0xFFFFFF);
         context.drawTextWithShadow(textRenderer,
                 Text.literal("Tier: " + view.rank().displayName() + " > " + nextTier), left + 18, top + 64, 0xFFE080);
-        context.drawTextWithShadow(textRenderer, Text.literal(view.infrastructureSummary()), left + 18, top + 76, 0xB8D8FF);
-        for (int i = 0; i < Math.min(8, view.rankChecklist().size()); i++) {
+        for (int i = 0; i < view.infrastructure().size(); i++) {
+            TownBlueprintView.InfrastructureEntry entry = view.infrastructure().get(i);
+            String line = entry.type().displayName() + ": " + entry.available() + " free ("
+                    + entry.provided() + " provided, " + entry.reserved() + " used)";
+            context.drawTextWithShadow(textRenderer, Text.literal(line), left + 18, top + 78 + i * 12,
+                    entry.available() > 0 ? 0xB8D8FF : 0xAAAAAA);
+        }
+        int checklistY = top + 82 + view.infrastructure().size() * 12;
+        for (int i = 0; i < Math.min(5, view.rankChecklist().size()); i++) {
             String line = view.rankChecklist().get(i);
-            context.drawTextWithShadow(textRenderer, Text.literal(line), left + 18, top + 92 + i * 13,
+            context.drawTextWithShadow(textRenderer, Text.literal(line), left + 18, checklistY + i * 13,
                     line.startsWith("✓") || line.startsWith("âœ“") ? 0x80D080 : 0xE08080);
         }
     }
@@ -343,12 +408,8 @@ public class TownBlueprintScreen extends Screen {
     }
 
     private void drawVillagers(DrawContext context, int left, int top) {
-        List<TownBlueprintView.ResidentEntry> entries = view.residents().stream().filter(entry -> entry.specialist() == showSpecialists).toList();
+        List<TownBlueprintView.ResidentEntry> entries = visibleResidents;
         if (selectedResident == null && !entries.isEmpty()) selectedResident = entries.get(0);
-        for (int i = 0; i < Math.min(entries.size(), 7); i++) {
-            TownBlueprintView.ResidentEntry entry = entries.get(i);
-            context.drawTextWithShadow(textRenderer, Text.literal(entry.name()), left + 18, top + 72 + i * 14, entry.equals(selectedResident) ? 0xFFE080 : 0xFFFFFF);
-        }
         int x = left + 192;
         int y = top + 74;
         if (selectedResident == null) {
@@ -357,6 +418,7 @@ public class TownBlueprintScreen extends Screen {
         }
         context.drawTextWithShadow(textRenderer, Text.literal(selectedResident.name()), x, y, 0xFFE080);
         context.drawTextWithShadow(textRenderer, Text.literal(selectedResident.specialist() ? "Specialist: " + titleCase(selectedResident.specialistType()) : "Resident"), x, y + 14, 0xFFFFFF);
+        context.drawTextWithShadow(textRenderer, Text.literal("Work: " + selectedResident.assignedBuildingName()), x, y + 28, 0xB8D8FF);
     }
 
     private void drawMap(DrawContext context, int left, int top) {
@@ -387,7 +449,8 @@ public class TownBlueprintScreen extends Screen {
         for (int i = 0; i < Math.min(4, view.registeredBuildings().size()); i++) {
             TownBlueprintView.BuildingEntry building = view.registeredBuildings().get(i);
             String detail = building.name() + " T" + building.tier() + " " + titleCase(building.status())
-                    + " " + building.workerCount() + "w Q" + building.quality();
+                    + " " + building.workerCount() + "/" + building.workerSlots() + "w Q" + building.quality()
+                    + ("farm".equals(building.type()) ? " C" + building.cropState() : "");
             context.drawTextWithShadow(textRenderer, Text.literal(detail), left + 190, top + 120 + i * 13,
                     "ACTIVE".equals(building.status()) ? 0x80D080 : 0xE0A060);
         }
@@ -505,7 +568,7 @@ public class TownBlueprintScreen extends Screen {
         if (!option.icon().isBlank()) return itemStack(option.icon());
         String itemId = switch (option.id()) {
             case "residence" -> "minecraft:red_bed";
-            case "farm" -> "minecraft:composter";
+            case "farm" -> "minecraft:wheat";
             case "granary" -> "mcatowns:silo";
             case "campfire" -> "minecraft:campfire";
             case "park" -> "minecraft:oak_sapling";

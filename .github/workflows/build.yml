@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - town-system-overhaul
+      - town-hardening-pass
   pull_request:
 
 jobs:

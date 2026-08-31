@@ -21,6 +21,7 @@ import com.example.mcatowns.client.McaBlueprintScreenBridge;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.networking.v1.PacketByteBufs;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.minecraft.network.PacketByteBuf;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.util.Identifier;
@@ -58,12 +59,16 @@ public class ModNetworking {
     public static final Identifier OPEN_VILLAGER_TOWN = id("open_villager_town");
     public static final Identifier RECRUIT_VILLAGER = id("recruit_villager");
     public static final Identifier RESEARCH = id("research");
+    public static final Identifier ASSIGN_TOWN_WORKER = id("assign_town_worker");
+    public static final Identifier AUTO_ASSIGN_TOWN_WORKERS = id("auto_assign_town_workers");
 
     private static Identifier id(String path) {
         return new Identifier(MCATowns.MOD_ID, path);
     }
 
     public static void registerC2S() {
+        ServerPlayConnectionEvents.DISCONNECT.register((handler, server) ->
+                LAST_PACKET_NANOS.remove(handler.player.getUuid()));
         ServerPlayNetworking.registerGlobalReceiver(SET_TAX_RATE, (server, player, handler, buf, sender) -> {
             if (!acceptPacket(player)) return;
             BlockPos pos;
@@ -172,6 +177,20 @@ public class ModNetworking {
             try { architect = buf.readUuid(); research = buf.readString(64); } catch (RuntimeException ignored) { return; }
             server.execute(() -> TownResearchService.research(player, architect, research));
         });
+        ServerPlayNetworking.registerGlobalReceiver(ASSIGN_TOWN_WORKER, (server, player, handler, buf, sender) -> {
+            if (!acceptPacket(player)) return;
+            UUID resident;
+            UUID building;
+            try {
+                resident = buf.readUuid();
+                building = buf.readUuid();
+            } catch (RuntimeException ignored) {
+                return;
+            }
+            server.execute(() -> com.example.mcatowns.town.TownWorkforceActions.assign(player, resident, building));
+        });
+        registerEmptyPacket(AUTO_ASSIGN_TOWN_WORKERS,
+                com.example.mcatowns.town.TownWorkforceActions::autoAssign);
     }
 
     public static void registerClient() {
@@ -391,6 +410,13 @@ public class ModNetworking {
         var buf = PacketByteBufs.create(); buf.writeUuid(architect); buf.writeString(research, 64);
         ClientPlayNetworking.send(RESEARCH, buf);
     }
+    public static void sendAssignTownWorker(UUID resident, UUID building) {
+        var buf = PacketByteBufs.create();
+        buf.writeUuid(resident);
+        buf.writeUuid(building);
+        ClientPlayNetworking.send(ASSIGN_TOWN_WORKER, buf);
+    }
+    public static void sendAutoAssignTownWorkers() { sendEmptyPacket(AUTO_ASSIGN_TOWN_WORKERS); }
 
     private static void sendEmptyPacket(Identifier id) {
         ClientPlayNetworking.send(id, PacketByteBufs.empty());

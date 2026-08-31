@@ -112,7 +112,7 @@ public final class BlueprintTownCreationHandler {
             ModNetworking.openTownBlueprint(player, new TownBlueprintView(
                     true, "New Settlement", "Founder", TownRank.UNRANKED,
                     com.example.mcatowns.config.MCATownsConfig.get().foundedTownStartingProsperity,
-                    0, "No infrastructure", 50, 1, 0, 0, 0, 0, 0, 1, true, false,
+                    0, java.util.List.of(), 50, 1, 0, 0, 0, 0, 0, 1, true, false,
                     BlockPos.ORIGIN, BlockPos.ORIGIN, player.getBlockPos(),
                     player.getAbilities().creativeMode || crown != null && InventoryHelper.count(player.getInventory(), crown) > 0,
                     player.getAbilities().creativeMode ? FOUNDING_SCRAP_COST : scraps,
@@ -129,28 +129,36 @@ public final class BlueprintTownCreationHandler {
         if (data.getTownCenter().equals(BlockPos.ORIGIN)) data.setTownCenter(town.center());
         ModNetworking.openTownBlueprint(player, new TownBlueprintView(
                 false, data.getTownName(), playerRank(player, town), data.getTownRank(), data.getProsperity(),
-                data.getProsperityBase(), infrastructureSummary(data), data.getHappiness(), data.getPopulation(),
+                data.getProsperityBase(), infrastructure(data), data.getHappiness(), data.getPopulation(),
                 data.getPopulationCapacity(), data.getFoodReserves(), data.getFoodCapacity(),
                 data.getRegisteredBuildingCount(), data.getSpecialistCount(), data.getTaxRate(),
                 canManage, TownRemovalHandler.canRemove(player, town.anchor()),
                 town.anchor(), data.getTownCenter(), player.getBlockPos(), false, scraps,
-                session.detected().stream().map(pos -> buildingEntry(player.getServerWorld(), "detected", "Detected", pos, "minecraft:spyglass")).toList(),
+                session.detected().stream().limit(8).map(pos -> buildingEntry(player.getServerWorld(), "detected", "Detected", pos, "minecraft:spyglass")).toList(),
                 session.inspectionType(), session.inspectionPassed(),
                 session.costLines().stream().map(line -> new TownBlueprintView.RequirementLine(line.text(), line.state())).toList(),
                 session.furnitureLines().stream().map(line -> new TownBlueprintView.RequirementLine(line.text(), line.state())).toList(),
                 Stream.concat(TownBuildingDefinition.ALL.stream().map(definition -> new TownBlueprintView.BuildingOption(
-                        definition.id(), definition.displayName(), definition.category(), definition.description(),
+                        definition.id(), definition.displayName(), definition.category(), definition.description()
+                                + " " + definition.infrastructureDescription(),
                         data.isBuildingUnlocked(definition.id()), definition.registrationTokens(),
                         definition.registrationCurrency(), definition.prosperityRequired(), "", false)),
                         legacyBuildings()).toList(),
                 com.example.mcatowns.town.TownProgressionService.checklist(data),
-                data.getResidents().stream().map(id -> {
+                data.getResidents().stream().limit(64).map(id -> {
                     net.minecraft.entity.Entity entity = player.getServerWorld().getEntity(id);
                     String name = entity == null ? id.toString().substring(0, 8) : entity.getName().getString();
+                    com.example.mcatowns.town.RegisteredTownBuilding assigned =
+                            com.example.mcatowns.town.TownWorkforceSystem.assignedBuilding(data, id);
+                    TownBuildingDefinition assignedDefinition = assigned == null ? null
+                            : TownBuildingDefinition.get(assigned.type());
                     return new TownBlueprintView.ResidentEntry(id, name,
-                            data.getSpecialists().getOrDefault(id, ""));
+                            data.getSpecialists().getOrDefault(id, ""),
+                            assigned == null ? new java.util.UUID(0L, 0L) : assigned.id(),
+                            assigned == null ? "Unassigned" : assignedDefinition == null
+                                    ? assigned.type() : assignedDefinition.displayName());
                 }).toList(),
-                data.getRegisteredBuildings().stream().map(building -> {
+                data.getRegisteredBuildings().stream().limit(64).map(building -> {
                     TownBuildingDefinition definition = TownBuildingDefinition.get(building.type());
                     String name = definition == null ? building.type() : definition.displayName();
                     return buildingEntry(building, name, "");
@@ -161,21 +169,23 @@ public final class BlueprintTownCreationHandler {
         MCAIntegration.BuildingBounds bounds = MCAIntegration.getBuildingBoundsAt(world, pos)
                 .orElse(new MCAIntegration.BuildingBounds(pos, pos));
         return new TownBlueprintView.BuildingEntry(new java.util.UUID(0L, 0L), type, name, pos, icon,
-                bounds.min(), bounds.max(), 1, "DETECTED", 0, 0, 0);
+                bounds.min(), bounds.max(), 1, "DETECTED", 0, 0, 0, 0);
     }
 
     private static TownBlueprintView.BuildingEntry buildingEntry(com.example.mcatowns.town.RegisteredTownBuilding building,
                                                                   String name, String icon) {
+        TownBuildingDefinition definition = TownBuildingDefinition.get(building.type());
         return new TownBlueprintView.BuildingEntry(building.id(), building.type(), name, building.anchor(), icon,
                 building.minPos(), building.maxPos(), building.tier(), building.status().name(), building.quality(),
-                building.workers().size(), building.cropState());
+                building.workers().size(), definition == null ? 0 : definition.workersRequired(), building.cropState());
     }
 
-    private static String infrastructureSummary(TownSavedData data) {
+    private static java.util.List<TownBlueprintView.InfrastructureEntry> infrastructure(TownSavedData data) {
         return java.util.Arrays.stream(com.example.mcatowns.town.InfrastructureType.values())
-                .map(type -> type.displayName().substring(0, 3) + " " + data.getInfrastructureAvailable(type)
-                        + "/" + data.getInfrastructureProvided(type))
-                .collect(java.util.stream.Collectors.joining("  "));
+                .map(type -> new TownBlueprintView.InfrastructureEntry(type,
+                        data.getInfrastructureProvided(type), data.getInfrastructureReserved(type),
+                        data.getInfrastructureAvailable(type)))
+                .toList();
     }
 
     private static String playerRank(ServerPlayerEntity player, TownContext town) {

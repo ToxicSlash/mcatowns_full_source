@@ -6,32 +6,25 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.Text;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.server.world.ServerWorld;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.passive.VillagerEntity;
-import net.minecraft.village.VillagerProfession;
 import com.example.mcatowns.config.MCATownsConfig;
 
 public class TownFoodSystem {
     public static void applyDailyCycle(ServerWorld world, TownContext context, TownSavedData data) {
         TownBuildingService.refreshDerivedValues(data);
         int consumed = Math.max(0, data.getResidents().size() * MCATownsConfig.get().foodPerResidentPerDay);
-        int farmers = countFarmers(world, data);
-        int produced = data.hasBuilding("farm") ? Math.min(data.countBuildings("farm") * 3, farmers * 2) : 0;
+        int produced = 0;
+        for (RegisteredTownBuilding farm : data.getRegisteredBuildings()) {
+            if (!"farm".equals(farm.type())) continue;
+            int base = Math.max(1, farm.cropState() / 12);
+            int performance = BuildingPerformance.outputPercent(data, farm)
+                    * Math.max(0, data.getEventFarmOutputPercent()) / 100;
+            if (performance > 0) produced += (base * performance + 99) / 100;
+        }
         data.setDailyFoodConsumed(consumed);
         data.setDailyFoodProduced(produced);
         int next = Math.max(0, data.getFoodReserves() - consumed + produced);
         next = Math.min(data.getFoodCapacity(), next);
         data.setFoodReserves(next);
-    }
-
-    private static int countFarmers(ServerWorld world, TownSavedData data) {
-        int farmers = 0;
-        for (java.util.UUID id : data.getResidents()) {
-            Entity entity = world.getEntity(id);
-            if (entity instanceof VillagerEntity villager
-                    && villager.getVillagerData().getProfession() == VillagerProfession.FARMER) farmers++;
-        }
-        return farmers;
     }
 
     public static void contributeFromInventory(ServerPlayerEntity player, BlockPos storehousePos) {

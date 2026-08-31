@@ -23,12 +23,16 @@ public record RegisteredTownBuilding(
         type = type == null ? "legacy" : type;
         tier = Math.max(1, Math.min(3, tier));
         anchor = anchor == null ? BlockPos.ORIGIN : anchor.toImmutable();
-        minPos = minPos == null ? anchor : minPos.toImmutable();
-        maxPos = maxPos == null ? anchor : maxPos.toImmutable();
+        BlockPos rawMin = minPos == null ? anchor : minPos;
+        BlockPos rawMax = maxPos == null ? anchor : maxPos;
+        minPos = new BlockPos(Math.min(rawMin.getX(), rawMax.getX()), Math.min(rawMin.getY(), rawMax.getY()),
+                Math.min(rawMin.getZ(), rawMax.getZ()));
+        maxPos = new BlockPos(Math.max(rawMin.getX(), rawMax.getX()), Math.max(rawMin.getY(), rawMax.getY()),
+                Math.max(rawMin.getZ(), rawMax.getZ()));
         status = status == null ? BuildingStatus.ACTIVE : status;
         quality = Math.max(0, Math.min(100, quality));
         workers = workers == null ? List.of() : List.copyOf(workers);
-        cropState = Math.max(0, Math.min(100, cropState));
+        cropState = Math.max(0, Math.min(FarmFieldScanner.MAX_CONTRIBUTING_CROPS, cropState));
     }
 
     public static RegisteredTownBuilding legacy(String type, BlockPos pos) {

@@ -353,7 +353,7 @@ public abstract class BlueprintScreenMixin extends Screen {
     private static ItemStack mcatowns$buildingIcon(String id) {
         String itemId = switch (id) {
             case "residence" -> "minecraft:red_bed";
-            case "farm" -> "minecraft:composter";
+            case "farm" -> "minecraft:wheat";
             case "granary" -> "mcatowns:silo";
             case "campfire" -> "minecraft:campfire";
             case "park" -> "minecraft:oak_sapling";

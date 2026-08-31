@@ -5,6 +5,7 @@ import net.minecraft.item.ItemStack;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 public class TownTaxSystem {
     public static int calculateWeeklyTaxes(TownSavedData data, TownBuildingSnapshot snapshot, int rankValue) {
@@ -28,9 +29,11 @@ public class TownTaxSystem {
         generalTaxBonusPercent += businessBonusPercent;
         weightedMcaTaxValue = weightedMcaTaxValue * (100 + itemTaxBonusPercent) / 100;
         addonBaseValue = addonBaseValue * (100 + generalTaxBonusPercent) / 100;
-        int workforceEfficiency = Math.max(0, data.getWorkforceEfficiencyPercent());
-        weightedMcaTaxValue = weightedMcaTaxValue * workforceEfficiency / 100;
-        addonBaseValue = addonBaseValue * workforceEfficiency / 100;
+        int commercePerformance = BuildingPerformance.averageOutputPercent(data,
+                Set.of("inn", "storehouse", "bounty_board", "civic_office", "blacksmith", "jeweler"),
+                data.getWorkforceEfficiencyPercent());
+        weightedMcaTaxValue = weightedMcaTaxValue * commercePerformance / 100;
+        addonBaseValue = addonBaseValue * commercePerformance / 100;
         weightedMcaTaxValue = weightedMcaTaxValue * Math.max(0, data.getEventTaxPercent()) / 100;
         addonBaseValue = addonBaseValue * Math.max(0, data.getEventTaxPercent()) / 100;
         weightedMcaTaxValue = weightedMcaTaxValue * Math.max(0, data.getEventWorkforcePercent()) / 100;

@@ -33,10 +33,16 @@ dependencies {
         modRuntimeOnly files(localMcaJar)
     }
 
+    testImplementation "org.junit.jupiter:junit-jupiter:5.10.2"
+
     // Optional dev dependencies:
     // modImplementation "curse.maven:minecraft-comes-alive-reborn-535291:<file-id>"
     // modImplementation "curse.maven:guard-villagers-360203:<file-id>"
     // modImplementation files("libs/villager-business.jar")
+}
+
+tasks.withType(Test).configureEach {
+    useJUnitPlatform()
 }
 
 processResources {

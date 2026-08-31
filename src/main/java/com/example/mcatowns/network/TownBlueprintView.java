@@ -2,6 +2,7 @@ package com.example.mcatowns.network;
 
 import com.example.mcatowns.town.TownRank;
 import com.example.mcatowns.town.TownBuildingCategory;
+import com.example.mcatowns.town.InfrastructureType;
 import net.minecraft.network.PacketByteBuf;
 import net.minecraft.util.math.BlockPos;
 
@@ -16,7 +17,7 @@ public record TownBlueprintView(
         TownRank rank,
         int prosperity,
         int prosperityBase,
-        String infrastructureSummary,
+        List<InfrastructureEntry> infrastructure,
         int happiness,
         int population,
         int populationCapacity,
@@ -49,7 +50,7 @@ public record TownBlueprintView(
         buf.writeEnumConstant(rank);
         buf.writeVarInt(prosperity);
         buf.writeVarInt(prosperityBase);
-        buf.writeString(infrastructureSummary, 256);
+        buf.writeCollection(infrastructure, (packet, entry) -> entry.write(packet));
         buf.writeVarInt(happiness);
         buf.writeVarInt(population);
         buf.writeVarInt(populationCapacity);
@@ -84,7 +85,7 @@ public record TownBlueprintView(
                 buf.readEnumConstant(TownRank.class),
                 buf.readVarInt(),
                 buf.readVarInt(),
-                buf.readString(256),
+                buf.readCollection(ArrayList::new, InfrastructureEntry::read),
                 buf.readVarInt(),
                 buf.readVarInt(),
                 buf.readVarInt(),
@@ -145,19 +146,37 @@ public record TownBlueprintView(
         }
     }
 
-    public record ResidentEntry(UUID id, String name, String specialistType) {
+    public record ResidentEntry(UUID id, String name, String specialistType,
+                                UUID assignedBuildingId, String assignedBuildingName) {
         void write(PacketByteBuf buf) {
             buf.writeUuid(id);
             buf.writeString(name, 64);
             buf.writeString(specialistType, 32);
+            buf.writeUuid(assignedBuildingId);
+            buf.writeString(assignedBuildingName, 64);
         }
 
         static ResidentEntry read(PacketByteBuf buf) {
-            return new ResidentEntry(buf.readUuid(), buf.readString(64), buf.readString(32));
+            return new ResidentEntry(buf.readUuid(), buf.readString(64), buf.readString(32),
+                    buf.readUuid(), buf.readString(64));
         }
 
         public boolean specialist() {
             return !specialistType.isBlank();
+        }
+    }
+
+    public record InfrastructureEntry(InfrastructureType type, int provided, int reserved, int available) {
+        void write(PacketByteBuf buf) {
+            buf.writeEnumConstant(type);
+            buf.writeVarInt(provided);
+            buf.writeVarInt(reserved);
+            buf.writeVarInt(available);
+        }
+
+        static InfrastructureEntry read(PacketByteBuf buf) {
+            return new InfrastructureEntry(buf.readEnumConstant(InfrastructureType.class), buf.readVarInt(),
+                    buf.readVarInt(), buf.readVarInt());
         }
     }
 
@@ -174,7 +193,7 @@ public record TownBlueprintView(
 
     public record BuildingEntry(UUID id, String type, String name, BlockPos pos, String icon,
                                 BlockPos minPos, BlockPos maxPos, int tier, String status,
-                                int quality, int workerCount, int cropState) {
+                                int quality, int workerCount, int workerSlots, int cropState) {
         void write(PacketByteBuf buf) {
             buf.writeUuid(id);
             buf.writeString(type, 64);
@@ -187,13 +206,14 @@ public record TownBlueprintView(
             buf.writeString(status, 32);
             buf.writeVarInt(quality);
             buf.writeVarInt(workerCount);
+            buf.writeVarInt(workerSlots);
             buf.writeVarInt(cropState);
         }
 
         static BuildingEntry read(PacketByteBuf buf) {
             return new BuildingEntry(buf.readUuid(), buf.readString(64), buf.readString(64), buf.readBlockPos(),
                     buf.readString(64), buf.readBlockPos(), buf.readBlockPos(), buf.readVarInt(),
-                    buf.readString(32), buf.readVarInt(), buf.readVarInt(), buf.readVarInt());
+                    buf.readString(32), buf.readVarInt(), buf.readVarInt(), buf.readVarInt(), buf.readVarInt());
         }
     }
 }

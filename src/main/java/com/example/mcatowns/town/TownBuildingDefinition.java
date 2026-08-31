@@ -58,6 +58,22 @@ public record TownBuildingDefinition(
         };
     }
 
+    public String infrastructureDescription() {
+        String provides = infrastructurePart("Provides", providedInfrastructure());
+        String uses = infrastructurePart("Uses", reservedInfrastructure());
+        if (provides.isBlank()) return uses;
+        if (uses.isBlank()) return provides;
+        return provides + "; " + uses;
+    }
+
+    private static String infrastructurePart(String label, Map<InfrastructureType, Integer> values) {
+        String entries = java.util.Arrays.stream(InfrastructureType.values())
+                .filter(values::containsKey)
+                .map(type -> type.displayName() + " +" + values.get(type))
+                .collect(Collectors.joining(", "));
+        return entries.isBlank() ? "" : label + " " + entries;
+    }
+
     public static final List<TownBuildingDefinition> ALL = List.of(
             new TownBuildingDefinition("residence", "Residence", TownBuildingCategory.RESIDENTIAL,
                     "+2 population capacity. Requires an MCA-valid enclosed home with a bed.", true, 0, 2, 0, 2, 0, 0),
