@@ -14,10 +14,6 @@ import java.util.Collection;
 public final class BuildingPerformance {
     private static final int FURNITURE_RADIUS = 4;
     private static final int SYNERGY_RADIUS_SQUARED = 32 * 32;
-    private static final Set<Block> SIMPLE_FURNITURE = Set.of(
-            Blocks.BARREL, Blocks.CHEST, Blocks.CRAFTING_TABLE, Blocks.FURNACE,
-            Blocks.LANTERN, Blocks.TORCH, Blocks.BOOKSHELF, Blocks.HAY_BLOCK,
-            Blocks.SMITHING_TABLE, Blocks.LECTERN, Blocks.BELL);
     private static final Map<String, Set<String>> SYNERGIES = Map.ofEntries(
             Map.entry("farm", Set.of("granary", "storehouse")),
             Map.entry("granary", Set.of("farm", "storehouse")),
@@ -84,7 +80,7 @@ public final class BuildingPerformance {
         for (BlockPos pos : BlockPos.iterate(anchor.add(-FURNITURE_RADIUS, -2, -FURNITURE_RADIUS),
                 anchor.add(FURNITURE_RADIUS, 3, FURNITURE_RADIUS))) {
             if (!world.getWorldBorder().contains(pos) || !world.isChunkLoaded(pos)) continue;
-            if (SIMPLE_FURNITURE.contains(world.getBlockState(pos).getBlock()) && ++count >= 5) break;
+            if (FurnitureBlocks.SIMPLE.contains(world.getBlockState(pos).getBlock()) && ++count >= 5) break;
         }
         return count;
     }
@@ -101,5 +97,13 @@ public final class BuildingPerformance {
             }
         }
         return count;
+    }
+
+    /** Delays Minecraft registry access so the arithmetic can be unit-tested without bootstrapping a game. */
+    private static final class FurnitureBlocks {
+        private static final Set<Block> SIMPLE = Set.of(
+                Blocks.BARREL, Blocks.CHEST, Blocks.CRAFTING_TABLE, Blocks.FURNACE,
+                Blocks.LANTERN, Blocks.TORCH, Blocks.BOOKSHELF, Blocks.HAY_BLOCK,
+                Blocks.SMITHING_TABLE, Blocks.LECTERN, Blocks.BELL);
     }
 }
