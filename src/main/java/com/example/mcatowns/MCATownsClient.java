@@ -17,5 +17,6 @@ public class MCATownsClient implements ClientModInitializer {
         HandledScreens.register(ModScreenHandlers.SILO, SiloScreen::new);
         HandledScreens.register(ModScreenHandlers.STOREHOUSE, StorehouseScreen::new);
         ClientModNetworking.register();
+        MCATowns.LOGGER.info("MCA Towns client initialized");
     }
 }
