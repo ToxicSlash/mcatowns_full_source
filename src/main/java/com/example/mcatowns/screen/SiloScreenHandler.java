@@ -44,12 +44,13 @@ public class SiloScreenHandler extends ScreenHandler {
         if (player instanceof ServerPlayerEntity serverPlayer) {
             var world = serverPlayer.getServerWorld();
             if (townId == null) {
-                townId = TownManager.resolveTownContext(world, pos).townId();
+                townId = TownManager.findExistingTown(world, pos, TownManager.getTownSearchMargin())
+                        .map(context -> context.townId()).orElse("");
             }
-            TownSavedData data = TownSavedData.get(world, townId);
-            properties.set(FOOD, data.getFoodReserves());
+            int food = townId.isBlank() ? 0 : TownSavedData.get(world, townId).getFoodReserves();
+            properties.set(FOOD, food);
             properties.set(PLAYER_BREAD, InventoryHelper.count(serverPlayer.getInventory(), Items.BREAD));
-            properties.set(SILO_BREAD_EQ, Math.max(0, data.getFoodReserves()));
+            properties.set(SILO_BREAD_EQ, Math.max(0, food));
         }
         super.sendContentUpdates();
     }
@@ -66,24 +67,9 @@ public class SiloScreenHandler extends ScreenHandler {
         return ItemStack.EMPTY;
     }
 
-    public BlockPos getPos() {
-        return pos;
-    }
-
-    public int getFood() {
-        return properties.get(FOOD);
-    }
-
-    public int getPlayerBread() {
-        return properties.get(PLAYER_BREAD);
-    }
-
-    public int getSiloBreadEquivalent() {
-        return properties.get(SILO_BREAD_EQ);
-    }
-
-    public void sendDeposit() {
-        ModNetworking.sendSiloDeposit(pos);
-    }
-
+    public BlockPos getPos() { return pos; }
+    public int getFood() { return properties.get(FOOD); }
+    public int getPlayerBread() { return properties.get(PLAYER_BREAD); }
+    public int getSiloBreadEquivalent() { return properties.get(SILO_BREAD_EQ); }
+    public void sendDeposit() { ModNetworking.sendSiloDeposit(pos); }
 }
