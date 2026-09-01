@@ -26,10 +26,14 @@ import net.minecraft.util.math.BlockPos;
 import org.jetbrains.annotations.Nullable;
 
 public class MayorDeskBlockEntity extends BlockEntity implements ExtendedScreenHandlerFactory {
+    private static final long BINDING_RECHECK_INTERVAL_TICKS = 200L;
+    private static final long LIVE_STATS_REFRESH_INTERVAL_TICKS = 1200L;
+
     private final PropertyDelegate properties = new MayorDeskPropertyDelegate();
     private String boundTownId = "";
     private long lastBindingCheckTick = -1L;
     private long lastLiveStatsRefreshTick = -1L;
+    private TownContext cachedContext;
 
     public MayorDeskBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.MAYOR_DESK, pos, state);
@@ -69,10 +73,7 @@ public class MayorDeskBlockEntity extends BlockEntity implements ExtendedScreenH
     }
 
     public static void tick(net.minecraft.world.World world, BlockPos pos, BlockState state, MayorDeskBlockEntity blockEntity) {
-        if (!(world instanceof ServerWorld serverWorld)) {
-            return;
-        }
-        if (serverWorld.getTime() % 20 != 0) {
+        if (!(world instanceof ServerWorld serverWorld) || serverWorld.getTime() % 20 != 0) {
             return;
         }
         TownContext context = blockEntity.resolveBoundContext(serverWorld, false);
@@ -93,40 +94,39 @@ public class MayorDeskBlockEntity extends BlockEntity implements ExtendedScreenH
     public void readNbt(NbtCompound nbt) {
         super.readNbt(nbt);
         boundTownId = nbt.getString("BoundTownId");
+        cachedContext = null;
+        lastBindingCheckTick = -1L;
     }
 
     private TownContext resolveBoundContext(ServerWorld world, boolean forceRecheck) {
-        if (MCAIntegration.isMcaLoaded()) {
-            if (!boundTownId.isEmpty()) {
-                var existing = MCAIntegration.getTownById(world, boundTownId);
-                if (existing.isPresent()) {
-                    return existing.get();
-                }
-                var playerCreated = com.example.mcatowns.town.PlayerTownRegistry.get(world).getTownById(boundTownId);
-                if (playerCreated.isPresent()) {
-                    return playerCreated.get();
-                }
-            }
-            if (forceRecheck || lastBindingCheckTick < 0 || world.getTime() - lastBindingCheckTick >= 200) {
-                lastBindingCheckTick = world.getTime();
-                TownContext nearest = TownManager.resolveTownContext(world, getPos());
-                if (nearest.validMcaTown() || "player_created".equals(nearest.source())) {
-                    if (!nearest.townId().equals(boundTownId)) {
-                        boundTownId = nearest.townId();
-                        markDirty();
-                    }
-                    return nearest;
-                }
-            }
-            return new TownContext("unbound", getPos(), getPos(), "mca_unbound", false);
+        long now = world.getTime();
+        if (!forceRecheck && cachedContext != null && lastBindingCheckTick >= 0
+                && now - lastBindingCheckTick < BINDING_RECHECK_INTERVAL_TICKS) {
+            return cachedContext;
         }
+        lastBindingCheckTick = now;
 
-        TownContext fallback = TownManager.resolveTownContext(world, getPos());
-        if (!fallback.townId().equals(boundTownId)) {
-            boundTownId = fallback.townId();
+        TownContext resolved = null;
+        if (!boundTownId.isEmpty()) {
+            resolved = com.example.mcatowns.town.PlayerTownRegistry.get(world).getTownById(boundTownId).orElse(null);
+            if (resolved == null && MCAIntegration.isMcaLoaded()) {
+                resolved = MCAIntegration.getTownById(world, boundTownId).orElse(null);
+            }
+        }
+        if (resolved == null) {
+            TownContext nearest = TownManager.resolveTownContext(world, getPos());
+            if (nearest.validMcaTown() || "player_created".equals(nearest.source()) || !MCAIntegration.isMcaLoaded()) {
+                resolved = nearest;
+            }
+        }
+        if (resolved == null || "fallback".equals(resolved.source())) {
+            resolved = new TownContext("unbound", getPos(), getPos(), "mca_unbound", false);
+        } else if (!resolved.townId().equals(boundTownId)) {
+            boundTownId = resolved.townId();
             markDirty();
         }
-        return fallback;
+        cachedContext = resolved;
+        return resolved;
     }
 
     public TownContext getGovernedTownContext(ServerWorld world) {
@@ -143,7 +143,8 @@ public class MayorDeskBlockEntity extends BlockEntity implements ExtendedScreenH
 
     private void syncProperties(ServerWorld world, TownContext context, boolean forceLiveRefresh) {
         TownSavedData data = TownSavedData.get(world, context.townId());
-        if (forceLiveRefresh || lastLiveStatsRefreshTick < 0 || world.getTime() - lastLiveStatsRefreshTick >= 200) {
+        if (forceLiveRefresh || lastLiveStatsRefreshTick < 0
+                || world.getTime() - lastLiveStatsRefreshTick >= LIVE_STATS_REFRESH_INTERVAL_TICKS) {
             TownStatsRefresher.refresh(world, context.center(), data);
             lastLiveStatsRefreshTick = world.getTime();
         }
