@@ -1,20 +1,20 @@
 package com.example.mcatowns.blockentity;
 
-import com.example.mcatowns.integration.MCAIntegration;
 import com.example.mcatowns.config.MCATownsConfig;
+import com.example.mcatowns.integration.MCAIntegration;
+import com.example.mcatowns.registry.ModBlockEntities;
+import com.example.mcatowns.screen.MayorDeskScreenHandler;
 import com.example.mcatowns.town.TownContext;
 import com.example.mcatowns.town.TownFestivalSystem;
 import com.example.mcatowns.town.TownManager;
 import com.example.mcatowns.town.TownSavedData;
 import com.example.mcatowns.town.TownStatsRefresher;
 import com.example.mcatowns.town.TownUpgradeSystem;
-import com.example.mcatowns.registry.ModBlockEntities;
-import com.example.mcatowns.screen.MayorDeskScreenHandler;
 import net.fabricmc.fabric.api.screenhandler.v1.ExtendedScreenHandlerFactory;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.entity.BlockEntity;
-import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.network.PacketByteBuf;
 import net.minecraft.screen.PropertyDelegate;
@@ -27,12 +27,10 @@ import org.jetbrains.annotations.Nullable;
 
 public class MayorDeskBlockEntity extends BlockEntity implements ExtendedScreenHandlerFactory {
     private static final long BINDING_RECHECK_INTERVAL_TICKS = 200L;
-    private static final long LIVE_STATS_REFRESH_INTERVAL_TICKS = 1200L;
 
     private final PropertyDelegate properties = new MayorDeskPropertyDelegate();
     private String boundTownId = "";
     private long lastBindingCheckTick = -1L;
-    private long lastLiveStatsRefreshTick = -1L;
     private TownContext cachedContext;
 
     public MayorDeskBlockEntity(BlockPos pos, BlockState state) {
@@ -60,6 +58,7 @@ public class MayorDeskBlockEntity extends BlockEntity implements ExtendedScreenH
                         serverWorld, getPos(), MCATownsConfig.get().mcaVillageSearchMargin)), false);
                 return null;
             }
+            // Expensive scans happen on demand when the desk is opened; background town ticks handle routine refreshes.
             syncProperties(serverWorld, context, true);
             if (player instanceof ServerPlayerEntity serverPlayer && !TownManager.hasMayorAuthority(serverPlayer, context)) {
                 player.sendMessage(Text.translatable("text.mcatowns.not_mayor"), true);
@@ -73,9 +72,7 @@ public class MayorDeskBlockEntity extends BlockEntity implements ExtendedScreenH
     }
 
     public static void tick(net.minecraft.world.World world, BlockPos pos, BlockState state, MayorDeskBlockEntity blockEntity) {
-        if (!(world instanceof ServerWorld serverWorld) || serverWorld.getTime() % 20 != 0) {
-            return;
-        }
+        if (!(world instanceof ServerWorld serverWorld) || serverWorld.getTime() % 20 != 0) return;
         TownContext context = blockEntity.resolveBoundContext(serverWorld, false);
         if ("mca_unbound".equals(context.source())) {
             blockEntity.clearPropertiesForUnboundTown();
@@ -134,20 +131,14 @@ public class MayorDeskBlockEntity extends BlockEntity implements ExtendedScreenH
     }
 
     private void clearPropertiesForUnboundTown() {
-        for (int i = 0; i < properties.size(); i++) {
-            properties.set(i, 0);
-        }
+        for (int i = 0; i < properties.size(); i++) properties.set(i, 0);
         properties.set(MayorDeskPropertyDelegate.MCA_TAX_PERCENT, MCATownsConfig.get().mcaTaxContributionPercent);
         properties.set(MayorDeskPropertyDelegate.NEXT_BARRACKS_COST, -1);
     }
 
-    private void syncProperties(ServerWorld world, TownContext context, boolean forceLiveRefresh) {
+    private void syncProperties(ServerWorld world, TownContext context, boolean refreshStats) {
         TownSavedData data = TownSavedData.get(world, context.townId());
-        if (forceLiveRefresh || lastLiveStatsRefreshTick < 0
-                || world.getTime() - lastLiveStatsRefreshTick >= LIVE_STATS_REFRESH_INTERVAL_TICKS) {
-            TownStatsRefresher.refresh(world, context.center(), data);
-            lastLiveStatsRefreshTick = world.getTime();
-        }
+        if (refreshStats) TownStatsRefresher.refresh(world, context.center(), data);
 
         properties.set(MayorDeskPropertyDelegate.POPULATION, data.getPopulation() + data.getRefugeePopulationBonus() + data.getCaravanPopulationBonus());
         properties.set(MayorDeskPropertyDelegate.HAPPINESS, data.getHappiness());
