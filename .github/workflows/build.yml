@@ -50,3 +50,32 @@ jobs:
           wait "$server_pid" 2>/dev/null || true
           cat server-smoke.log
           test "$started" -eq 1
+      - name: Headless client smoke test
+        shell: bash
+        run: |
+          if ! command -v xvfb-run >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y xvfb
+          fi
+          rm -f client-smoke.log
+          set +e
+          ALSOFT_DRIVERS=null timeout 90s xvfb-run -a ./gradlew runClient > client-smoke.log 2>&1
+          status=$?
+          set -e
+          cat client-smoke.log
+
+          # runClient is expected to remain open until the timeout once the title screen is healthy.
+          if [ "$status" -ne 124 ]; then
+            echo "Client exited before the smoke-test timeout (status $status)."
+            exit 1
+          fi
+
+          # Prove the client entrypoint and LWJGL/render bootstrap both ran.
+          grep -q 'MCA Towns client initialized' client-smoke.log
+          grep -q 'Backend library: LWJGL version' client-smoke.log
+
+          # Catch common early client crashes even if Gradle itself stays alive briefly.
+          if grep -Eqi 'Could not execute entrypoint|Exception in thread "Render thread"|Game crashed|ReportedException' client-smoke.log; then
+            echo 'Client crash signature found in smoke-test log.'
+            exit 1
+          fi
