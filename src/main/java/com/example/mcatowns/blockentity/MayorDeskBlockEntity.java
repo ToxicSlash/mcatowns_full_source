@@ -119,7 +119,7 @@ public class MayorDeskBlockEntity extends BlockEntity implements ExtendedScreenH
                 resolved = nearest;
             }
         }
-        if (resolved == null || "fallback".equals(resolved.source())) {
+        if (resolved == null || MCAIntegration.isMcaLoaded() && "fallback".equals(resolved.source())) {
             resolved = new TownContext("unbound", getPos(), getPos(), "mca_unbound", false);
         } else if (!resolved.townId().equals(boundTownId)) {
             boundTownId = resolved.townId();
