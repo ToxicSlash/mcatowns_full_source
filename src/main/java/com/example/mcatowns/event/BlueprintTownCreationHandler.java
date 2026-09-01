@@ -5,6 +5,7 @@ import com.example.mcatowns.network.TownBlueprintView;
 import com.example.mcatowns.registry.ModItems;
 import com.example.mcatowns.town.PlayerTownRegistry;
 import com.example.mcatowns.town.BlueprintSessionService;
+import com.example.mcatowns.town.BuildingPerformance;
 import com.example.mcatowns.town.TownContext;
 import com.example.mcatowns.town.TownManager;
 import com.example.mcatowns.town.TownRank;
@@ -161,7 +162,7 @@ public final class BlueprintTownCreationHandler {
                 data.getRegisteredBuildings().stream().limit(64).map(building -> {
                     TownBuildingDefinition definition = TownBuildingDefinition.get(building.type());
                     String name = definition == null ? building.type() : definition.displayName();
-                    return buildingEntry(building, name, "");
+                    return buildingEntry(player.getServerWorld(), data, building, name, "");
                 }).toList()));
     }
 
@@ -169,15 +170,20 @@ public final class BlueprintTownCreationHandler {
         MCAIntegration.BuildingBounds bounds = MCAIntegration.getBuildingBoundsAt(world, pos)
                 .orElse(new MCAIntegration.BuildingBounds(pos, pos));
         return new TownBlueprintView.BuildingEntry(new java.util.UUID(0L, 0L), type, name, pos, icon,
-                bounds.min(), bounds.max(), 1, "DETECTED", 0, 0, 0, 0);
+                bounds.min(), bounds.max(), 1, "DETECTED", 0, 0, 0, 0,
+                0, 0, 0, 0, 0, 0);
     }
 
-    private static TownBlueprintView.BuildingEntry buildingEntry(com.example.mcatowns.town.RegisteredTownBuilding building,
+    private static TownBlueprintView.BuildingEntry buildingEntry(ServerWorld world, TownSavedData data,
+                                                                  com.example.mcatowns.town.RegisteredTownBuilding building,
                                                                   String name, String icon) {
         TownBuildingDefinition definition = TownBuildingDefinition.get(building.type());
+        BuildingPerformance.OutputBreakdown breakdown = BuildingPerformance.calculateBreakdown(world, data, building);
         return new TownBlueprintView.BuildingEntry(building.id(), building.type(), name, building.anchor(), icon,
                 building.minPos(), building.maxPos(), building.tier(), building.status().name(), building.output(),
-                building.workers().size(), definition == null ? 0 : definition.workersRequired(), building.cropState());
+                building.workers().size(), definition == null ? 0 : definition.workersRequired(), building.cropState(),
+                breakdown.staffingPercent(), breakdown.tierBonus(), breakdown.furnitureBonus(), breakdown.synergyBonus(),
+                breakdown.furnitureCount(), breakdown.synergyCount());
     }
 
     private static java.util.List<TownBlueprintView.InfrastructureEntry> infrastructure(TownSavedData data) {
