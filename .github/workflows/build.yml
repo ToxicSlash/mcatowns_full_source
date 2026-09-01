@@ -25,4 +25,28 @@ jobs:
       - name: Build
         uses: gradle/actions/setup-gradle@v4
       - run: chmod +x gradlew
-      - run: ./gradlew build --stacktrace
+      - name: Compile and run unit tests
+        run: ./gradlew build --stacktrace
+      - name: Dedicated server smoke test
+        shell: bash
+        run: |
+          mkdir -p run
+          printf 'eula=true\n' > run/eula.txt
+          rm -f server-smoke.log
+          timeout 120s ./gradlew runServer --args='nogui' > server-smoke.log 2>&1 &
+          server_pid=$!
+          started=0
+          for i in {1..90}; do
+            if grep -q 'Done (' server-smoke.log; then
+              started=1
+              break
+            fi
+            if ! kill -0 "$server_pid" 2>/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          kill "$server_pid" 2>/dev/null || true
+          wait "$server_pid" 2>/dev/null || true
+          cat server-smoke.log
+          test "$started" -eq 1
