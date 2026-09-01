@@ -18,6 +18,10 @@ public final class BlueprintSessionService {
         return STATES.computeIfAbsent(player.getUuid(), ignored -> new SessionState());
     }
 
+    public static void clear(UUID playerId) {
+        if (playerId != null) STATES.remove(playerId);
+    }
+
     public static void setDetected(ServerPlayerEntity player, List<BlockPos> detected, BlockPos primary) {
         SessionState state = get(player);
         state.detected = List.copyOf(detected);
