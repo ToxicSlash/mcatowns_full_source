@@ -44,11 +44,17 @@ public class TreasuryScreenHandler extends ScreenHandler {
         if (player instanceof ServerPlayerEntity serverPlayer) {
             var world = serverPlayer.getServerWorld();
             if (townId == null) {
-                townId = TownManager.resolveTownContext(world, pos).townId();
+                townId = TownManager.findExistingTown(world, pos, TownManager.getTownSearchMargin())
+                        .map(context -> context.townId()).orElse("");
             }
-            TownSavedData data = TownSavedData.get(world, townId);
-            properties.set(TREASURY, data.getTreasury());
-            properties.set(CAP, data.getMaxTreasury());
+            if (townId.isBlank()) {
+                properties.set(TREASURY, 0);
+                properties.set(CAP, 0);
+            } else {
+                TownSavedData data = TownSavedData.get(world, townId);
+                properties.set(TREASURY, data.getTreasury());
+                properties.set(CAP, data.getMaxTreasury());
+            }
             properties.set(PLAYER_EMERALDS, InventoryHelper.count(serverPlayer.getInventory(), Items.EMERALD));
         }
         super.sendContentUpdates();
@@ -66,28 +72,10 @@ public class TreasuryScreenHandler extends ScreenHandler {
         return ItemStack.EMPTY;
     }
 
-    public BlockPos getPos() {
-        return pos;
-    }
-
-    public int getTreasury() {
-        return properties.get(TREASURY);
-    }
-
-    public int getCap() {
-        return properties.get(CAP);
-    }
-
-    public int getPlayerEmeralds() {
-        return properties.get(PLAYER_EMERALDS);
-    }
-
-    public void sendDeposit() {
-        ModNetworking.sendTreasuryDeposit(pos);
-    }
-
-    public void sendRetrieve() {
-        ModNetworking.sendTreasuryRetrieve(pos);
-    }
-
+    public BlockPos getPos() { return pos; }
+    public int getTreasury() { return properties.get(TREASURY); }
+    public int getCap() { return properties.get(CAP); }
+    public int getPlayerEmeralds() { return properties.get(PLAYER_EMERALDS); }
+    public void sendDeposit() { ModNetworking.sendTreasuryDeposit(pos); }
+    public void sendRetrieve() { ModNetworking.sendTreasuryRetrieve(pos); }
 }
