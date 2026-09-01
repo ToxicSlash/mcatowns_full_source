@@ -53,7 +53,10 @@ public class TownSpecialistRegistry extends PersistentState {
 
     public void inspect(Entity entity) {
         if (!(entity instanceof VillagerEntity villager) || villager.isBaby()) return;
-        if (villager.getVillagerData().getProfession() != VillagerProfession.NONE) return;
+        if (villager.getVillagerData().getProfession() != VillagerProfession.NONE) {
+            remove(entity.getUuid());
+            return;
+        }
         if (candidates.containsKey(entity.getUuid())) return;
         int chance = MCATownsConfig.get().specialistChancePercent;
         int roll = Math.floorMod(entity.getUuid().hashCode(), 100);
@@ -63,6 +66,10 @@ public class TownSpecialistRegistry extends PersistentState {
         candidates.put(entity.getUuid(), type);
         markDirty();
         QuestIntegration.assignIntroductions(entity);
+    }
+
+    public void remove(UUID id) {
+        if (id != null && candidates.remove(id) != null) markDirty();
     }
 
     public Optional<SpecialistType> get(UUID id) {
