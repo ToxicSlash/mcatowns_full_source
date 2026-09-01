@@ -1,14 +1,30 @@
 package com.example.mcatowns.event;
 
 import com.example.mcatowns.MCATowns;
-import com.example.mcatowns.integration.VillagerBusinessIntegration;
-import com.example.mcatowns.integration.MCAIntegration;
-import com.example.mcatowns.integration.GuardStatIntegration;
 import com.example.mcatowns.config.MCATownsConfig;
-import com.example.mcatowns.town.*;
+import com.example.mcatowns.integration.GuardStatIntegration;
+import com.example.mcatowns.integration.MCAIntegration;
+import com.example.mcatowns.integration.VillagerBusinessIntegration;
+import com.example.mcatowns.town.TownBuildingSnapshot;
+import com.example.mcatowns.town.TownCaravanSystem;
+import com.example.mcatowns.town.TownContext;
+import com.example.mcatowns.town.TownDefenseSystem;
+import com.example.mcatowns.town.TownFoodSystem;
+import com.example.mcatowns.town.TownHealthService;
+import com.example.mcatowns.town.TownIndustrySystem;
+import com.example.mcatowns.town.TownManager;
+import com.example.mcatowns.town.TownRandomEventSystem;
+import com.example.mcatowns.town.TownRangeSystem;
+import com.example.mcatowns.town.TownRequestService;
+import com.example.mcatowns.town.TownSavedData;
+import com.example.mcatowns.town.TownStatsRefresher;
+import com.example.mcatowns.town.TownStorageDepositSystem;
+import com.example.mcatowns.town.TownTaxSystem;
+import com.example.mcatowns.town.TownTradeSystem;
+import com.example.mcatowns.town.TownUnrestSystem;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.minecraft.entity.ItemEntity;
 import net.minecraft.item.ItemStack;
-import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.village.raid.Raid;
@@ -17,9 +33,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class ServerTickEventsHandler {
+public final class ServerTickEventsHandler {
     private static final long TOWN_TICK_INTERVAL = 200L;
     private static final int GUARD_REFRESH_TOWN_TICKS = 3;
+
+    private ServerTickEventsHandler() { }
 
     public static void register() {
         ServerTickEvents.END_WORLD_TICK.register(ServerTickEventsHandler::tickWorld);
@@ -48,9 +66,7 @@ public class ServerTickEventsHandler {
                                  List<TownContext> contexts, Map<String, TownSavedData> dataByTown) {
         BlockPos anchor = context.center();
         TownSavedData data = dataByTown.get(context.townId());
-        if (data == null || !world.getWorldBorder().contains(anchor) || !world.isChunkLoaded(anchor)) {
-            return;
-        }
+        if (data == null || !world.getWorldBorder().contains(anchor) || !world.isChunkLoaded(anchor)) return;
 
         TownBuildingSnapshot daySnapshot = null;
         TownBuildingSnapshot latestSnapshot = null;
@@ -67,13 +83,11 @@ public class ServerTickEventsHandler {
             effectiveGuardRadius = TownRangeSystem.getEffectiveRange(config.guardBuffRadius, rangeBonusHallCount);
             effectiveBusinessRadius = TownRangeSystem.getEffectiveRange(config.villagerBusinessRadius, rangeBonusHallCount);
             int population = MCAIntegration.getPopulation(world, anchor);
-            if (population > 0 || data.getPopulation() <= 0) {
-                data.setPopulation(population);
-            }
+            if (population > 0 || data.getPopulation() <= 0) data.setPopulation(population);
             TownCaravanSystem.tickDaily(world, context, data, day);
             TownRandomEventSystem.tickDaily(world, data, daySnapshot, day);
             TownRequestService.tickDaily(world, context, data, day);
-            TownFoodSystem.applyDailyCycle(world, context, data);
+            TownFoodSystem.applyDailyCycle(data);
             TownHealthService.tickDaily(world, context, data, day);
             TownIndustrySystem.applyDailyQuarryYield(world, anchor, data, daySnapshot);
             data.setLastFoodCycleDay(day);
@@ -88,40 +102,25 @@ public class ServerTickEventsHandler {
             effectiveBusinessRadius = TownRangeSystem.getEffectiveRange(config.villagerBusinessRadius, rangeBonusHallCount);
             TownStatsRefresher.refresh(world, anchor, data, snapshot);
             TownUnrestSystem.tick(data);
-            if (!"player_created".equals(context.source())) TownHappinessSystem.tick(data, snapshot);
             data.setLastStatsRefreshDay(day);
         }
 
         data.setTradingPostLinked(TownTradeSystem.hasLinkedTradingPost(
-                context,
-                data,
-                contexts,
-                dataByTown,
-                config.tradingPostLinkRange
-        ));
+                context, data, contexts, dataByTown, config.tradingPostLinkRange));
 
         if (isGuardRefreshTick(world, context)) {
             GuardStatIntegration.applyBarracksBonuses(
-                    world,
-                    anchor,
-                    data.getBarracksLevel(),
-                    data.getDetectedArmoryBuildings(),
-                    effectiveGuardRadius
-            );
+                    world, anchor, data.getBarracksLevel(), data.getDetectedArmoryBuildings(), effectiveGuardRadius);
         }
 
         if (day - data.getLastTaxCollectionDay() >= config.taxCollectionDays) {
             TownTaxSystem.collectWeeklyTaxes(data);
             TownBuildingSnapshot taxSnapshot = latestSnapshot != null ? latestSnapshot : MCAIntegration.scanBuildings(world, anchor);
             List<ItemStack> taxItems = TownTaxSystem.applyWorkshopItemTaxBonus(
-                    MCAIntegration.collectVillagerTradeTaxItems(world, anchor),
-                    taxSnapshot
-            );
+                    MCAIntegration.collectVillagerTradeTaxItems(world, anchor), taxSnapshot);
             if (!taxItems.isEmpty()) {
-                var overflow = TownStorageDepositSystem.deposit(world, anchor, taxItems);
-                if (!overflow.isEmpty()) {
-                    dropOverflow(world, anchor, overflow);
-                }
+                List<ItemStack> overflow = TownStorageDepositSystem.deposit(world, anchor, taxItems);
+                if (!overflow.isEmpty()) dropOverflow(world, anchor, overflow);
             }
             data.setLastTaxCollectionDay(day);
         }
@@ -132,8 +131,7 @@ public class ServerTickEventsHandler {
             boolean canApplyRaidImpact = raidKey != data.getLastRaidId()
                     || world.getTime() - data.getLastRaidImpactTick() >= config.raidUnrestCooldownTicks;
             if (canApplyRaidImpact) {
-                int unrestImpact = TownDefenseSystem.getRaidUnrestImpact(data);
-                TownUnrestSystem.onRaid(data, unrestImpact);
+                TownUnrestSystem.onRaid(data, TownDefenseSystem.getRaidUnrestImpact(data));
                 data.setLastRaidId(raidKey);
                 data.setLastRaidImpactTick(world.getTime());
             }
@@ -150,17 +148,13 @@ public class ServerTickEventsHandler {
 
     private static void dropOverflow(ServerWorld world, BlockPos anchor, List<ItemStack> overflow) {
         for (ItemStack stack : overflow) {
-            if (stack == null || stack.isEmpty()) {
-                continue;
-            }
-            ItemEntity item = new ItemEntity(
+            if (stack == null || stack.isEmpty()) continue;
+            world.spawnEntity(new ItemEntity(
                     world,
                     anchor.getX() + 0.5D,
                     anchor.getY() + 1.0D,
                     anchor.getZ() + 0.5D,
-                    stack.copy()
-            );
-            world.spawnEntity(item);
+                    stack.copy()));
         }
     }
 }
