@@ -7,14 +7,12 @@ import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.tooltip.Tooltip;
 import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.text.Text;
-import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import java.util.Comparator;
 import java.util.List;
@@ -22,7 +20,7 @@ import java.util.List;
 /** UI polish for the standalone MCA Towns blueprint screen. */
 @Mixin(TownBlueprintScreen.class)
 public abstract class TownBlueprintScreenMixin extends Screen {
-    @Shadow @Final private TownBlueprintView view;
+    @Shadow private TownBlueprintView view;
     @Shadow private TownBlueprintView.BuildingEntry selectedRegisteredBuilding;
     @Shadow private boolean showOutputBonuses;
     @Shadow private String page;
@@ -120,50 +118,53 @@ public abstract class TownBlueprintScreenMixin extends Screen {
                 x, y + 156, 0x80D080);
     }
 
-    @Inject(method = "mouseScrolled", at = @At("HEAD"), cancellable = true)
-    private void mcatowns$scrollBuildings(double mouseX, double mouseY, double amount,
-                                           CallbackInfoReturnable<Boolean> cir) {
-        if (!"buildings".equals(page) || view.registeredBuildings().size() <= MCATOWNS_VISIBLE_BUILDINGS) return;
-        int left = mcatowns$panelLeft();
-        int top = mcatowns$panelTop();
-        if (mouseX < left + 12 || mouseX > left + 178 || mouseY < top + 40 || mouseY > top + 210) return;
-        int maxScroll = view.registeredBuildings().size() - MCATOWNS_VISIBLE_BUILDINGS;
-        int next = Math.max(0, Math.min(maxScroll, mcatowns$buildingScroll + (amount < 0 ? 1 : -1)));
-        if (next != mcatowns$buildingScroll) {
-            mcatowns$buildingScroll = next;
-            mcatowns$reinitialize();
+    @Override
+    public boolean mouseScrolled(double mouseX, double mouseY, double amount) {
+        if ("buildings".equals(page) && view.registeredBuildings().size() > MCATOWNS_VISIBLE_BUILDINGS) {
+            int left = mcatowns$panelLeft();
+            int top = mcatowns$panelTop();
+            if (mouseX >= left + 12 && mouseX <= left + 178 && mouseY >= top + 40 && mouseY <= top + 210) {
+                int maxScroll = view.registeredBuildings().size() - MCATOWNS_VISIBLE_BUILDINGS;
+                int next = Math.max(0, Math.min(maxScroll, mcatowns$buildingScroll + (amount < 0 ? 1 : -1)));
+                if (next != mcatowns$buildingScroll) {
+                    mcatowns$buildingScroll = next;
+                    mcatowns$reinitialize();
+                }
+                return true;
+            }
         }
-        cir.setReturnValue(true);
+        return super.mouseScrolled(mouseX, mouseY, amount);
     }
 
-    @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
-    private void mcatowns$clickMapFootprint(double mouseX, double mouseY, int button,
-                                            CallbackInfoReturnable<Boolean> cir) {
-        if (button != 0 || !"map".equals(page) || view.registeredBuildings().isEmpty()) return;
-        int mapX = mcatowns$panelLeft() + 24;
-        int mapY = mcatowns$panelTop() + 48;
-        int size = 136;
-        if (mouseX < mapX || mouseX > mapX + size || mouseY < mapY || mouseY > mapY + size) return;
-
-        TownBlueprintView.BuildingEntry hit = view.registeredBuildings().stream()
-                .filter(building -> mcatowns$footprint(building, mapX, mapY, size).contains(mouseX, mouseY))
-                .min(Comparator.comparingDouble(building -> {
-                    Rect rect = mcatowns$footprint(building, mapX, mapY, size);
-                    double dx = mouseX - (rect.left + rect.right) / 2.0;
-                    double dy = mouseY - (rect.top + rect.bottom) / 2.0;
-                    return dx * dx + dy * dy;
-                }))
-                .orElse(null);
-        if (hit == null) return;
-
-        selectedRegisteredBuilding = hit;
-        showOutputBonuses = false;
-        int index = view.registeredBuildings().indexOf(hit);
-        int maxScroll = Math.max(0, view.registeredBuildings().size() - MCATOWNS_VISIBLE_BUILDINGS);
-        mcatowns$buildingScroll = Math.max(0, Math.min(maxScroll, index - MCATOWNS_VISIBLE_BUILDINGS / 2));
-        page = "buildings";
-        mcatowns$reinitialize();
-        cir.setReturnValue(true);
+    @Override
+    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        if (button == 0 && "map".equals(page) && !view.registeredBuildings().isEmpty()) {
+            int mapX = mcatowns$panelLeft() + 24;
+            int mapY = mcatowns$panelTop() + 48;
+            int size = 136;
+            if (mouseX >= mapX && mouseX <= mapX + size && mouseY >= mapY && mouseY <= mapY + size) {
+                TownBlueprintView.BuildingEntry hit = view.registeredBuildings().stream()
+                        .filter(building -> mcatowns$footprint(building, mapX, mapY, size).contains(mouseX, mouseY))
+                        .min(Comparator.comparingDouble(building -> {
+                            Rect rect = mcatowns$footprint(building, mapX, mapY, size);
+                            double dx = mouseX - (rect.left + rect.right) / 2.0;
+                            double dy = mouseY - (rect.top + rect.bottom) / 2.0;
+                            return dx * dx + dy * dy;
+                        }))
+                        .orElse(null);
+                if (hit != null) {
+                    selectedRegisteredBuilding = hit;
+                    showOutputBonuses = false;
+                    int index = view.registeredBuildings().indexOf(hit);
+                    int maxScroll = Math.max(0, view.registeredBuildings().size() - MCATOWNS_VISIBLE_BUILDINGS);
+                    mcatowns$buildingScroll = Math.max(0, Math.min(maxScroll, index - MCATOWNS_VISIBLE_BUILDINGS / 2));
+                    page = "buildings";
+                    mcatowns$reinitialize();
+                    return true;
+                }
+            }
+        }
+        return super.mouseClicked(mouseX, mouseY, button);
     }
 
     @Inject(method = "render", at = @At("TAIL"))
