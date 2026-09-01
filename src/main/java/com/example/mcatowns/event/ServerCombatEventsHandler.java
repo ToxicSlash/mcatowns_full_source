@@ -6,6 +6,7 @@ import com.example.mcatowns.town.TownBuildingSnapshot;
 import com.example.mcatowns.town.TownDefenseSystem;
 import com.example.mcatowns.town.TownManager;
 import com.example.mcatowns.town.TownSavedData;
+import com.example.mcatowns.town.TownSpecialistRegistry;
 import com.example.mcatowns.town.TownStatsRefresher;
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 import net.minecraft.entity.LivingEntity;
@@ -40,7 +41,12 @@ public class ServerCombatEventsHandler {
                 return;
             }
 
-            var context = TownManager.resolveTownContext(world, entity.getBlockPos());
+            TownSpecialistRegistry.get(world).remove(entity.getUuid());
+            var context = TownManager.findExistingTown(world, entity.getBlockPos(), TownManager.getTownSearchMargin()).orElse(null);
+            if (context == null) {
+                return;
+            }
+
             TownSavedData data = TownSavedData.get(world, context.townId());
             if ("player_created".equals(context.source())) data.removeResident(entity.getUuid());
             TownBuildingSnapshot snapshot = MCAIntegration.scanBuildings(world, context.center());
