@@ -193,7 +193,9 @@ public record TownBlueprintView(
 
     public record BuildingEntry(UUID id, String type, String name, BlockPos pos, String icon,
                                 BlockPos minPos, BlockPos maxPos, int tier, String status,
-                                int output, int workerCount, int workerSlots, int cropState) {
+                                int output, int workerCount, int workerSlots, int cropState,
+                                int staffingPercent, int tierBonus, int furnitureBonus, int synergyBonus,
+                                int furnitureCount, int synergyCount) {
         void write(PacketByteBuf buf) {
             buf.writeUuid(id);
             buf.writeString(type, 64);
@@ -208,12 +210,19 @@ public record TownBlueprintView(
             buf.writeVarInt(workerCount);
             buf.writeVarInt(workerSlots);
             buf.writeVarInt(cropState);
+            buf.writeVarInt(staffingPercent);
+            buf.writeVarInt(tierBonus);
+            buf.writeVarInt(furnitureBonus);
+            buf.writeVarInt(synergyBonus);
+            buf.writeVarInt(furnitureCount);
+            buf.writeVarInt(synergyCount);
         }
 
         static BuildingEntry read(PacketByteBuf buf) {
             return new BuildingEntry(buf.readUuid(), buf.readString(64), buf.readString(64), buf.readBlockPos(),
                     buf.readString(64), buf.readBlockPos(), buf.readBlockPos(), buf.readVarInt(),
-                    buf.readString(32), buf.readVarInt(), buf.readVarInt(), buf.readVarInt(), buf.readVarInt());
+                    buf.readString(32), buf.readVarInt(), buf.readVarInt(), buf.readVarInt(), buf.readVarInt(),
+                    buf.readVarInt(), buf.readVarInt(), buf.readVarInt(), buf.readVarInt(), buf.readVarInt(), buf.readVarInt());
         }
     }
 }
