@@ -85,6 +85,7 @@ public final class VillagerRecruitmentService {
 
     private static Item currencyItem() {
         Identifier id = Identifier.tryParse(MCATownsConfig.get().currencyItemId);
-        return id == null ? Registries.ITEM.get(new Identifier("minecraft", "emerald")) : Registries.ITEM.get(id);
+        Identifier fallback = new Identifier("minecraft", "emerald");
+        return id != null && Registries.ITEM.containsId(id) ? Registries.ITEM.get(id) : Registries.ITEM.get(fallback);
     }
 }
