@@ -3,6 +3,7 @@ package com.example.mcatowns.network;
 import com.example.mcatowns.MCATowns;
 import com.example.mcatowns.event.BlueprintTownCreationHandler;
 import com.example.mcatowns.event.TownRemovalHandler;
+import com.example.mcatowns.town.BlueprintSessionService;
 import com.example.mcatowns.town.TownBuildingService;
 import com.example.mcatowns.town.TownFoodSystem;
 import com.example.mcatowns.town.TownProgressionService;
@@ -67,8 +68,11 @@ public class ModNetworking {
     }
 
     public static void registerC2S() {
-        ServerPlayConnectionEvents.DISCONNECT.register((handler, server) ->
-                LAST_PACKET_NANOS.remove(handler.player.getUuid()));
+        ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
+            UUID playerId = handler.player.getUuid();
+            LAST_PACKET_NANOS.remove(playerId);
+            BlueprintSessionService.clear(playerId);
+        });
         ServerPlayNetworking.registerGlobalReceiver(SET_TAX_RATE, (server, player, handler, buf, sender) -> {
             if (!acceptPacket(player)) return;
             BlockPos pos;
