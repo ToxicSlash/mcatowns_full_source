@@ -1,17 +1,14 @@
 package com.example.mcatowns.town;
 
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.util.math.BlockPos;
-
 public class TownDefenseSystem {
-    public static int calculateDefense(ServerWorld world, BlockPos pos, TownBuildingSnapshot snapshot, int barracksLevel) {
-        int defense = 0;
-        defense += snapshot.armories() * 6;
-        defense += snapshot.blacksmiths() * 4;
-        defense += snapshot.townCenters() * 2;
-        defense += snapshot.graveyards();
-        defense += barracksLevel * 8;
-        return defense;
+    private TownDefenseSystem() { }
+
+    public static int calculateDefense(TownBuildingSnapshot snapshot, int barracksLevel) {
+        return snapshot.armories() * 6
+                + snapshot.blacksmiths() * 4
+                + snapshot.townCenters() * 2
+                + snapshot.graveyards()
+                + barracksLevel * 8;
     }
 
     public static int getRaidScaling(TownSavedData data) {
@@ -26,16 +23,9 @@ public class TownDefenseSystem {
 
     public static int getUnrestRecovery(TownSavedData data) {
         int defense = Math.max(0, data.getDefenseRating());
-        if (defense >= 100) {
-            return 3;
-        }
-        if (defense >= 50) {
-            return 2;
-        }
-        if (defense > 25) {
-            return 1;
-        }
-        return 0;
+        if (defense >= 100) return 3;
+        if (defense >= 50) return 2;
+        return defense > 25 ? 1 : 0;
     }
 
     public static int mitigateVillagerDeathPenalty(TownSavedData data, int penalty) {
