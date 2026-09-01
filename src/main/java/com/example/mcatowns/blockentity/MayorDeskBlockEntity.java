@@ -58,12 +58,12 @@ public class MayorDeskBlockEntity extends BlockEntity implements ExtendedScreenH
                         serverWorld, getPos(), MCATownsConfig.get().mcaVillageSearchMargin)), false);
                 return null;
             }
-            // Expensive scans happen on demand when the desk is opened; background town ticks handle routine refreshes.
-            syncProperties(serverWorld, context, true);
             if (player instanceof ServerPlayerEntity serverPlayer && !TownManager.hasMayorAuthority(serverPlayer, context)) {
                 player.sendMessage(Text.translatable("text.mcatowns.not_mayor"), true);
                 return null;
             }
+            // Expensive scans happen only for an authorized player opening the desk.
+            syncProperties(serverWorld, context, true);
         } else if (world != null && !MCAIntegration.hasMayorRank(player)) {
             player.sendMessage(Text.translatable("text.mcatowns.not_mayor"), true);
             return null;
