@@ -4,6 +4,7 @@ import com.example.mcatowns.event.BlueprintTownCreationHandler;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.Text;
 
+import java.util.List;
 import java.util.UUID;
 
 /** Server-authoritative entry points for the small worker assignment UI. */
@@ -24,6 +25,7 @@ public final class TownWorkforceActions {
             player.sendMessage(Text.literal(assignmentMessage(result)), true);
         }
         TownBuildingService.refreshDerivedValues(data);
+        refreshOutputs(player, data);
         BlueprintTownCreationHandler.openRequestedBlueprint(player);
     }
 
@@ -33,8 +35,18 @@ public final class TownWorkforceActions {
         TownSavedData data = TownSavedData.get(player.getServerWorld(), town.townId());
         TownWorkforceSystem.autoAssign(data);
         TownBuildingService.refreshDerivedValues(data);
+        refreshOutputs(player, data);
         player.sendMessage(Text.literal("Available residents assigned to open workplaces."), true);
         BlueprintTownCreationHandler.openRequestedBlueprint(player);
+    }
+
+    private static void refreshOutputs(ServerPlayerEntity player, TownSavedData data) {
+        List<RegisteredTownBuilding> buildings = List.copyOf(data.getRegisteredBuildings());
+        for (RegisteredTownBuilding building : buildings) {
+            if (!player.getServerWorld().isChunkLoaded(building.anchor())) continue;
+            int output = BuildingPerformance.calculateOutput(player.getServerWorld(), data, building);
+            data.replaceBuilding(building.withOutput(output));
+        }
     }
 
     private static String assignmentMessage(TownWorkforceSystem.AssignmentResult result) {
