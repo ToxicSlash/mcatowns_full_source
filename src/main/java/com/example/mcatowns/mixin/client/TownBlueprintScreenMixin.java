@@ -18,12 +18,12 @@ import java.util.Comparator;
 import java.util.List;
 
 /** UI polish for the standalone MCA Towns blueprint screen. */
-@Mixin(TownBlueprintScreen.class)
+@Mixin(value = TownBlueprintScreen.class, remap = false)
 public abstract class TownBlueprintScreenMixin extends Screen {
-    @Shadow private TownBlueprintView view;
-    @Shadow private TownBlueprintView.BuildingEntry selectedRegisteredBuilding;
-    @Shadow private boolean showOutputBonuses;
-    @Shadow private String page;
+    @Shadow(remap = false) private TownBlueprintView view;
+    @Shadow(remap = false) private TownBlueprintView.BuildingEntry selectedRegisteredBuilding;
+    @Shadow(remap = false) private boolean showOutputBonuses;
+    @Shadow(remap = false) private String page;
 
     @Unique private static final int MCATOWNS_VISIBLE_BUILDINGS = 10;
     @Unique private int mcatowns$buildingScroll;
@@ -32,7 +32,7 @@ public abstract class TownBlueprintScreenMixin extends Screen {
         super(title);
     }
 
-    @Inject(method = "addBuildingButtons", at = @At("HEAD"), cancellable = true)
+    @Inject(method = "addBuildingButtons", at = @At("HEAD"), cancellable = true, remap = false)
     private void mcatowns$scrollableBuildingButtons(int left, int top, CallbackInfo ci) {
         ci.cancel();
         List<TownBlueprintView.BuildingEntry> all = view.registeredBuildings();
@@ -77,7 +77,7 @@ public abstract class TownBlueprintScreenMixin extends Screen {
         }
     }
 
-    @Inject(method = "drawBuildings", at = @At("TAIL"))
+    @Inject(method = "drawBuildings", at = @At("TAIL"), remap = false)
     private void mcatowns$drawBuildingPolish(DrawContext context, int left, int top, CallbackInfo ci) {
         List<TownBlueprintView.BuildingEntry> all = view.registeredBuildings();
         if (all.size() > MCATOWNS_VISIBLE_BUILDINGS) {
@@ -92,8 +92,7 @@ public abstract class TownBlueprintScreenMixin extends Screen {
             context.fill(trackX, handleY, trackX + 3, handleY + handleHeight, 0xFFAAAAAA);
             int first = mcatowns$buildingScroll + 1;
             int last = Math.min(all.size(), mcatowns$buildingScroll + MCATOWNS_VISIBLE_BUILDINGS);
-            context.drawTextWithShadow(textRenderer, Text.literal(first + "-" + last + " / " + all.size()),
-                    left + 18, top + 207, 0xAAAAAA);
+            context.drawTextWithShadow(textRenderer, Text.literal(first + "-" + last + " / " + all.size()), left + 18, top + 207, 0xAAAAAA);
         }
 
         if (!showOutputBonuses || selectedRegisteredBuilding == null) return;
@@ -103,19 +102,11 @@ public abstract class TownBlueprintScreenMixin extends Screen {
         context.fill(x - 2, y + 78, left + 356, top + 170, 0xEE252525);
         context.drawTextWithShadow(textRenderer, Text.literal("Output breakdown"), x, y + 82, 0xFFE080);
         context.drawTextWithShadow(textRenderer, Text.literal("Base output: 100%"), x, y + 96, 0xDDDDDD);
-        context.drawTextWithShadow(textRenderer,
-                Text.literal("Staffing: " + building.staffingPercent() + "% (" + building.workerCount() + "/" + building.workerSlots() + ")"),
-                x, y + 108, 0xDDDDDD);
-        context.drawTextWithShadow(textRenderer, Text.literal("Tier modifier: +" + building.tierBonus() + "%"),
-                x, y + 120, 0xDDDDDD);
-        context.drawTextWithShadow(textRenderer,
-                Text.literal("Furniture: +" + building.furnitureBonus() + "% (" + building.furnitureCount() + ")"),
-                x, y + 132, 0xDDDDDD);
-        context.drawTextWithShadow(textRenderer,
-                Text.literal("Synergy: +" + building.synergyBonus() + "% (" + building.synergyCount() + ")"),
-                x, y + 144, 0xDDDDDD);
-        context.drawTextWithShadow(textRenderer, Text.literal("Final output: " + building.output() + "%"),
-                x, y + 156, 0x80D080);
+        context.drawTextWithShadow(textRenderer, Text.literal("Staffing: " + building.staffingPercent() + "% (" + building.workerCount() + "/" + building.workerSlots() + ")"), x, y + 108, 0xDDDDDD);
+        context.drawTextWithShadow(textRenderer, Text.literal("Tier modifier: +" + building.tierBonus() + "%"), x, y + 120, 0xDDDDDD);
+        context.drawTextWithShadow(textRenderer, Text.literal("Furniture: +" + building.furnitureBonus() + "% (" + building.furnitureCount() + ")"), x, y + 132, 0xDDDDDD);
+        context.drawTextWithShadow(textRenderer, Text.literal("Synergy: +" + building.synergyBonus() + "% (" + building.synergyCount() + ")"), x, y + 144, 0xDDDDDD);
+        context.drawTextWithShadow(textRenderer, Text.literal("Final output: " + building.output() + "%"), x, y + 156, 0x80D080);
     }
 
     @Override
@@ -167,7 +158,7 @@ public abstract class TownBlueprintScreenMixin extends Screen {
         return super.mouseClicked(mouseX, mouseY, button);
     }
 
-    @Inject(method = "render", at = @At("TAIL"))
+    @Inject(method = "render", at = @At("TAIL"), remap = false)
     private void mcatowns$highlightHoveredMapBuilding(DrawContext context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
         if (!"map".equals(page)) return;
         int mapX = mcatowns$panelLeft() + 24;
@@ -182,11 +173,7 @@ public abstract class TownBlueprintScreenMixin extends Screen {
                 });
     }
 
-    @Unique
-    private void mcatowns$reinitialize() {
-        clearChildren();
-        init();
-    }
+    @Unique private void mcatowns$reinitialize() { clearChildren(); init(); }
 
     @Unique
     private String mcatowns$outputLine(TownBlueprintView.BuildingEntry building) {
@@ -218,8 +205,7 @@ public abstract class TownBlueprintScreenMixin extends Screen {
         return new Rect(left, top, left + width, top + height);
     }
 
-    @Unique
-    private static int mcatowns$clampMapOffset(int blocks, int mapSize) {
+    @Unique private static int mcatowns$clampMapOffset(int blocks, int mapSize) {
         int clamped = Math.max(-64, Math.min(64, blocks));
         return clamped * (mapSize / 2 - 5) / 64;
     }
