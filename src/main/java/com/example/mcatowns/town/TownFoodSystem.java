@@ -1,14 +1,16 @@
 package com.example.mcatowns.town;
 
+import com.example.mcatowns.config.MCATownsConfig;
 import net.minecraft.item.FoodComponent;
 import net.minecraft.item.ItemStack;
 import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.Text;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.server.world.ServerWorld;
-import com.example.mcatowns.config.MCATownsConfig;
 
-public class TownFoodSystem {
+public final class TownFoodSystem {
+    private TownFoodSystem() { }
+
     public static void applyDailyCycle(ServerWorld world, TownContext context, TownSavedData data) {
         TownBuildingService.refreshDerivedValues(data);
         int consumed = Math.max(0, data.getResidents().size() * MCATownsConfig.get().foodPerResidentPerDay);
@@ -23,12 +25,13 @@ public class TownFoodSystem {
         data.setDailyFoodConsumed(consumed);
         data.setDailyFoodProduced(produced);
         int next = Math.max(0, data.getFoodReserves() - consumed + produced);
-        next = Math.min(data.getFoodCapacity(), next);
-        data.setFoodReserves(next);
+        data.setFoodReserves(Math.min(data.getFoodCapacity(), next));
     }
 
     public static void contributeFromInventory(ServerPlayerEntity player, BlockPos storehousePos) {
-        TownContext town = TownManager.resolveTownContext(player.getServerWorld(), storehousePos);
+        TownContext town = TownManager.findExistingTown(player.getServerWorld(), storehousePos, TownManager.getTownSearchMargin())
+                .orElse(null);
+        if (town == null) return;
         TownSavedData data = TownSavedData.get(player.getServerWorld(), town.townId());
         boolean registered = data.getRegisteredBuildings().stream()
                 .anyMatch(building -> (building.type().equals("storehouse") || building.type().equals("granary"))
