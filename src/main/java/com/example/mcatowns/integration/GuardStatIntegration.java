@@ -22,30 +22,36 @@ public class GuardStatIntegration {
 
     public static void applyBarracksBonuses(ServerWorld world, BlockPos anchor, int barracksLevel, int armories, int radius) {
         double armoryArmorBonus = Math.min(6.0, Math.max(0, armories) * 1.5);
+        double healthBonus = switch (barracksLevel) {
+            case 1 -> 2.0;
+            case 2 -> 4.0;
+            case 3 -> 8.0;
+            default -> 0.0;
+        };
+        double armorBonus = switch (barracksLevel) {
+            case 1 -> 1.0 + armoryArmorBonus;
+            case 2 -> 2.0 + armoryArmorBonus;
+            case 3 -> 4.0 + armoryArmorBonus;
+            default -> armoryArmorBonus;
+        };
+        double damageBonus = switch (barracksLevel) {
+            case 1 -> 0.5;
+            case 2 -> 1.5;
+            case 3 -> 3.0;
+            default -> 0.0;
+        };
+
         Box box = new Box(anchor).expand(radius);
         for (LivingEntity entity : world.getEntitiesByClass(LivingEntity.class, box, GuardVillagersIntegration::isGuardEntity)) {
-            applyAttributeBonus(entity, EntityAttributes.GENERIC_MAX_HEALTH, HEALTH_UUID, "mcatowns_barracks_health", switch (barracksLevel) {
-                case 1 -> 2.0;
-                case 2 -> 4.0;
-                case 3 -> 8.0;
-                default -> 0.0;
-            });
-            applyAttributeBonus(entity, EntityAttributes.GENERIC_ARMOR, ARMOR_UUID, "mcatowns_barracks_armor", switch (barracksLevel) {
-                case 1 -> 1.0 + armoryArmorBonus;
-                case 2 -> 2.0 + armoryArmorBonus;
-                case 3 -> 4.0 + armoryArmorBonus;
-                default -> armoryArmorBonus;
-            });
-            applyAttributeBonus(entity, EntityAttributes.GENERIC_ATTACK_DAMAGE, DAMAGE_UUID, "mcatowns_barracks_damage", switch (barracksLevel) {
-                case 1 -> 0.5;
-                case 2 -> 1.5;
-                case 3 -> 3.0;
-                default -> 0.0;
-            });
+            applyAttributeBonus(entity, EntityAttributes.GENERIC_MAX_HEALTH, HEALTH_UUID, "mcatowns_barracks_health", healthBonus);
+            applyAttributeBonus(entity, EntityAttributes.GENERIC_ARMOR, ARMOR_UUID, "mcatowns_barracks_armor", armorBonus);
+            applyAttributeBonus(entity, EntityAttributes.GENERIC_ATTACK_DAMAGE, DAMAGE_UUID, "mcatowns_barracks_damage", damageBonus);
             if (barracksLevel > 0 && entity instanceof PathAwareEntity pathAware) {
                 applyEquipment(pathAware, barracksLevel);
             }
-            entity.setHealth(Math.min(entity.getHealth(), entity.getMaxHealth()));
+            if (entity.getHealth() > entity.getMaxHealth()) {
+                entity.setHealth(entity.getMaxHealth());
+            }
         }
     }
 
