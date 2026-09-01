@@ -4,7 +4,8 @@
   "package": "com.example.mcatowns.mixin",
   "compatibilityLevel": "JAVA_17",
   "client": [
-    "client.BlueprintScreenMixin"
+    "client.BlueprintScreenMixin",
+    "client.TownBlueprintScreenMixin"
   ],
   "injectors": {
     "defaultRequire": 1
