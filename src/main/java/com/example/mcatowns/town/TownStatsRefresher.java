@@ -1,33 +1,34 @@
 package com.example.mcatowns.town;
 
+import com.example.mcatowns.config.MCATownsConfig;
 import com.example.mcatowns.integration.GuardVillagersIntegration;
 import com.example.mcatowns.integration.MCAIntegration;
 import com.example.mcatowns.registry.ModBlocks;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 
-public class TownStatsRefresher {
+public final class TownStatsRefresher {
+    private TownStatsRefresher() { }
+
     public static void refresh(ServerWorld world, BlockPos pos, TownSavedData data) {
         refresh(world, pos, data, MCAIntegration.scanBuildings(world, pos));
     }
 
     public static void refresh(ServerWorld world, BlockPos pos, TownSavedData data, TownBuildingSnapshot snapshot) {
         int effectiveAddonRadius = TownRangeSystem.getEffectiveRange(
-                com.example.mcatowns.config.MCATownsConfig.get().addonBuildingScanRadius,
+                MCATownsConfig.get().addonBuildingScanRadius,
                 snapshot.townHalls()
         );
         int population = MCAIntegration.getPopulation(world, pos);
         int treasuryCount = TownManager.countAddonBlocks(world, pos, ModBlocks.TREASURY, effectiveAddonRadius);
         int barracksCount = TownManager.countAddonBlocks(world, pos, ModBlocks.BARRACKS, effectiveAddonRadius);
 
-        if (barracksCount <= 0) {
-            data.setBarracksLevel(0);
-        }
+        if (barracksCount <= 0) data.setBarracksLevel(0);
 
-        int defense = TownDefenseSystem.calculateDefense(world, pos, snapshot, data.getBarracksLevel());
-        defense += GuardVillagersIntegration.countNearbyGuards(world, pos) * 4;
-        defense += data.getEventDefenseBonus();
-        defense += data.getCaravanDefenseBonus();
+        int defense = TownDefenseSystem.calculateDefense(snapshot, data.getBarracksLevel())
+                + GuardVillagersIntegration.countNearbyGuards(world, pos) * 4
+                + data.getEventDefenseBonus()
+                + data.getCaravanDefenseBonus();
 
         data.setPopulation(population);
         int mcaJobless = MCAIntegration.getJoblessPopulation(world, pos);
@@ -51,11 +52,10 @@ public class TownStatsRefresher {
         data.setDetectedFishermansHutBuildings(snapshot.fishermansHuts());
         data.setDailyFoodPotential(snapshot.dailyFoodProduction());
         data.setHasTreasuryBuilding(treasuryCount > 0);
-        TownWorkforceSystem.refresh(data, snapshot);
+        TownWorkforceSystem.refresh(data);
 
         int projectedMcaTax = MCAIntegration.getMcaProjectedTaxIncome(world, pos);
         data.setMcaNormalTaxIncome(projectedMcaTax);
-
         data.setWeeklyTaxIncome(TownTaxSystem.calculateWeeklyTaxes(data, snapshot, MCAIntegration.getTownRankValue(world, pos)));
 
         int bonusFlags = 0;
@@ -63,11 +63,9 @@ public class TownStatsRefresher {
         if (treasuryCount > 0) bonusFlags |= 2;
         if (barracksCount > 0) bonusFlags |= 4;
         data.setBonusSourceFlags(bonusFlags);
-
     }
 
     private static int estimateJobless(int population, TownBuildingSnapshot snapshot) {
-        // Approximate available work slots from detected functional buildings.
         int workSlots = snapshot.farms() * 2
                 + snapshot.blacksmiths() * 2
                 + snapshot.libraries()
