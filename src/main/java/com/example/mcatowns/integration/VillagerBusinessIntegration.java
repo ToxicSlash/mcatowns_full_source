@@ -11,14 +11,14 @@ import net.minecraft.util.math.Box;
 import net.minecraft.world.chunk.WorldChunk;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.HashMap;
 
 public class VillagerBusinessIntegration {
-    private static final Map<UUID, Long> NEXT_ELIGIBLE_VISIT_TICK = new HashMap<>();
-    private static long lastCleanupTick = Long.MIN_VALUE;
+    private static final Map<VisitKey, Long> NEXT_ELIGIBLE_VISIT_TICK = new HashMap<>();
+    private static final Map<String, Long> LAST_CLEANUP_TICK = new HashMap<>();
 
     public static void tickMcaVillagersForStores(ServerWorld world, BlockPos townPos, TownSavedData data) {
         tickMcaVillagersForStores(world, townPos, data, MCATownsConfig.get().villagerBusinessRadius);
@@ -36,15 +36,19 @@ public class VillagerBusinessIntegration {
         }
 
         Box villagerBox = new Box(townPos).expand(radius);
-        List<PathAwareEntity> villagers = world.getEntitiesByClass(PathAwareEntity.class, villagerBox, VillagerBusinessIntegration::isMcaVillagerCandidate);
+        List<PathAwareEntity> villagers = world.getEntitiesByClass(PathAwareEntity.class, villagerBox,
+                VillagerBusinessIntegration::isMcaVillagerCandidate);
         if (villagers.isEmpty()) {
             data.setBusinessActivityScore(current);
             return;
         }
 
-        if (worldTime < lastCleanupTick || worldTime - lastCleanupTick >= 24000L) {
-            NEXT_ELIGIBLE_VISIT_TICK.entrySet().removeIf(e -> e.getValue() + 24000L < worldTime);
-            lastCleanupTick = worldTime;
+        String dimension = world.getRegistryKey().getValue().toString();
+        long lastCleanup = LAST_CLEANUP_TICK.getOrDefault(dimension, Long.MIN_VALUE);
+        if (worldTime < lastCleanup || worldTime - lastCleanup >= 24000L) {
+            NEXT_ELIGIBLE_VISIT_TICK.entrySet().removeIf(e -> e.getKey().dimension().equals(dimension)
+                    && e.getValue() + 24000L < worldTime);
+            LAST_CLEANUP_TICK.put(dimension, worldTime);
         }
 
         float visitMultiplier = getStoreVisitMultiplier(data.getHappiness());
@@ -53,9 +57,10 @@ public class VillagerBusinessIntegration {
             if (assigned >= MCATownsConfig.get().villagerBusinessMaxAssignmentsPerCycle) {
                 break;
             }
-            if (world.random.nextFloat() > 0.18f * visitMultiplier) continue;
-            if (!villager.getNavigation().isIdle()) continue;
-            long eligibleAt = NEXT_ELIGIBLE_VISIT_TICK.getOrDefault(villager.getUuid(), 0L);
+            if (world.random.nextFloat() > 0.18f * visitMultiplier || !villager.getNavigation().isIdle()) continue;
+
+            VisitKey key = new VisitKey(dimension, villager.getUuid());
+            long eligibleAt = NEXT_ELIGIBLE_VISIT_TICK.getOrDefault(key, 0L);
             if (worldTime < eligibleAt) continue;
 
             BlockPos target = stands.get(world.random.nextInt(stands.size()));
@@ -63,7 +68,7 @@ public class VillagerBusinessIntegration {
                 int cooldown = MCATownsConfig.get().villagerBusinessMinCooldownTicks
                         + world.random.nextInt(MCATownsConfig.get().villagerBusinessMaxCooldownTicks
                         - MCATownsConfig.get().villagerBusinessMinCooldownTicks + 1);
-                NEXT_ELIGIBLE_VISIT_TICK.put(villager.getUuid(), worldTime + cooldown);
+                NEXT_ELIGIBLE_VISIT_TICK.put(key, worldTime + cooldown);
                 assigned++;
             }
         }
@@ -77,11 +82,10 @@ public class VillagerBusinessIntegration {
     }
 
     private static boolean isMcaVillagerCandidate(PathAwareEntity entity) {
-        String className = entity.getClass().getName();
-        if (!"net.mca.entity.VillagerEntityMCA".equals(className)) {
-            return false;
-        }
-        if (entity.isBaby() || entity.isSleeping()) {
+        Identifier entityId = Registries.ENTITY_TYPE.getId(entity.getType());
+        boolean mcaVillager = "mca".equals(entityId.getNamespace()) && entityId.getPath().contains("villager")
+                || "net.mca.entity.VillagerEntityMCA".equals(entity.getClass().getName());
+        if (!mcaVillager || entity.isBaby() || entity.isSleeping()) {
             return false;
         }
         return entity.getTarget() == null;
@@ -89,7 +93,7 @@ public class VillagerBusinessIntegration {
 
     private static List<BlockPos> findNearbyStands(ServerWorld world, BlockPos center, int radius) {
         List<BlockPos> stands = new ArrayList<>();
-        int chunkRadius = Math.max(1, radius / 16);
+        int chunkRadius = Math.max(1, (radius + 15) / 16);
         int baseChunkX = center.getX() >> 4;
         int baseChunkZ = center.getZ() >> 4;
         int r2 = radius * radius;
@@ -110,4 +114,6 @@ public class VillagerBusinessIntegration {
         }
         return stands;
     }
+
+    private record VisitKey(String dimension, UUID villagerId) { }
 }
