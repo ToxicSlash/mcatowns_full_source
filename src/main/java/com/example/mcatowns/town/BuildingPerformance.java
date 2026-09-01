@@ -32,14 +32,23 @@ public final class BuildingPerformance {
     private BuildingPerformance() { }
 
     public static int calculateOutput(ServerWorld world, TownSavedData data, RegisteredTownBuilding building) {
+        return calculateBreakdown(world, data, building).outputPercent();
+    }
+
+    public static OutputBreakdown calculateBreakdown(ServerWorld world, TownSavedData data, RegisteredTownBuilding building) {
         TownBuildingDefinition definition = TownBuildingDefinition.get(building.type());
-        if (definition == null) return 0;
+        if (definition == null) return new OutputBreakdown(0, 0, 0, 0, 0, 0, 0);
         int requiredWorkers = definition.workersRequired();
         int staffingPercent = requiredWorkers == 0 ? 100
                 : Math.min(100, building.workers().size() * 100 / requiredWorkers);
-        int furniture = countFurniture(world, building.anchor());
-        int synergies = countSynergies(data.getRegisteredBuildings(), building);
-        return outputFromFactors(building.tier(), staffingPercent, furniture, synergies);
+        int furnitureCount = countFurniture(world, building.anchor());
+        int synergyCount = countSynergies(data.getRegisteredBuildings(), building);
+        int tierBonus = Math.max(0, Math.min(2, building.tier() - 1)) * 5;
+        int furnitureBonus = Math.min(10, Math.max(0, furnitureCount) * 2);
+        int synergyBonus = Math.min(10, Math.max(0, synergyCount) * 5);
+        int output = outputFromFactors(building.tier(), staffingPercent, furnitureCount, synergyCount);
+        return new OutputBreakdown(output, staffingPercent, tierBonus, furnitureBonus, synergyBonus,
+                furnitureCount, synergyCount);
     }
 
     public static int outputFromFactors(int tier, int staffingPercent, int furnitureCount, int synergyCount) {
@@ -59,9 +68,6 @@ public final class BuildingPerformance {
     public static int outputPercent(TownSavedData data, RegisteredTownBuilding building) {
         if (building.status() == BuildingStatus.INFRASTRUCTURE_BLOCKED
                 || building.status() == BuildingStatus.NEEDS_INSPECTION) return 0;
-        TownBuildingDefinition definition = TownBuildingDefinition.get(building.type());
-        int required = definition == null ? 0 : definition.workersRequired();
-        int staffing = required == 0 ? 100 : Math.min(100, building.workers().size() * 100 / required);
         return Math.max(0, Math.min(150, building.output()));
     }
 
@@ -100,6 +106,10 @@ public final class BuildingPerformance {
         }
         return count;
     }
+
+    public record OutputBreakdown(int outputPercent, int staffingPercent, int tierBonus,
+                                  int furnitureBonus, int synergyBonus, int furnitureCount,
+                                  int synergyCount) { }
 
     /** Delays Minecraft registry access so the arithmetic can be unit-tested without bootstrapping a game. */
     private static final class FurnitureBlocks {
