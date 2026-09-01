@@ -25,7 +25,7 @@ public final class TownWorkforceSystem {
             List<UUID> valid = building.workers().stream()
                     .filter(data.getResidents()::contains)
                     .filter(id -> eligibleFor(data, id, building.type()))
-                    .filter(id -> assignedTownWide.add(id))
+                    .filter(assignedTownWide::add)
                     .limit(required)
                     .toList();
             assignedTotal += valid.size();
@@ -91,10 +91,9 @@ public final class TownWorkforceSystem {
         refresh(data);
     }
 
-    public static void refresh(TownSavedData data, TownBuildingSnapshot ignored) { refresh(data); }
-
     public static RegisteredTownBuilding assignedBuilding(TownSavedData data, UUID residentId) {
-        return data.getRegisteredBuildings().stream().filter(building -> building.workers().contains(residentId))
+        return data.getRegisteredBuildings().stream()
+                .filter(building -> building.workers().contains(residentId))
                 .findFirst().orElse(null);
     }
 
@@ -112,7 +111,9 @@ public final class TownWorkforceSystem {
 
     private static RegisteredTownBuilding findBuilding(TownSavedData data, UUID id) {
         if (id == null) return null;
-        return data.getRegisteredBuildings().stream().filter(building -> id.equals(building.id())).findFirst().orElse(null);
+        return data.getRegisteredBuildings().stream()
+                .filter(building -> id.equals(building.id()))
+                .findFirst().orElse(null);
     }
 
     private static boolean eligibleFor(TownSavedData data, UUID residentId, String buildingType) {
