@@ -1,5 +1,6 @@
 package com.example.mcatowns.network;
 
+import com.example.mcatowns.town.TownContext;
 import com.example.mcatowns.town.TownManager;
 import com.example.mcatowns.town.TownSavedData;
 import com.example.mcatowns.util.InventoryHelper;
@@ -9,11 +10,11 @@ import net.minecraft.text.Text;
 import net.minecraft.util.math.BlockPos;
 
 public final class TreasuryActions {
-    private TreasuryActions() {
-    }
+    private TreasuryActions() { }
 
     public static void deposit(ServerPlayerEntity player, BlockPos pos) {
-        var context = TownManager.resolveTownContext(player.getServerWorld(), pos);
+        TownContext context = findTown(player, pos);
+        if (context == null) return;
         TownSavedData data = TownSavedData.get(player.getServerWorld(), context.townId());
 
         int capacity = Math.max(0, data.getMaxTreasury() - data.getTreasury());
@@ -39,7 +40,12 @@ public final class TreasuryActions {
     }
 
     public static void retrieve(ServerPlayerEntity player, BlockPos pos) {
-        var context = TownManager.resolveTownContext(player.getServerWorld(), pos);
+        TownContext context = findTown(player, pos);
+        if (context == null) return;
+        if (!TownManager.hasMayorAuthority(player, context)) {
+            player.sendMessage(Text.translatable("text.mcatowns.not_mayor"), true);
+            return;
+        }
         TownSavedData data = TownSavedData.get(player.getServerWorld(), context.townId());
 
         int amount = data.getTreasury();
@@ -57,4 +63,9 @@ public final class TreasuryActions {
         player.sendMessage(Text.translatable("text.mcatowns.treasury_retrieved", given), true);
     }
 
+    private static TownContext findTown(ServerPlayerEntity player, BlockPos pos) {
+        TownContext context = TownManager.findExistingTown(player.getServerWorld(), pos, TownManager.getTownSearchMargin()).orElse(null);
+        if (context == null) player.sendMessage(Text.translatable("text.mcatowns.no_town_center"), true);
+        return context;
+    }
 }
