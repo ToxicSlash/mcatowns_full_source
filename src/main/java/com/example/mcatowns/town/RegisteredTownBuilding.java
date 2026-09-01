@@ -52,6 +52,11 @@ public record RegisteredTownBuilding(
                 newStatus, output, assignedWorkers, lastInspectionDay, cropState);
     }
 
+    public RegisteredTownBuilding withOutput(int newOutput) {
+        return new RegisteredTownBuilding(id, type, tier, anchor, minPos, maxPos,
+                status, newOutput, workers, lastInspectionDay, cropState);
+    }
+
     public RegisteredTownBuilding inspected(long day, int newOutput, int newCropState, int newTier) {
         return new RegisteredTownBuilding(id, type, newTier, anchor, minPos, maxPos,
                 status, newOutput, workers, day, newCropState);
