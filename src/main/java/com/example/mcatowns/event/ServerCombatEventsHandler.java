@@ -1,8 +1,11 @@
 package com.example.mcatowns.event;
 
 import com.example.mcatowns.config.MCATownsConfig;
+import com.example.mcatowns.integration.GuardVillagersIntegration;
 import com.example.mcatowns.integration.MCAIntegration;
+import com.example.mcatowns.town.PlayerTownRegistry;
 import com.example.mcatowns.town.TownBuildingSnapshot;
+import com.example.mcatowns.town.TownContext;
 import com.example.mcatowns.town.TownDefenseSystem;
 import com.example.mcatowns.town.TownManager;
 import com.example.mcatowns.town.TownSavedData;
@@ -22,13 +25,26 @@ public final class ServerCombatEventsHandler {
     public static void register() {
         ServerLivingEntityEvents.AFTER_DEATH.register((entity, source) -> {
             if (!(entity.getWorld() instanceof ServerWorld world)) return;
-            if (!isVillagerLike(entity)) return;
 
-            TownSpecialistRegistry.get(world).remove(entity.getUuid());
-            var context = TownManager.findExistingTown(world, entity.getBlockPos(), TownManager.getTownSearchMargin()).orElse(null);
-            if (context == null) return;
+            boolean guard = GuardVillagersIntegration.isGuardEntity(entity);
+            if (!guard && !isVillagerLike(entity)) return;
 
-            TownSavedData data = TownSavedData.get(world, context.townId());
+            TownContext context;
+            TownSavedData data;
+            if (guard) {
+                // Guard Villagers only count as town residents once explicitly affiliated. Avoid MCA/world discovery for
+                // unrelated guard deaths by using the lightweight player-town registry first.
+                context = PlayerTownRegistry.get(world).findNearest(entity.getBlockPos(), 64).orElse(null);
+                if (context == null) return;
+                data = TownSavedData.get(world, context.townId());
+                if (!data.getResidents().contains(entity.getUuid())) return;
+            } else {
+                TownSpecialistRegistry.get(world).remove(entity.getUuid());
+                context = TownManager.findExistingTown(world, entity.getBlockPos(), TownManager.getTownSearchMargin()).orElse(null);
+                if (context == null) return;
+                data = TownSavedData.get(world, context.townId());
+            }
+
             if ("player_created".equals(context.source())) data.removeResident(entity.getUuid());
             TownBuildingSnapshot snapshot = MCAIntegration.scanBuildings(world, context.center());
             TownStatsRefresher.refresh(world, context.center(), data, snapshot);
