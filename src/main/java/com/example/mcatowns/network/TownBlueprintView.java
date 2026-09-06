@@ -188,19 +188,44 @@ public record TownBlueprintView(
         }
     }
 
-    public record ResidentEntry(UUID id, String name, String specialistType,
-                                UUID assignedBuildingId, String assignedBuildingName) {
+    public record ResidentEntry(
+            UUID id,
+            String name,
+            int happiness,
+            String occupation,
+            String specialistType,
+            String homeBuildingName,
+            UUID assignedBuildingId,
+            String assignedBuildingName,
+            String status,
+            boolean guard
+    ) {
         void write(PacketByteBuf buf) {
             buf.writeUuid(id);
             buf.writeString(name, 64);
+            buf.writeVarInt(happiness);
+            buf.writeString(occupation, 64);
             buf.writeString(specialistType, 32);
+            buf.writeString(homeBuildingName, 64);
             buf.writeUuid(assignedBuildingId);
             buf.writeString(assignedBuildingName, 64);
+            buf.writeString(status, 32);
+            buf.writeBoolean(guard);
         }
 
         static ResidentEntry read(PacketByteBuf buf) {
-            return new ResidentEntry(buf.readUuid(), buf.readString(64), buf.readString(32),
-                    buf.readUuid(), buf.readString(64));
+            return new ResidentEntry(
+                    buf.readUuid(),
+                    buf.readString(64),
+                    buf.readVarInt(),
+                    buf.readString(64),
+                    buf.readString(32),
+                    buf.readString(64),
+                    buf.readUuid(),
+                    buf.readString(64),
+                    buf.readString(32),
+                    buf.readBoolean()
+            );
         }
 
         public boolean specialist() {
