@@ -28,6 +28,7 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public final class FarmWeedMaintenanceService {
     private static final Identifier WEEDS_ID = new Identifier("immersive_weathering", "weeds");
+    private static final long TOWN_TICK_INTERVAL = 200L;
     private static final long MAINTENANCE_INTERVAL_TICKS = 1_200L;
     private static final int SAMPLES_PER_FARM = 24;
     private static final int MAX_REMOVALS_PER_FARM = 2;
@@ -118,9 +119,10 @@ public final class FarmWeedMaintenanceService {
     }
 
     private static boolean isMaintenanceTick(ServerWorld world, TownContext context) {
-        long cycle = Math.floorDiv(world.getTime(), MAINTENANCE_INTERVAL_TICKS);
-        int phase = Math.floorMod(context.townId().hashCode(), 6);
-        return Math.floorMod(cycle + phase, 6) == 0;
+        long townTick = Math.floorDiv(world.getTime(), TOWN_TICK_INTERVAL);
+        int maintenanceTownTicks = Math.max(1, (int) (MAINTENANCE_INTERVAL_TICKS / TOWN_TICK_INTERVAL));
+        int phase = Math.floorMod(context.townId().hashCode(), maintenanceTownTicks);
+        return Math.floorMod(townTick + phase, maintenanceTownTicks) == 0;
     }
 
     private static int randomCoordinate(Random random, int min, int max) {
