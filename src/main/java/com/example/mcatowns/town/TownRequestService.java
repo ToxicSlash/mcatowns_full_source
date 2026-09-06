@@ -12,6 +12,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Community-level Town Requests. Personal bounties are intentionally owned by Bountiful's Bounty Board.
+ */
 public final class TownRequestService {
     private static final List<RequestTemplate> GENERIC = List.of(
             template("timber", "Building Timber", "minecraft:oak_log", 12),
@@ -38,6 +41,7 @@ public final class TownRequestService {
             data.addProsperity(request.prosperityReward());
             data.addTownTokens(request.tokenReward());
         }
+        // Normal requests are optional community needs. Expiry clears them without a punishment.
         data.clearRequest(day + 1);
     }
 
