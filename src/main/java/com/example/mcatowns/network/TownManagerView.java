@@ -30,7 +30,10 @@ public record TownManagerView(
         int requestProsperity,
         int requestTokens,
         List<String> requestRequirements,
-        int bountyKills
+        String eventName,
+        String eventKind,
+        long eventUntilDay,
+        long festivalReadyDay
 ) {
     public void write(PacketByteBuf buf) {
         buf.writeString(name, 64);
@@ -55,7 +58,10 @@ public record TownManagerView(
         buf.writeVarInt(requestProsperity);
         buf.writeVarInt(requestTokens);
         buf.writeCollection(requestRequirements, (packet, line) -> packet.writeString(line, 128));
-        buf.writeVarInt(bountyKills);
+        buf.writeString(eventName, 64);
+        buf.writeString(eventKind, 32);
+        buf.writeLong(eventUntilDay);
+        buf.writeLong(festivalReadyDay);
     }
 
     public static TownManagerView read(PacketByteBuf buf) {
@@ -82,7 +88,10 @@ public record TownManagerView(
                 buf.readVarInt(),
                 buf.readVarInt(),
                 buf.readCollection(ArrayList::new, packet -> packet.readString(128)),
-                buf.readVarInt()
+                buf.readString(64),
+                buf.readString(32),
+                buf.readLong(),
+                buf.readLong()
         );
     }
 }
