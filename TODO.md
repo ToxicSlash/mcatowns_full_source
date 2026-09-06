@@ -4,18 +4,18 @@ This file tracks planned systems and design questions that are not yet final imp
 
 ## Bounties and Requests
 
-- [ ] Bounties come only from the Bountiful Bounty Board.
-- [ ] Retire the legacy MCA Towns 30-hostile-kill bounty counter from player-facing gameplay while keeping old save data readable.
+- [x] Bounties come only from the Bountiful Bounty Board; MCA Towns no longer treats generic hostile kills as bounties.
+- [x] Retire the legacy MCA Towns 30-hostile-kill bounty counter from player-facing gameplay while keeping old save data readable.
 - [ ] Design/implement an Architect-provided Bounty Decree (or equivalent Bountiful integration) that enables town-themed bounties in the board.
 - [ ] Decide exact town rewards for completed board bounties.
 - [ ] Expand Town Requests beyond Storehouse material deliveries into community/civic needs.
-- [ ] Keep normal ignored Town Requests non-punitive or only very mildly consequential.
-- [ ] Present Town Requests, festivals and disaster/problem events together in the Requests / Events UI.
-- [ ] Allow only one normal disaster/problem event at a time; Bandit Activity may occur independently.
+- [x] Keep normal ignored Town Requests non-punitive or only very mildly consequential.
+- [x] Present Town Requests, festivals and disaster/problem events together in the Requests / Events UI.
+- [ ] Allow only one normal disaster/problem event at a time; Bandit Activity may occur independently. Existing random events already use one active slot; independent Bandit Activity is still future work.
 
 ## Prosperity and Threats
 
-- [ ] Add an effective Prosperity Base layer so temporary threats can suppress the current floor without destroying the permanent civic Base.
+- [x] Add an effective Prosperity Base layer so temporary threats can suppress the current floor without destroying the permanent civic Base. Current suppression is zero until threat rules are approved.
 - [ ] Decide exact Prosperity thresholds and mild modifiers.
 - [ ] Add Town Threat events such as Bandit Activity, Monster Pressure, Food Shortage and Trade Disruption.
 - [ ] Prefer gradual pressure/world escalation over repeated large instant Prosperity losses.
@@ -37,10 +37,10 @@ This file tracks planned systems and design questions that are not yet final imp
 
 ### Wandering Caravans
 
-- [ ] Rework the current random caravan system as themed Wandering Trader-style encounters.
-- [ ] Preserve normal merchant interaction/functionality.
+- [x] Rework the current random caravan system as themed Wandering Trader-style encounters.
+- [x] Preserve normal merchant interaction/functionality as the base behaviour.
 - [ ] Give each caravan theme/type its own custom trade pool.
-- [ ] Despawn temporary caravan NPCs after a few Minecraft days.
+- [x] Despawn temporary caravan NPCs after a few Minecraft days.
 - [ ] Decide exact themed trade pools.
 
 ### Town Caravans
@@ -67,13 +67,13 @@ This file tracks planned systems and design questions that are not yet final imp
 - [ ] Let Guard Villagers live in residences and use Barracks as workplace.
 - [ ] Add resident status fields such as Working, On Patrol, Caravan Escort and Idle.
 - [ ] Expand resident detail UI with Name, Happiness, Occupation, Home, Workplace and status.
-- [ ] Use Guard Villagers as standard guards.
+- [x] Use Guard Villagers mod NPCs as the standard guard type for standard guard detection/stat integration. Guard resident/hiring management is still TODO.
 - [ ] Keep military NPC hierarchy beyond standard Guard Villagers unresolved.
 
 ## Specialists
 
-- [ ] Keep direct NPC interaction as the specialist service/research entry point; no central Town Research tab.
-- [ ] Generalize the Architect-only research UI/service into a specialist-specific framework.
+- [x] Keep direct NPC interaction as the specialist service/research entry point; no central Town Research tab.
+- [x] Generalize the Architect-only research UI/service into a specialist-specific framework. Existing research entries remain Architect-owned until other trees are approved.
 - [ ] Add Carpenter specialist after its workplace/role is finalized.
 - [ ] Add Stonemason specialist after its workplace/role is finalized.
 - [ ] Decide Scholar's long-term role.
@@ -98,10 +98,10 @@ This file tracks planned systems and design questions that are not yet final imp
 
 ## Buildings and UI
 
-- [ ] Canonical main tabs: Overview/Map, Town, Buildings, Residents, Requests/Events, Trade, Rules/Management.
-- [ ] Fold the standalone Building Catalog into the Buildings area rather than keeping it as a top-level tab.
-- [ ] Remove duplicate map-side first-four building buttons/text and use direct map selection + compact right summary + Info button.
-- [ ] Buildings detail page should show actual worker/resident names where practical.
+- [x] Canonical main tabs: Overview/Map, Town, Buildings, Residents, Requests/Events, Trade, Rules/Management.
+- [x] Fold the standalone Building Catalog into the Buildings area rather than keeping it as a top-level tab.
+- [x] Remove duplicate map-side first-four building buttons/text and use direct map selection + compact right summary + Info button.
+- [x] Buildings detail page shows actual assigned worker/resident names where available.
 - [ ] Keep simple building upgrades; exact upgrade rules/costs remain TODO.
 
 ## Economy
