@@ -41,7 +41,21 @@ public record TownBlueprintView(
         List<BuildingOption> buildingOptions,
         List<String> rankChecklist,
         List<ResidentEntry> residents,
-        List<BuildingEntry> registeredBuildings
+        List<BuildingEntry> registeredBuildings,
+        String requestName,
+        String requestType,
+        long requestDueDay,
+        int requestProsperity,
+        int requestTokens,
+        List<String> requestRequirements,
+        String eventName,
+        String eventKind,
+        long eventUntilDay,
+        long festivalReadyDay,
+        boolean tradingPostLinked,
+        int tradingPostBuildings,
+        String lastWanderingCaravanType,
+        long nextWanderingCaravanDay
 ) {
     public void write(PacketByteBuf buf) {
         buf.writeBoolean(founding);
@@ -75,6 +89,20 @@ public record TownBlueprintView(
         buf.writeCollection(rankChecklist, (packet, line) -> packet.writeString(line, 128));
         buf.writeCollection(residents, (packet, resident) -> resident.write(packet));
         buf.writeCollection(registeredBuildings, (packet, building) -> building.write(packet));
+        buf.writeString(requestName, 64);
+        buf.writeString(requestType, 32);
+        buf.writeLong(requestDueDay);
+        buf.writeVarInt(requestProsperity);
+        buf.writeVarInt(requestTokens);
+        buf.writeCollection(requestRequirements, (packet, line) -> packet.writeString(line, 128));
+        buf.writeString(eventName, 64);
+        buf.writeString(eventKind, 32);
+        buf.writeLong(eventUntilDay);
+        buf.writeLong(festivalReadyDay);
+        buf.writeBoolean(tradingPostLinked);
+        buf.writeVarInt(tradingPostBuildings);
+        buf.writeString(lastWanderingCaravanType, 32);
+        buf.writeLong(nextWanderingCaravanDay);
     }
 
     public static TownBlueprintView read(PacketByteBuf buf) {
@@ -109,7 +137,21 @@ public record TownBlueprintView(
                 buf.readCollection(ArrayList::new, BuildingOption::read),
                 buf.readCollection(ArrayList::new, packet -> packet.readString(128)),
                 buf.readCollection(ArrayList::new, ResidentEntry::read),
-                buf.readCollection(ArrayList::new, BuildingEntry::read)
+                buf.readCollection(ArrayList::new, BuildingEntry::read),
+                buf.readString(64),
+                buf.readString(32),
+                buf.readLong(),
+                buf.readVarInt(),
+                buf.readVarInt(),
+                buf.readCollection(ArrayList::new, packet -> packet.readString(128)),
+                buf.readString(64),
+                buf.readString(32),
+                buf.readLong(),
+                buf.readLong(),
+                buf.readBoolean(),
+                buf.readVarInt(),
+                buf.readString(32),
+                buf.readLong()
         );
     }
 
