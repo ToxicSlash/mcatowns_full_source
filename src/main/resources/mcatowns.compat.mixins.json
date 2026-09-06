@@ -1,0 +1,15 @@
+{
+  "required": false,
+  "minVersion": "0.8",
+  "package": "com.example.mcatowns.mixin.compat",
+  "compatibilityLevel": "JAVA_17",
+  "mixins": [
+    "UnloadedActivityTimeMachineMixin",
+    "BountifulCropTrellisMixin",
+    "VineryCropMixin",
+    "FarmAndCharmTomatoCropMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 0
+  }
+}
