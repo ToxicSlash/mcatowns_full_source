@@ -22,6 +22,7 @@ import java.util.List;
 public abstract class TownBlueprintScreenMixin extends Screen {
     @Shadow(remap = false) private TownBlueprintView view;
     @Shadow(remap = false) private TownBlueprintView.BuildingEntry selectedRegisteredBuilding;
+    @Shadow(remap = false) private TownBlueprintView.ResidentEntry selectedResident;
     @Shadow(remap = false) private boolean showOutputBonuses;
     @Shadow(remap = false) private boolean showBuildingCatalog;
     @Shadow(remap = false) private String page;
@@ -108,6 +109,19 @@ public abstract class TownBlueprintScreenMixin extends Screen {
         context.drawTextWithShadow(textRenderer, Text.literal("Furniture: +" + building.furnitureBonus() + "% (" + building.furnitureCount() + ")"), x, y + 86, 0xDDDDDD);
         context.drawTextWithShadow(textRenderer, Text.literal("Synergy: +" + building.synergyBonus() + "% (" + building.synergyCount() + ")"), x, y + 100, 0xDDDDDD);
         context.drawTextWithShadow(textRenderer, Text.literal("Final output: " + building.output() + "%"), x, y + 116, 0x80D080);
+    }
+
+    @Inject(method = "drawResidents", at = @At("TAIL"), remap = false)
+    private void mcatowns$drawResidentDetails(DrawContext context, int left, int top, CallbackInfo ci) {
+        if (selectedResident == null) return;
+        int x = left + 192;
+        int y = top + 132;
+        String happiness = selectedResident.happiness() < 0 ? "Unavailable" : selectedResident.happiness() + "/100";
+        context.drawTextWithShadow(textRenderer, Text.literal("Happiness: " + happiness), x, y, 0xFFFFFF);
+        context.drawTextWithShadow(textRenderer, Text.literal("Occupation: " + selectedResident.occupation()), x, y + 14, 0xFFFFFF);
+        context.drawTextWithShadow(textRenderer, Text.literal("Home: " + selectedResident.homeBuildingName()), x, y + 28, 0xCCCCCC);
+        context.drawTextWithShadow(textRenderer, Text.literal("Status: " + selectedResident.status()), x, y + 42,
+                selectedResident.guard() ? 0xB8D8FF : 0xCCCCCC);
     }
 
     @Override
