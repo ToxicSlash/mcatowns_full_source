@@ -1,5 +1,6 @@
 package com.example.mcatowns.town;
 
+import com.example.mcatowns.config.MCATownsConfig;
 import com.example.mcatowns.network.ModNetworking;
 import com.example.mcatowns.network.TownManagerView;
 import com.example.mcatowns.event.TownRemovalHandler;
@@ -15,6 +16,11 @@ public final class TownManagerService {
         if (data.getTownCenter().equals(BlockPos.ORIGIN)) data.setTownCenter(town.center());
         TownBuildingService.refreshDerivedValues(data);
         TownRequest request = data.getActiveRequest();
+        String eventId = data.getActiveRandomEvent();
+        String eventName = TownEventPresentation.displayName(eventId);
+        String eventKind = eventName.isBlank() ? "" : TownEventPresentation.isDisaster(eventId) ? "Disaster" : "Town Event";
+        long festivalReadyDay = data.getLastFestivalDay() + Math.max(0, MCATownsConfig.get().festivalCooldownDays);
+
         ModNetworking.openTownManager(player, new TownManagerView(
                 data.getTownName(), data.getTownRank(), data.getProsperity(), data.getProsperityBase(),
                 data.getTownTokens(), data.getFoodReserves(), data.getFoodCapacity(), data.getPopulation(),
@@ -25,7 +31,7 @@ public final class TownManagerService {
                 request == null ? "" : request.name(), request == null ? "" : request.type().displayName(),
                 request == null ? -1 : request.dueDay(), request == null ? 0 : request.prosperityReward(),
                 request == null ? 0 : request.tokenReward(), TownRequestService.requirementLines(player.getServerWorld(), data),
-                data.getBountyKills()
+                eventName, eventKind, data.getActiveRandomEventUntilDay(), festivalReadyDay
         ));
     }
 }
