@@ -5,8 +5,10 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+/** A specialist-owned research/service unlock. Current entries belong to the Architect. */
 public record TownResearchDefinition(
         String id,
+        SpecialistType specialist,
         String buildingId,
         int scraps,
         int greatEssence,
@@ -27,13 +29,13 @@ public record TownResearchDefinition(
     }
 
     public static final List<TownResearchDefinition> ALL = List.of(
-            new TownResearchDefinition("granary", "granary", 3, 1, 8, 3),
-            new TownResearchDefinition("park", "park", 3, 1, 10, 3),
-            new TownResearchDefinition("inn", "inn", 5, 2, 16, 5),
-            new TownResearchDefinition("guard_post", "guard_post", 4, 1, 14, 4),
-            new TownResearchDefinition("blacksmith", "blacksmith", 4, 1, 14, 4),
-            new TownResearchDefinition("jeweler", "jeweler", 5, 2, 14, 5),
-            new TownResearchDefinition("scholar", "scholar", 5, 2, 14, 5)
+            new TownResearchDefinition("granary", SpecialistType.ARCHITECT, "granary", 3, 1, 8, 3),
+            new TownResearchDefinition("park", SpecialistType.ARCHITECT, "park", 3, 1, 10, 3),
+            new TownResearchDefinition("inn", SpecialistType.ARCHITECT, "inn", 5, 2, 16, 5),
+            new TownResearchDefinition("guard_post", SpecialistType.ARCHITECT, "guard_post", 4, 1, 14, 4),
+            new TownResearchDefinition("blacksmith", SpecialistType.ARCHITECT, "blacksmith", 4, 1, 14, 4),
+            new TownResearchDefinition("jeweler", SpecialistType.ARCHITECT, "jeweler", 5, 2, 14, 5),
+            new TownResearchDefinition("scholar", SpecialistType.ARCHITECT, "scholar", 5, 2, 14, 5)
     );
 
     private static final Map<String, TownResearchDefinition> BY_ID = ALL.stream()
@@ -41,5 +43,10 @@ public record TownResearchDefinition(
 
     public static TownResearchDefinition get(String id) {
         return BY_ID.get(id);
+    }
+
+    public static List<TownResearchDefinition> forSpecialist(SpecialistType specialist) {
+        if (specialist == null) return List.of();
+        return ALL.stream().filter(definition -> definition.specialist() == specialist).toList();
     }
 }
