@@ -51,7 +51,10 @@ public class TownBlueprintScreen extends Screen {
 
     public TownBlueprintScreen(TownBlueprintView view, String initialPage) {
         this(view);
-        if (initialPage != null && !initialPage.isBlank()) this.page = normalizePage(initialPage);
+        if (initialPage != null && !initialPage.isBlank()) {
+            showBuildingCatalog = "catalog".equals(initialPage);
+            this.page = normalizePage(initialPage);
+        }
     }
 
     @Override
@@ -89,7 +92,7 @@ public class TownBlueprintScreen extends Screen {
                     .build());
         }
         addDrawableChild(ButtonWidget.builder(Text.literal("R"), button -> {
-                    McaBlueprintScreenBridge.openNextOn(page);
+                    McaBlueprintScreenBridge.openNextOn(page.equals("buildings") && showBuildingCatalog ? "catalog" : page);
                     ModNetworking.sendOpenTownBlueprint();
                 })
                 .dimensions(left + PANEL_WIDTH - 24, top + 7, 16, 14)
@@ -116,6 +119,7 @@ public class TownBlueprintScreen extends Screen {
             String target = pages[i];
             ButtonWidget button = ButtonWidget.builder(Text.literal(labels[i]), ignored -> {
                         page = target;
+                        if (!"buildings".equals(target)) showBuildingCatalog = false;
                         clearChildren();
                         init();
                     })
@@ -179,7 +183,7 @@ public class TownBlueprintScreen extends Screen {
         if (selectedBuilding != null) {
             ButtonWidget inspect = ButtonWidget.builder(Text.literal("Inspect"),
                             ignored -> {
-                                McaBlueprintScreenBridge.openNextOn("buildings");
+                                McaBlueprintScreenBridge.openNextOn("catalog");
                                 ModNetworking.sendInspectTownBuilding(selectedBuilding.id());
                             })
                     .dimensions(left + 190, top + 190, 72, 18)
@@ -189,7 +193,7 @@ public class TownBlueprintScreen extends Screen {
 
             ButtonWidget register = ButtonWidget.builder(Text.literal(selectedBuilding.legacy() ? "MCA Building" : "Register"),
                             ignored -> {
-                                McaBlueprintScreenBridge.openNextOn("buildings");
+                                McaBlueprintScreenBridge.openNextOn("catalog");
                                 ModNetworking.sendRegisterTownBuilding(selectedBuilding.id());
                             })
                     .dimensions(left + 268, top + 190, 74, 18)
