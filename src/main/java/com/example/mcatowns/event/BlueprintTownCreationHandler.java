@@ -3,14 +3,17 @@ package com.example.mcatowns.event;
 import com.example.mcatowns.network.ModNetworking;
 import com.example.mcatowns.network.TownBlueprintView;
 import com.example.mcatowns.registry.ModItems;
-import com.example.mcatowns.town.PlayerTownRegistry;
 import com.example.mcatowns.town.BlueprintSessionService;
 import com.example.mcatowns.town.BuildingPerformance;
+import com.example.mcatowns.town.PlayerTownRegistry;
+import com.example.mcatowns.town.TownBuildingDefinition;
 import com.example.mcatowns.town.TownContext;
+import com.example.mcatowns.town.TownEventPresentation;
 import com.example.mcatowns.town.TownManager;
 import com.example.mcatowns.town.TownRank;
+import com.example.mcatowns.town.TownRequest;
+import com.example.mcatowns.town.TownRequestService;
 import com.example.mcatowns.town.TownSavedData;
-import com.example.mcatowns.town.TownBuildingDefinition;
 import com.example.mcatowns.integration.MCAIntegration;
 import com.example.mcatowns.util.InventoryHelper;
 import net.fabricmc.fabric.api.event.player.UseItemCallback;
@@ -19,7 +22,6 @@ import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.registry.Registries;
 import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.Text;
 import net.minecraft.util.Hand;
 import net.minecraft.util.Identifier;
@@ -88,7 +90,7 @@ public final class BlueprintTownCreationHandler {
             }
         }
 
-        ServerWorld world = player.getServerWorld();
+        var world = player.getServerWorld();
         BlockPos anchor = findPlacementPos(world, player);
         if (anchor == null || !world.setBlockState(anchor, Blocks.BELL.getDefaultState())) {
             player.sendMessage(Text.translatable("text.mcatowns.no_town_bell_space"), true);
@@ -118,7 +120,10 @@ public final class BlueprintTownCreationHandler {
                     player.getAbilities().creativeMode || crown != null && InventoryHelper.count(player.getInventory(), crown) > 0,
                     player.getAbilities().creativeMode ? FOUNDING_SCRAP_COST : scraps,
                     java.util.List.of(), "", false, java.util.List.of(), java.util.List.of(),
-                    java.util.List.of(), java.util.List.of(), java.util.List.of(), java.util.List.of()));
+                    java.util.List.of(), java.util.List.of(), java.util.List.of(), java.util.List.of(),
+                    "", "", -1L, 0, 0, java.util.List.of(),
+                    "", "", -1L, -1L,
+                    false, 0, "", -1L));
             return;
         }
 
@@ -128,6 +133,14 @@ public final class BlueprintTownCreationHandler {
                 ? PlayerTownRegistry.get(player.getServerWorld()).isOwner(town.townId(), player)
                 : TownManager.hasMayorAuthority(player, town));
         if (data.getTownCenter().equals(BlockPos.ORIGIN)) data.setTownCenter(town.center());
+
+        TownRequest request = data.getActiveRequest();
+        String eventId = data.getActiveRandomEvent();
+        String eventName = TownEventPresentation.displayName(eventId);
+        String eventKind = eventName.isBlank() ? "" : TownEventPresentation.isDisaster(eventId) ? "Disaster" : "Town Event";
+        long festivalReadyDay = data.getLastFestivalDay()
+                + Math.max(0, com.example.mcatowns.config.MCATownsConfig.get().festivalCooldownDays);
+
         ModNetworking.openTownBlueprint(player, new TownBlueprintView(
                 false, data.getTownName(), playerRank(player, town), data.getTownRank(), data.getProsperity(),
                 data.getProsperityBase(), infrastructure(data), data.getHappiness(), data.getPopulation(),
@@ -163,10 +176,19 @@ public final class BlueprintTownCreationHandler {
                     TownBuildingDefinition definition = TownBuildingDefinition.get(building.type());
                     String name = definition == null ? building.type() : definition.displayName();
                     return buildingEntry(player.getServerWorld(), data, building, name, "");
-                }).toList()));
+                }).toList(),
+                request == null ? "" : request.name(),
+                request == null ? "" : request.type().displayName(),
+                request == null ? -1L : request.dueDay(),
+                request == null ? 0 : request.prosperityReward(),
+                request == null ? 0 : request.tokenReward(),
+                TownRequestService.requirementLines(player.getServerWorld(), data),
+                eventName, eventKind, data.getActiveRandomEventUntilDay(), festivalReadyDay,
+                data.isTradingPostLinked(), data.getDetectedTradingPostBuildings(),
+                data.getLastCaravanType(), data.getNextCaravanDay()));
     }
 
-    private static TownBlueprintView.BuildingEntry buildingEntry(ServerWorld world, String type, String name, BlockPos pos, String icon) {
+    private static TownBlueprintView.BuildingEntry buildingEntry(net.minecraft.server.world.ServerWorld world, String type, String name, BlockPos pos, String icon) {
         MCAIntegration.BuildingBounds bounds = MCAIntegration.getBuildingBoundsAt(world, pos)
                 .orElse(new MCAIntegration.BuildingBounds(pos, pos));
         return new TownBlueprintView.BuildingEntry(new java.util.UUID(0L, 0L), type, name, pos, icon,
@@ -174,7 +196,7 @@ public final class BlueprintTownCreationHandler {
                 0, 0, 0, 0, 0, 0);
     }
 
-    private static TownBlueprintView.BuildingEntry buildingEntry(ServerWorld world, TownSavedData data,
+    private static TownBlueprintView.BuildingEntry buildingEntry(net.minecraft.server.world.ServerWorld world, TownSavedData data,
                                                                   com.example.mcatowns.town.RegisteredTownBuilding building,
                                                                   String name, String icon) {
         TownBuildingDefinition definition = TownBuildingDefinition.get(building.type());
@@ -262,7 +284,7 @@ public final class BlueprintTownCreationHandler {
         return Registries.ITEM.getId(crown).equals(Registries.ITEM.getDefaultId()) ? null : crown;
     }
 
-    private static BlockPos findPlacementPos(ServerWorld world, ServerPlayerEntity player) {
+    private static BlockPos findPlacementPos(net.minecraft.server.world.ServerWorld world, ServerPlayerEntity player) {
         BlockPos front = player.getBlockPos().offset(player.getHorizontalFacing());
         for (BlockPos candidate : new BlockPos[]{front, front.down(), front.up()}) {
             if (world.getWorldBorder().contains(candidate) && world.getBlockState(candidate).isReplaceable()) {
