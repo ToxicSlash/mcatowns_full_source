@@ -10,6 +10,7 @@ import com.example.mcatowns.town.TownCaravanSystem;
 import com.example.mcatowns.town.TownContext;
 import com.example.mcatowns.town.TownDefenseSystem;
 import com.example.mcatowns.town.TownFoodSystem;
+import com.example.mcatowns.town.TownHappinessSystem;
 import com.example.mcatowns.town.TownHealthService;
 import com.example.mcatowns.town.TownIndustrySystem;
 import com.example.mcatowns.town.TownManager;
@@ -102,6 +103,7 @@ public final class ServerTickEventsHandler {
             effectiveBusinessRadius = TownRangeSystem.getEffectiveRange(config.villagerBusinessRadius, rangeBonusHallCount);
             TownStatsRefresher.refresh(world, anchor, data, snapshot);
             TownUnrestSystem.tick(data);
+            if (!"player_created".equals(context.source())) TownHappinessSystem.tick(data, snapshot);
             data.setLastStatsRefreshDay(day);
         }
 
