@@ -13,6 +13,7 @@ import com.example.mcatowns.town.TownManager;
 import com.example.mcatowns.town.TownRank;
 import com.example.mcatowns.town.TownRequest;
 import com.example.mcatowns.town.TownRequestService;
+import com.example.mcatowns.town.TownResidentDetails;
 import com.example.mcatowns.town.TownSavedData;
 import com.example.mcatowns.integration.MCAIntegration;
 import com.example.mcatowns.util.InventoryHelper;
@@ -166,11 +167,21 @@ public final class BlueprintTownCreationHandler {
                             com.example.mcatowns.town.TownWorkforceSystem.assignedBuilding(data, id);
                     TownBuildingDefinition assignedDefinition = assigned == null ? null
                             : TownBuildingDefinition.get(assigned.type());
-                    return new TownBlueprintView.ResidentEntry(id, name,
-                            data.getSpecialists().getOrDefault(id, ""),
+                    String specialistType = data.getSpecialists().getOrDefault(id, "");
+                    String workplace = assigned == null ? "Unassigned" : assignedDefinition == null
+                            ? assigned.type() : assignedDefinition.displayName();
+                    return new TownBlueprintView.ResidentEntry(
+                            id,
+                            name,
+                            TownResidentDetails.happiness(entity),
+                            TownResidentDetails.occupation(entity, specialistType),
+                            specialistType,
+                            "Not assigned",
                             assigned == null ? new java.util.UUID(0L, 0L) : assigned.id(),
-                            assigned == null ? "Unassigned" : assignedDefinition == null
-                                    ? assigned.type() : assignedDefinition.displayName());
+                            workplace,
+                            TownResidentDetails.status(entity, assigned),
+                            TownResidentDetails.isGuard(entity)
+                    );
                 }).toList(),
                 data.getRegisteredBuildings().stream().limit(64).map(building -> {
                     TownBuildingDefinition definition = TownBuildingDefinition.get(building.type());
