@@ -32,7 +32,11 @@ public final class TownCaravanSystem {
         if (day < data.getNextCaravanDay()) return;
 
         String type = pickType(world);
-        spawnWanderingCaravan(world, context.center(), type);
+        if (!spawnWanderingCaravan(world, context.center(), type)) {
+            // The system never force-loads a spawn chunk. If the town cannot safely host a caravan now, retry later.
+            data.setNextCaravanDay(day + 1);
+            return;
+        }
         data.setLastCaravanType(type);
         data.setLastCaravanDay(day);
         data.setNextCaravanDay(day + CARAVAN_INTERVAL_DAYS);
@@ -60,29 +64,43 @@ public final class TownCaravanSystem {
         };
     }
 
-    private static void spawnWanderingCaravan(ServerWorld world, BlockPos anchor, String type) {
-        int dx = world.getRandom().nextBetween(8, 14) * (world.getRandom().nextBoolean() ? 1 : -1);
-        int dz = world.getRandom().nextBetween(8, 14) * (world.getRandom().nextBoolean() ? 1 : -1);
-        BlockPos spawn = world.getTopPosition(net.minecraft.world.Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, anchor.add(dx, 0, dz));
+    private static boolean spawnWanderingCaravan(ServerWorld world, BlockPos anchor, String type) {
+        if (!world.isChunkLoaded(anchor)) return false;
+
+        // Keep the complete encounter inside the already-loaded anchor chunk. getTopPosition can otherwise trigger a
+        // neighbouring chunk access when the bell happens to sit close to a chunk edge.
+        int chunkMinX = (anchor.getX() >> 4) << 4;
+        int chunkMinZ = (anchor.getZ() >> 4) << 4;
+        int chunkMaxX = chunkMinX + 15;
+        int chunkMaxZ = chunkMinZ + 15;
+        int dx = world.getRandom().nextBetween(6, 12) * (world.getRandom().nextBoolean() ? 1 : -1);
+        int dz = world.getRandom().nextBetween(6, 12) * (world.getRandom().nextBoolean() ? 1 : -1);
+        int spawnX = Math.max(chunkMinX + 2, Math.min(chunkMaxX - 2, anchor.getX() + dx));
+        int spawnZ = Math.max(chunkMinZ + 2, Math.min(chunkMaxZ - 2, anchor.getZ() + dz));
+        BlockPos horizontal = new BlockPos(spawnX, anchor.getY(), spawnZ);
+        if (!world.isChunkLoaded(horizontal)) return false;
+        BlockPos spawn = world.getTopPosition(net.minecraft.world.Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, horizontal);
 
         WanderingTraderEntity trader = EntityType.WANDERING_TRADER.create(world);
-        if (trader != null) {
-            trader.refreshPositionAndAngles(spawn, world.random.nextFloat() * 360.0F, 0.0F);
-            trader.setCustomName(Text.literal(displayType(type) + " Caravan Merchant"));
-            trader.setDespawnDelay(DESPAWN_DELAY_TICKS);
-            world.spawnEntity(trader);
-            // Vanilla Wandering Trader behaviour remains the base. Theme-specific trade pools are added once
-            // the exact item/economy pools are approved, instead of hard-coding speculative balance here.
-        }
+        if (trader == null) return false;
+        trader.refreshPositionAndAngles(spawn, world.random.nextFloat() * 360.0F, 0.0F);
+        trader.setCustomName(Text.literal(displayType(type) + " Caravan Merchant"));
+        trader.setDespawnDelay(DESPAWN_DELAY_TICKS);
+        if (!world.spawnEntity(trader)) return false;
+        // Vanilla Wandering Trader behaviour remains the base. Theme-specific trade pools are added once
+        // the exact item/economy pools are approved, instead of hard-coding speculative balance here.
 
         for (int i = 0; i < 2; i++) {
             TraderLlamaEntity llama = EntityType.TRADER_LLAMA.create(world);
             if (llama == null) continue;
-            BlockPos at = spawn.add(i + 1, 0, i % 2 == 0 ? 1 : -1);
+            int llamaX = Math.max(chunkMinX, Math.min(chunkMaxX, spawn.getX() + i + 1));
+            int llamaZ = Math.max(chunkMinZ, Math.min(chunkMaxZ, spawn.getZ() + (i % 2 == 0 ? 1 : -1)));
+            BlockPos at = new BlockPos(llamaX, spawn.getY(), llamaZ);
             llama.refreshPositionAndAngles(at, world.random.nextFloat() * 360.0F, 0.0F);
             llama.setDespawnDelay(DESPAWN_DELAY_TICKS);
             world.spawnEntity(llama);
         }
+        return true;
     }
 
     private static String displayType(String type) {
