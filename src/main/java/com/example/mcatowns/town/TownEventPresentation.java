@@ -31,7 +31,7 @@ public final class TownEventPresentation {
         StringBuilder result = new StringBuilder();
         for (String part : parts) {
             if (part.isBlank()) continue;
-            if (!result.isEmpty()) result.append(' ');
+            if (result.length() > 0) result.append(' ');
             result.append(Character.toUpperCase(part.charAt(0))).append(part.substring(1));
         }
         return result.toString();
