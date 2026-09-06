@@ -2,8 +2,10 @@ package com.example.mcatowns.event;
 
 import com.example.mcatowns.MCATowns;
 import com.example.mcatowns.config.MCATownsConfig;
+import com.example.mcatowns.integration.FarmWeedMaintenanceService;
 import com.example.mcatowns.integration.GuardStatIntegration;
 import com.example.mcatowns.integration.MCAIntegration;
+import com.example.mcatowns.integration.UnloadedActivityCompat;
 import com.example.mcatowns.integration.VillagerBusinessIntegration;
 import com.example.mcatowns.town.TownBuildingSnapshot;
 import com.example.mcatowns.town.TownCaravanSystem;
@@ -139,6 +141,9 @@ public final class ServerTickEventsHandler {
             }
         }
 
+        if (UnloadedActivityCompat.isImmersiveWeatheringLoaded()) {
+            FarmWeedMaintenanceService.maintainLoadedFarms(world, context, data);
+        }
         VillagerBusinessIntegration.tickMcaVillagersForStores(world, anchor, data, effectiveBusinessRadius);
     }
 
