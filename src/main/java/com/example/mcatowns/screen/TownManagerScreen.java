@@ -4,8 +4,8 @@ import com.example.mcatowns.network.ModNetworking;
 import com.example.mcatowns.network.TownManagerView;
 import com.example.mcatowns.town.TownRank;
 import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.screen.ConfirmScreen;
+import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.text.Text;
 
@@ -23,16 +23,15 @@ public class TownManagerScreen extends Screen {
     @Override
     protected void init() {
         int left = (width - PANEL_WIDTH) / 2;
-        String[] tabs = {"overview", "buildings", "residents", "specialists", "requests"};
+        String[] tabs = {"Overview", "Buildings", "Residents", "Specialists", "Requests / Events"};
         for (int i = 0; i < tabs.length; i++) {
             int tabIndex = i;
-            ButtonWidget tab = ButtonWidget.builder(
-                            Text.translatable("screen.mcatowns.town_manager." + tabs[i]), button -> {
-                                selectedTab = tabIndex;
-                                clearChildren();
-                                init();
-                            })
-                    .dimensions(left + 8 + i * 51, (height - PANEL_HEIGHT) / 2 + 31, 49, 18)
+            ButtonWidget tab = ButtonWidget.builder(Text.literal(tabs[i]), button -> {
+                        selectedTab = tabIndex;
+                        clearChildren();
+                        init();
+                    })
+                    .dimensions(left + 8 + i * 60, (height - PANEL_HEIGHT) / 2 + 31, 58, 18)
                     .build();
             tab.active = i != selectedTab;
             addDrawableChild(tab);
@@ -43,13 +42,11 @@ public class TownManagerScreen extends Screen {
                     .dimensions(left + PANEL_WIDTH - 88, (height - PANEL_HEIGHT) / 2 + PANEL_HEIGHT - 25, 80, 18)
                     .build());
         }
-        if (view.canManage()) {
-            if (selectedTab == 0 && view.rank().next() != null) {
-                addDrawableChild(ButtonWidget.builder(Text.translatable("screen.mcatowns.town_manager.advance"),
-                                button -> ModNetworking.sendAdvanceTown(view.bellPos()))
-                        .dimensions(left + 10, (height - PANEL_HEIGHT) / 2 + PANEL_HEIGHT - 25, 100, 18)
-                        .build());
-            }
+        if (view.canManage() && selectedTab == 0 && view.rank().next() != null) {
+            addDrawableChild(ButtonWidget.builder(Text.translatable("screen.mcatowns.town_manager.advance"),
+                            button -> ModNetworking.sendAdvanceTown(view.bellPos()))
+                    .dimensions(left + 10, (height - PANEL_HEIGHT) / 2 + PANEL_HEIGHT - 25, 100, 18)
+                    .build());
         }
         addDrawableChild(ButtonWidget.builder(Text.literal("MCA Town Map"),
                         button -> ModNetworking.sendOpenTownBlueprint())
@@ -84,10 +81,10 @@ public class TownManagerScreen extends Screen {
             case 1 -> drawSimple(context, left, top, "Registered Buildings", view.buildings(),
                     "Use the Blueprint while standing in or looking at a structure.");
             case 2 -> drawSimple(context, left, top, "Residents", view.residentCount(),
-                    "Sneak-interact with a friendly MCA villager to invite them.");
+                    "Permanent town residents and worker assignments.");
             case 3 -> drawSimple(context, left, top, "Specialists", view.specialists(),
-                    "Specialists are ordinary MCA villagers with town roles.");
-            case 4 -> drawRequests(context, left, top);
+                    "Interact with specialists directly for their services and research.");
+            case 4 -> drawRequestsAndEvents(context, left, top);
             default -> { }
         }
         super.render(context, mouseX, mouseY, delta);
@@ -140,24 +137,36 @@ public class TownManagerScreen extends Screen {
         context.drawTextWithShadow(textRenderer, Text.literal(note), left + 18, top + 92, 0xCCCCCC);
     }
 
-    private void drawRequests(DrawContext context, int left, int top) {
-        context.drawTextWithShadow(textRenderer, Text.literal("Monster Control: " + view.bountyKills() + " / 30"),
-                left + 170, top + 66, 0xFFFFFF);
+    private void drawRequestsAndEvents(DrawContext context, int left, int top) {
+        long day = client == null || client.world == null ? 0 : client.world.getTimeOfDay() / 24_000L;
+        int y = top + 63;
+
+        context.drawTextWithShadow(textRenderer, Text.literal("Town Requests"), left + 18, y, 0xFFE080);
         if (view.requestName().isBlank()) {
-            drawSimple(context, left, top, "Town Requests", 0,
-                    "Register a Storehouse to begin receiving requests.");
-            return;
+            context.drawTextWithShadow(textRenderer, Text.literal("No active community request."), left + 18, y + 15, 0xCCCCCC);
+        } else {
+            context.drawTextWithShadow(textRenderer, Text.literal(view.requestName() + " · " + view.requestType()), left + 18, y + 15, 0xFFFFFF);
+            context.drawTextWithShadow(textRenderer, Text.literal("Due in: " + Math.max(0, view.requestDueDay() - day) + " days"), left + 18, y + 29, 0xCCCCCC);
+            int maxLines = Math.min(3, view.requestRequirements().size());
+            for (int i = 0; i < maxLines; i++) {
+                context.drawTextWithShadow(textRenderer, Text.literal(view.requestRequirements().get(i)), left + 18, y + 43 + i * 12, 0xCCCCCC);
+            }
+            context.drawTextWithShadow(textRenderer, Text.literal("Reward: +" + view.requestProsperity()
+                    + " Prosperity, +" + view.requestTokens() + " Town Tokens"), left + 18, y + 81, 0x80D080);
         }
-        long day = client == null || client.world == null ? 0 : client.world.getTimeOfDay() / 24000L;
-        context.drawTextWithShadow(textRenderer, Text.literal(view.requestName()), left + 18, top + 66, 0xFFE080);
-        context.drawTextWithShadow(textRenderer, Text.literal("Type: " + view.requestType()), left + 18, top + 82, 0xFFFFFF);
-        context.drawTextWithShadow(textRenderer, Text.literal("Needed in: " + Math.max(0, view.requestDueDay() - day) + " Minecraft Days"), left + 18, top + 97, 0xFFFFFF);
-        for (int i = 0; i < view.requestRequirements().size(); i++) {
-            context.drawTextWithShadow(textRenderer, Text.literal(view.requestRequirements().get(i)), left + 18,
-                    top + 120 + i * 14, 0xCCCCCC);
+
+        int eventY = top + 159;
+        context.drawTextWithShadow(textRenderer, Text.literal("Town Events"), left + 18, eventY, 0xFFE080);
+        if (view.eventName().isBlank()) {
+            context.drawTextWithShadow(textRenderer, Text.literal("No active disaster or town event."), left + 18, eventY + 15, 0xCCCCCC);
+        } else {
+            context.drawTextWithShadow(textRenderer, Text.literal(view.eventKind() + ": " + view.eventName()), left + 18, eventY + 15,
+                    "Disaster".equals(view.eventKind()) ? 0xE08080 : 0x80D080);
+            context.drawTextWithShadow(textRenderer, Text.literal("Remaining: " + Math.max(0, view.eventUntilDay() - day) + " days"), left + 18, eventY + 29, 0xCCCCCC);
         }
-        context.drawTextWithShadow(textRenderer, Text.literal("Reward: +" + view.requestProsperity()
-                + " Prosperity, +" + view.requestTokens() + " Town Tokens"), left + 18, top + 190, 0x80D080);
+
+        String festival = day >= view.festivalReadyDay() ? "Festival available" : "Festival ready in " + (view.festivalReadyDay() - day) + " days";
+        context.drawTextWithShadow(textRenderer, Text.literal(festival), left + 178, eventY + 15, 0xCCCCCC);
     }
 
     private void drawProsperityBar(DrawContext context, int x, int y, int width) {
@@ -167,6 +176,6 @@ public class TownManagerScreen extends Screen {
         if (filled > 0) context.fill(x + 1, y + 1, x + filled, y + 12, 0xFF6FAF4B);
         context.drawCenteredTextWithShadow(textRenderer,
                 Text.translatable("screen.mcatowns.town_manager.prosperity",
-                        view.prosperity(), max, view.prosperityBase()), width / 2, y + 2, 0xFFFFFF);
+                        view.prosperity(), max, view.prosperityBase()), x + width / 2, y + 2, 0xFFFFFF);
     }
 }
