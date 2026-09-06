@@ -1,42 +1,119 @@
 # MCA Towns TODO
 
-This file tracks planned systems and design questions that are not yet final implementation decisions.
+This file tracks planned systems and design questions that are not yet final implementation decisions. See `docs/IMPLEMENTATION_PLAN.md` for the current approved direction and existing-code alignment.
 
-## Harbour, Ports and Shipping
+## Bounties and Requests
+
+- [ ] Bounties come only from the Bountiful Bounty Board.
+- [ ] Retire the legacy MCA Towns 30-hostile-kill bounty counter from player-facing gameplay while keeping old save data readable.
+- [ ] Design/implement an Architect-provided Bounty Decree (or equivalent Bountiful integration) that enables town-themed bounties in the board.
+- [ ] Decide exact town rewards for completed board bounties.
+- [ ] Expand Town Requests beyond Storehouse material deliveries into community/civic needs.
+- [ ] Keep normal ignored Town Requests non-punitive or only very mildly consequential.
+- [ ] Present Town Requests, festivals and disaster/problem events together in the Requests / Events UI.
+- [ ] Allow only one normal disaster/problem event at a time; Bandit Activity may occur independently.
+
+## Prosperity and Threats
+
+- [ ] Add an effective Prosperity Base layer so temporary threats can suppress the current floor without destroying the permanent civic Base.
+- [ ] Decide exact Prosperity thresholds and mild modifiers.
+- [ ] Add Town Threat events such as Bandit Activity, Monster Pressure, Food Shortage and Trade Disruption.
+- [ ] Prefer gradual pressure/world escalation over repeated large instant Prosperity losses.
+
+## Bandits and Scouting
+
+- [ ] Add hidden per-town Bandit Pressure.
+- [ ] Add persistent latent bandit sites that do not generate until a player approaches.
+  - Store candidate/site state in saved data.
+  - Revalidate before generation.
+  - Avoid towns and meaningful player builds.
+  - Never force-load chunks.
+  - Support long cooldown after clearing.
+- [ ] Potential site progression: Camp -> Outpost -> Tower -> Fortified Stronghold.
+- [ ] Add small bandit camp scouting/detection before the full Adventurer's Guild if useful.
+- [ ] Keep player-facing risk qualitative (Safe / Low Risk / Risky / Dangerous) unless a success percentage is more useful.
+
+## Trade
+
+### Wandering Caravans
+
+- [ ] Rework the current random caravan system as themed Wandering Trader-style encounters.
+- [ ] Preserve normal merchant interaction/functionality.
+- [ ] Give each caravan theme/type its own custom trade pool.
+- [ ] Despawn temporary caravan NPCs after a few Minecraft days.
+- [ ] Decide exact themed trade pools.
+
+### Town Caravans
+
+- [ ] Add simulated town-to-town trade separate from Wandering Caravans.
+- [ ] Only one active town trade at a time initially.
+- [ ] Add cached/simple export resource pools rather than scanning every building at trade time.
+- [ ] Decide final pool categories (candidate ideas: Agriculture, Food/Livestock, Minerals, Manufactured, Luxury, Specialist).
+- [ ] Add Trade Capacity and decide its values/sources.
+- [ ] Add route risk/success affected by Bandit Pressure, Security and escorts.
+- [ ] Add uncommon caravan interruption/rescue events.
+- [ ] Allow up to two Guard Villagers as simple caravan escorts.
+- [ ] Decide travel time, success formula, guard bonuses and interruption frequency.
+
+### Harbour / Shipping
 
 - [ ] Add Ports / Harbour infrastructure.
-- [ ] Add shipping requests / shipment contracts.
+- [ ] Add player-directed shipping requests / shipment contracts.
 - [ ] Let fishing progression or fishing-related town bonuses improve shipping rewards.
 
-## Military, Guards and Raids
+## Residents and Guards
 
-- [ ] Use Guard Villagers mod villagers as the town's primary standard guards.
-- [ ] Explore MCA villager military roles such as soldiers, champions and generals.
-- [ ] Add persistent pop-up raid camps outside towns.
-  - Store camp location/state as world or town-related saved data.
-  - Select locations roughly 2,000 blocks from the target town.
-  - Prevent camps from overlapping or spawning too close to another town.
-  - Do not generate the physical structure until players approach the saved location.
-  - Allow surviving camps to develop into larger towers / fortified raid sites.
-- [ ] Add simple skirmishes / bandit raids against towns with low military infrastructure.
-- [ ] Let higher military infrastructure attract or enable larger, more dangerous raids rather than simply removing raids entirely.
+- [ ] Redefine Residents as all permanent town-affiliated NPCs, including MCA villagers and Guard Villagers.
+- [ ] Let Guard Villagers live in residences and use Barracks as workplace.
+- [ ] Add resident status fields such as Working, On Patrol, Caravan Escort and Idle.
+- [ ] Expand resident detail UI with Name, Happiness, Occupation, Home, Workplace and status.
+- [ ] Use Guard Villagers as standard guards.
+- [ ] Keep military NPC hierarchy beyond standard Guard Villagers unresolved.
 
-## Buildings and Progression
+## Specialists
 
-- [ ] Add simple building upgrades.
-- [ ] Clarify villager trade balance and how normal villager trading should interact with the town economy.
-- [ ] Clarify specialist trade and research progression.
-  - Decide whether a Scholar acts as the central research/upgrading specialist and benefits from Libraries and other utility buildings.
-  - Alternatively, decide whether specialists such as Blacksmiths should have their own independent research tabs / progression paths.
+- [ ] Keep direct NPC interaction as the specialist service/research entry point; no central Town Research tab.
+- [ ] Generalize the Architect-only research UI/service into a specialist-specific framework.
+- [ ] Add Carpenter specialist after its workplace/role is finalized.
+- [ ] Add Stonemason specialist after its workplace/role is finalized.
+- [ ] Decide Scholar's long-term role.
+- [ ] Decide whether duplicate specialists are allowed and how duplicates behave.
+- [ ] Carpenter service direction: Store tab for logs/furniture/building materials.
+- [ ] Stonemason service direction: Store tab for stone/masonry/decorative materials.
+- [ ] Blacksmith service direction: modular Store + Modify tabs (repair, rarity reforge, gem socketing).
+
+## Adventurer's Guild
+
+- [ ] Add later as a lightweight adventure/hunting/scouting building/system.
+- [ ] Keep it distinct from ordinary Bounty Board bounties.
+- [ ] Potential functions: special hunting contracts, bandit scouting, discovery/intelligence.
+- [ ] Do not turn it into a second full quest framework.
+
+## Barracks
+
+- [ ] Expand Barracks into Guard Villager management/hiring.
+- [ ] Add guard assignments and caravan escort selection.
+- [ ] Add guard loadouts / military upgrades after progression is finalized.
+- [ ] Barracks food/morale buff remains brainstorm-only until approved.
+
+## Buildings and UI
+
+- [ ] Canonical main tabs: Overview/Map, Town, Buildings, Residents, Requests/Events, Trade, Rules/Management.
+- [ ] Fold the standalone Building Catalog into the Buildings area rather than keeping it as a top-level tab.
+- [ ] Remove duplicate map-side first-four building buttons/text and use direct map selection + compact right summary + Info button.
+- [ ] Buildings detail page should show actual worker/resident names where practical.
+- [ ] Keep simple building upgrades; exact upgrade rules/costs remain TODO.
 
 ## Economy
 
-- [ ] Replace the generic `currency` abstraction with actual Create: Numismatics currency integration.
-- [ ] Clarify how Bountiful bounties affect towns.
-  - Investigate using a town Bounty Decree in the Bounty Board to control the pool/types of town bounties that appear.
-  - Decide what completing bounties should contribute to the town beyond the current direct rewards.
+- [ ] Replace generic currency abstraction with actual Create: Numismatics currency integration.
+- [ ] Clarify vanilla/MCA villager trade balance and how normal trading interacts with town economy.
+- [ ] Clarify specialist store/service pricing and progression.
 
-## Town Requests
+## Other deferred design
 
-- [ ] Add a dedicated Town Requests page to the town UI.
-- [ ] Decide whether ignoring or failing town requests should reduce Prosperity, and by how much.
+- [ ] Exact Prosperity effects on happiness/trades/services/Output.
+- [ ] Exact Town Request generation rules/content.
+- [ ] Exact Bountiful Decree integration.
+- [ ] Final Adventurer's Guild progression.
+- [ ] Final Barracks upgrade/loadout system.
