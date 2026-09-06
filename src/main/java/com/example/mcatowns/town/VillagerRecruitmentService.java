@@ -39,8 +39,8 @@ public final class VillagerRecruitmentService {
                 && (data.getTownRank() != TownRank.UNRANKED || specialist == SpecialistType.ARCHITECT)
                 && data.getSpecialists().size() < data.getTownRank().maxSpecialists()
                 && !data.getSpecialists().containsValue(specialist.id()));
-        List<VillagerTownView.ResearchOption> research = employed && specialist == SpecialistType.ARCHITECT
-                ? TownResearchDefinition.ALL.stream().map(definition -> {
+        List<VillagerTownView.ResearchOption> research = employed && specialist != null
+                ? TownResearchDefinition.forSpecialist(specialist).stream().map(definition -> {
                     TownBuildingDefinition building = TownBuildingDefinition.get(definition.buildingId());
                     return new VillagerTownView.ResearchOption(definition.id(), building.displayName(),
                             data.isBuildingUnlocked(definition.buildingId()), definition.scraps(), definition.greatEssence(),
