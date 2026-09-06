@@ -11,7 +11,7 @@ public final class TownHealthService {
         if (day <= data.getLastProgressionDay()) return;
         TownBuildingService.refreshInspectionState(world, data, day);
 
-        int decayed = Math.max(data.getProsperityBase(),
+        int decayed = Math.max(TownProsperitySystem.effectiveBase(data),
                 data.getProsperity() - MCATownsConfig.get().prosperityDecayPerDay);
         data.addProsperity(decayed - data.getProsperity());
 
