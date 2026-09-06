@@ -3,13 +3,9 @@ package com.example.mcatowns.town;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.passive.TraderLlamaEntity;
 import net.minecraft.entity.passive.WanderingTraderEntity;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.Text;
 import net.minecraft.util.math.BlockPos;
-
-import java.util.List;
 
 /**
  * Legacy class name retained for save/code compatibility. This is the random physical Wandering Caravan system,
@@ -22,12 +18,12 @@ public final class TownCaravanSystem {
     private static final String MERCHANT = "merchant";
     private static final String SUPPLY = "supply";
     private static final String MILITARY = "military";
-    private static final String IMMIGRANT = "immigrant";
+    private static final String SETTLER = "settler";
 
     private TownCaravanSystem() { }
 
     public static void tickDaily(ServerWorld world, TownContext context, TownSavedData data, long day) {
-        expireBonuses(data, day);
+        expireLegacyBonuses(data, day);
 
         if (data.getNextCaravanDay() < 0) {
             data.setNextCaravanDay(day + CARAVAN_INTERVAL_DAYS);
@@ -37,13 +33,14 @@ public final class TownCaravanSystem {
 
         String type = pickType(world);
         spawnWanderingCaravan(world, context.center(), type);
-        applyArrivalBonus(world, context.center(), data, day, type);
         data.setLastCaravanType(type);
         data.setLastCaravanDay(day);
         data.setNextCaravanDay(day + CARAVAN_INTERVAL_DAYS);
+        notifyNearby(world, context.center(), "A " + type + " wandering caravan has arrived and will remain for a few days.");
     }
 
-    private static void expireBonuses(TownSavedData data, long day) {
+    /** Clears temporary bonuses left by saves from the old caravan implementation. New caravans do not create them. */
+    private static void expireLegacyBonuses(TownSavedData data, long day) {
         if (data.getCaravanDefenseBonus() != 0 && day > data.getCaravanDefenseUntilDay()) {
             data.setCaravanDefenseBonus(0);
             data.setCaravanDefenseUntilDay(-1L);
@@ -59,7 +56,7 @@ public final class TownCaravanSystem {
             case 0 -> MERCHANT;
             case 1 -> SUPPLY;
             case 2 -> MILITARY;
-            default -> IMMIGRANT;
+            default -> SETTLER;
         };
     }
 
@@ -74,8 +71,8 @@ public final class TownCaravanSystem {
             trader.setCustomName(Text.literal(displayType(type) + " Caravan Merchant"));
             trader.setDespawnDelay(DESPAWN_DELAY_TICKS);
             world.spawnEntity(trader);
-            // Keep vanilla Wandering Trader behaviour/offers as the base. Theme-specific trade pools are layered later
-            // once their exact economy balance is approved.
+            // Vanilla Wandering Trader behaviour remains the base. Theme-specific trade pools are added once
+            // the exact item/economy pools are approved, instead of hard-coding speculative balance here.
         }
 
         for (int i = 0; i < 2; i++) {
@@ -86,47 +83,6 @@ public final class TownCaravanSystem {
             llama.setDespawnDelay(DESPAWN_DELAY_TICKS);
             world.spawnEntity(llama);
         }
-    }
-
-    private static void applyArrivalBonus(ServerWorld world, BlockPos anchor, TownSavedData data, long day, String type) {
-        int tradeBonusPercent = getTradingPostCaravanBonus(data);
-        switch (type) {
-            case MERCHANT -> {
-                int emeralds = applyTradeBonus(8 + world.getRandom().nextInt(9), tradeBonusPercent);
-                data.setTreasury(Math.min(data.getMaxTreasury(), data.getTreasury() + emeralds));
-                notifyNearby(world, anchor, "A merchant wandering caravan has arrived." + bonusText(tradeBonusPercent));
-            }
-            case SUPPLY -> {
-                int food = applyTradeBonus(10 + world.getRandom().nextInt(11), tradeBonusPercent);
-                data.setFoodReserves(data.getFoodReserves() + food);
-                notifyNearby(world, anchor, "A supply wandering caravan has arrived with a small town delivery." + bonusText(tradeBonusPercent));
-            }
-            case MILITARY -> {
-                data.setCaravanDefenseBonus(applyTradeBonus(8, tradeBonusPercent));
-                data.setCaravanDefenseUntilDay(day + 3);
-                notifyNearby(world, anchor, "A military wandering caravan has arrived; guards are encouraged by the visitors." + bonusText(tradeBonusPercent));
-            }
-            case IMMIGRANT -> {
-                data.setCaravanPopulationBonus(applyTradeBonus(2, tradeBonusPercent));
-                data.setCaravanPopulationUntilDay(day + 3);
-                notifyNearby(world, anchor, "A settler wandering caravan has arrived." + bonusText(tradeBonusPercent));
-            }
-            default -> { }
-        }
-    }
-
-    private static int getTradingPostCaravanBonus(TownSavedData data) {
-        if (data.isTradingPostLinked()) return 50;
-        if (data.getDetectedTradingPostBuildings() > 0) return 25;
-        return 0;
-    }
-
-    private static int applyTradeBonus(int amount, int bonusPercent) {
-        return Math.max(0, amount * (100 + Math.max(0, bonusPercent)) / 100);
-    }
-
-    private static String bonusText(int bonusPercent) {
-        return bonusPercent > 0 ? " Trading Post bonus: +" + bonusPercent + "% arrival benefit." : "";
     }
 
     private static String displayType(String type) {
