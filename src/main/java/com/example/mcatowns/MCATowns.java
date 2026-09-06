@@ -1,5 +1,6 @@
 package com.example.mcatowns;
 
+import com.example.mcatowns.command.FastForwardCommand;
 import com.example.mcatowns.config.MCATownsConfig;
 import com.example.mcatowns.event.BlueprintTownCreationHandler;
 import com.example.mcatowns.event.ServerCombatEventsHandler;
@@ -29,6 +30,7 @@ public class MCATowns implements ModInitializer {
         ModScreenHandlers.register();
         ModItemGroup.register();
         ModNetworking.registerC2S();
+        FastForwardCommand.register();
         ServerTickEventsHandler.register();
         ServerCombatEventsHandler.register();
         BlueprintTownCreationHandler.register();

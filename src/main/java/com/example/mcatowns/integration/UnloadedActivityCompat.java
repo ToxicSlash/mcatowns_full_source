@@ -12,6 +12,7 @@ import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
 import net.minecraft.util.math.random.Random;
+import net.minecraft.world.GameRules;
 import net.minecraft.world.Heightmap;
 import net.minecraft.world.chunk.WorldChunk;
 
@@ -37,6 +38,7 @@ public final class UnloadedActivityCompat {
     private static Field uaGrowCropsField;
     private static Method uaGetRandomPickOdds;
     private static Method uaGetOccurrences;
+    private static Method uaSimulateChunk;
 
     private static volatile boolean warnedIwReflection;
     private static volatile boolean warnedUaReflection;
@@ -47,13 +49,17 @@ public final class UnloadedActivityCompat {
         return FabricLoader.getInstance().isModLoaded("immersive_weathering");
     }
 
+    public static boolean isUnloadedActivityLoaded() {
+        return FabricLoader.getInstance().isModLoaded("unloadedactivity");
+    }
+
     /**
      * Called only from Unloaded Activity's own chunk catch-up method. No MCA-specific chunk timer
      * or last-loaded timestamp is maintained here.
      */
     public static void onChunkCatchUp(long elapsedTicks, ServerWorld world, WorldChunk chunk, int randomTickSpeed) {
         if (elapsedTicks <= 0L || world == null || chunk == null || randomTickSpeed <= 0) return;
-        if (!isImmersiveWeatheringLoaded() || !isUaChunkSimulationEnabled() || !ensureIwReflection()) return;
+        if (!isImmersiveWeatheringLoaded() || !isChunkSimulationEnabled() || !ensureIwReflection()) return;
 
         int attempts = UnloadedActivityCatchUpPolicy.environmentalAttempts(elapsedTicks, randomTickSpeed);
         if (attempts <= 0) return;
@@ -111,6 +117,38 @@ public final class UnloadedActivityCompat {
         }
     }
 
+    /**
+     * Manual test hook used by /fastforward. It invokes Unloaded Activity's own TimeMachine
+     * directly for an already-loaded chunk and deliberately does not alter UA's last-tick data
+     * or the world's clock.
+     */
+    public static boolean simulateChunkNow(long elapsedTicks, ServerWorld world, WorldChunk chunk) {
+        if (elapsedTicks <= 0L || world == null || chunk == null || !isUnloadedActivityLoaded()) return false;
+        ensureUaReflection();
+        if (uaSimulateChunk == null || !isChunkSimulationEnabled()) return false;
+
+        int randomTickSpeed = world.getGameRules().getInt(GameRules.RANDOM_TICK_SPEED);
+        try {
+            uaSimulateChunk.invoke(null, elapsedTicks, world, chunk, randomTickSpeed);
+            return true;
+        } catch (ReflectiveOperationException | RuntimeException exception) {
+            MCATowns.LOGGER.warn("Manual Unloaded Activity chunk simulation failed", exception);
+            return false;
+        }
+    }
+
+    public static boolean isChunkSimulationEnabled() {
+        ensureUaReflection();
+        try {
+            if (uaConfigField == null || uaEnableRandomTicksField == null || uaEnablePrecipitationTicksField == null) return false;
+            Object config = uaConfigField.get(null);
+            return config != null && uaEnableRandomTicksField.getBoolean(config)
+                    && uaEnablePrecipitationTicksField.getBoolean(config);
+        } catch (IllegalAccessException | RuntimeException ignored) {
+            return false;
+        }
+    }
+
     private static boolean isMaintainedFarmPosition(List<FarmArea> farms, BlockPos pos) {
         for (FarmArea farm : farms) {
             if (farm.containsXZ(pos)) return true;
@@ -159,28 +197,20 @@ public final class UnloadedActivityCompat {
             Class<?> uaClass = Class.forName("fabric.lol.zanspace.unloadedactivity.UnloadedActivity");
             Class<?> configClass = Class.forName("fabric.lol.zanspace.unloadedactivity.config.UnloadedActivityConfig");
             Class<?> utilsClass = Class.forName("fabric.lol.zanspace.unloadedactivity.Utils");
+            Class<?> timeMachineClass = Class.forName("fabric.lol.zanspace.unloadedactivity.TimeMachine");
             uaConfigField = uaClass.getField("config");
             uaEnableRandomTicksField = configClass.getField("enableRandomTicks");
             uaEnablePrecipitationTicksField = configClass.getField("enablePrecipitationTicks");
             uaGrowCropsField = configClass.getField("growCrops");
             uaGetRandomPickOdds = utilsClass.getMethod("getRandomPickOdds", int.class);
             uaGetOccurrences = utilsClass.getMethod("getOccurrences", long.class, double.class, int.class, Random.class);
+            uaSimulateChunk = timeMachineClass.getMethod("simulateChunk",
+                    long.class, ServerWorld.class, WorldChunk.class, int.class);
         } catch (ReflectiveOperationException | RuntimeException exception) {
             if (!warnedUaReflection) {
                 warnedUaReflection = true;
                 MCATowns.LOGGER.warn("Unloaded Activity 0.6.3 compatibility API was not found", exception);
             }
-        }
-    }
-
-    private static boolean isUaChunkSimulationEnabled() {
-        ensureUaReflection();
-        try {
-            if (uaConfigField == null || uaEnableRandomTicksField == null || uaEnablePrecipitationTicksField == null) return false;
-            Object config = uaConfigField.get(null);
-            return config != null && uaEnableRandomTicksField.getBoolean(config) && uaEnablePrecipitationTicksField.getBoolean(config);
-        } catch (IllegalAccessException | RuntimeException ignored) {
-            return false;
         }
     }
 
