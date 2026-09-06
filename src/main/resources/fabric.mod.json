@@ -20,7 +20,8 @@
     ]
   },
   "mixins": [
-    "mcatowns.mixins.json"
+    "mcatowns.mixins.json",
+    "mcatowns.compat.mixins.json"
   ],
   "depends": {
     "fabricloader": ">=0.19.5",
@@ -31,6 +32,15 @@
     "mca": "*",
     "guardvillagers": "*",
     "villagerbusiness": "*",
+    "unloadedactivity": "*",
+    "immersive_weathering": "*",
+    "farmersdelight": "*",
+    "bountifulfares": "*",
+    "vinery": "*",
+    "wildernature": "*",
+    "bakery": "*",
+    "candlelight": "*",
+    "farm_and_charm": "*",
     "modmenu": "*",
     "cloth-config": "*"
   }
