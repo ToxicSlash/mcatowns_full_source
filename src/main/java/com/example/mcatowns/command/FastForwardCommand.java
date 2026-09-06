@@ -16,15 +16,12 @@ public final class FastForwardCommand {
     private FastForwardCommand() { }
 
     public static void register() {
-        CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {
-            registerRoot(dispatcher, "fastforward");
-            // Keep the common misspelling as an alias because it is useful when testing from chat.
-            registerRoot(dispatcher, "fastfoward");
-        });
+        CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) ->
+                registerRoot(dispatcher));
     }
 
-    private static void registerRoot(CommandDispatcher<ServerCommandSource> dispatcher, String name) {
-        LiteralArgumentBuilder<ServerCommandSource> root = CommandManager.literal(name)
+    private static void registerRoot(CommandDispatcher<ServerCommandSource> dispatcher) {
+        LiteralArgumentBuilder<ServerCommandSource> root = CommandManager.literal("fastforward")
                 .requires(source -> source.hasPermissionLevel(2))
                 .then(CommandManager.argument("duration", StringArgumentType.word())
                         .executes(context -> execute(context.getSource(),
