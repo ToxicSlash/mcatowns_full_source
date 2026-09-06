@@ -4,15 +4,15 @@ import com.example.mcatowns.client.McaBlueprintScreenBridge;
 import com.example.mcatowns.event.BlueprintTownCreationHandler;
 import com.example.mcatowns.network.ModNetworking;
 import com.example.mcatowns.network.TownBlueprintView;
-import com.example.mcatowns.town.TownBuildingDefinition;
-import com.example.mcatowns.town.TownBuildingCategory;
 import com.example.mcatowns.town.BuildingPerformance;
+import com.example.mcatowns.town.TownBuildingCategory;
+import com.example.mcatowns.town.TownBuildingDefinition;
 import com.example.mcatowns.util.TownTextHelper;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.ConfirmScreen;
 import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.gui.tooltip.Tooltip;
 import net.minecraft.client.gui.tooltip.HoveredTooltipPositioner;
+import net.minecraft.client.gui.tooltip.Tooltip;
 import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
@@ -22,10 +22,10 @@ import net.minecraft.text.OrderedText;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.ArrayList;
 
 public class TownBlueprintScreen extends Screen {
     private static final int PANEL_WIDTH = 360;
@@ -40,6 +40,7 @@ public class TownBlueprintScreen extends Screen {
     private TownBlueprintView.BuildingEntry selectedRegisteredBuilding;
     private boolean showOutputBonuses;
     private boolean showSpecialists;
+    private boolean showBuildingCatalog;
     private boolean advancedControls;
     private String page = "map";
 
@@ -50,7 +51,7 @@ public class TownBlueprintScreen extends Screen {
 
     public TownBlueprintScreen(TownBlueprintView view, String initialPage) {
         this(view);
-        if (initialPage != null && !initialPage.isBlank()) this.page = initialPage;
+        if (initialPage != null && !initialPage.isBlank()) this.page = normalizePage(initialPage);
     }
 
     @Override
@@ -71,18 +72,29 @@ public class TownBlueprintScreen extends Screen {
 
         addBackButton(left, top);
         addTabs(left, top);
-        if (page.equals("catalog")) addCatalogButtons(left, top);
-        if (page.equals("villagers")) addVillagerButtons(left, top);
+        if (page.equals("residents")) addVillagerButtons(left, top);
         if (page.equals("rules")) addRuleButtons(left, top);
         if (page.equals("map")) addMapButtons(left, top);
-        if (page.equals("buildings")) addBuildingButtons(left, top);
-        if (page.equals("rank")) addRankButtons(left, top);
+        if (page.equals("buildings")) {
+            addBuildingModeButtons(left, top);
+            if (showBuildingCatalog) addCatalogButtons(left, top);
+            else addBuildingButtons(left, top);
+        }
+        if (page.equals("town")) addTownButtons(left, top);
+
         if (view.canManage()) {
             addDrawableChild(ButtonWidget.builder(Text.literal("E"), button -> client.setScreen(new RenameTownScreen(this, view.anchorPos(), view.name())))
                     .dimensions(left + 8, top + 7, 16, 14)
                     .tooltip(Tooltip.of(Text.literal("Rename town")))
                     .build());
         }
+        addDrawableChild(ButtonWidget.builder(Text.literal("R"), button -> {
+                    McaBlueprintScreenBridge.openNextOn(page);
+                    ModNetworking.sendOpenTownBlueprint();
+                })
+                .dimensions(left + PANEL_WIDTH - 24, top + 7, 16, 14)
+                .tooltip(Tooltip.of(Text.literal("Refresh town data")))
+                .build());
         if (view.canRemove()) {
             addDrawableChild(ButtonWidget.builder(Text.translatable("screen.mcatowns.town_manager.remove"), button -> confirmRemoval())
                     .dimensions(Math.min(width - 84, left + PANEL_WIDTH + 8), top + 2, 76, 18)
@@ -98,24 +110,41 @@ public class TownBlueprintScreen extends Screen {
     }
 
     private void addTabs(int left, int top) {
-        String[] pages = {"map", "buildings", "rank", "catalog", "villagers", "rules", "refresh"};
+        String[] pages = {"map", "town", "buildings", "residents", "requests", "trade", "rules"};
+        String[] labels = {"Overview / Map", "Town", "Buildings", "Residents", "Requests", "Trade", "Rules"};
         for (int i = 0; i < pages.length; i++) {
             String target = pages[i];
-            ButtonWidget button = ButtonWidget.builder(Text.literal(titleCase(target)), ignored -> {
-                        if (target.equals("refresh")) {
-                            McaBlueprintScreenBridge.openNextOn(page);
-                            ModNetworking.sendOpenTownBlueprint();
-                            return;
-                        }
+            ButtonWidget button = ButtonWidget.builder(Text.literal(labels[i]), ignored -> {
                         page = target;
                         clearChildren();
                         init();
                     })
-                    .dimensions(left - TAB_WIDTH - 12, top + 58 + i * 22, TAB_WIDTH, 18)
+                    .dimensions(left - TAB_WIDTH - 12, top + 48 + i * 22, TAB_WIDTH, 18)
                     .build();
             button.active = !target.equals(page);
             addDrawableChild(button);
         }
+    }
+
+    private void addBuildingModeButtons(int left, int top) {
+        ButtonWidget registered = ButtonWidget.builder(Text.literal("Registered"), ignored -> {
+                    showBuildingCatalog = false;
+                    clearChildren();
+                    init();
+                })
+                .dimensions(left + 16, top + 30, 78, 18).build();
+        registered.active = showBuildingCatalog;
+        addDrawableChild(registered);
+
+        ButtonWidget catalog = ButtonWidget.builder(Text.literal("Catalog"), ignored -> {
+                    showBuildingCatalog = true;
+                    showOutputBonuses = false;
+                    clearChildren();
+                    init();
+                })
+                .dimensions(left + 98, top + 30, 68, 18).build();
+        catalog.active = !showBuildingCatalog;
+        addDrawableChild(catalog);
     }
 
     private void addCatalogButtons(int left, int top) {
@@ -128,7 +157,7 @@ public class TownBlueprintScreen extends Screen {
                         clearChildren();
                         init();
                     })
-                    .dimensions(left + 12 + i * 48, top + 42, 46, 18)
+                    .dimensions(left + 12 + i * 48, top + 54, 46, 18)
                     .build();
             button.active = value != category;
             addDrawableChild(button);
@@ -140,7 +169,7 @@ public class TownBlueprintScreen extends Screen {
         for (int i = 0; i < options.size(); i++) {
             TownBlueprintView.BuildingOption option = options.get(i);
             ButtonWidget button = ButtonWidget.builder(Text.empty(), ignored -> selectedBuilding = option)
-                    .dimensions(left + 16 + (i % 5) * 28, top + 72 + (i / 5) * 30, 24, 24)
+                    .dimensions(left + 16 + (i % 5) * 28, top + 80 + (i / 5) * 30, 24, 24)
                     .tooltip(Tooltip.of(Text.literal(option.name())))
                     .build();
             button.active = option != selectedBuilding;
@@ -150,20 +179,20 @@ public class TownBlueprintScreen extends Screen {
         if (selectedBuilding != null) {
             ButtonWidget inspect = ButtonWidget.builder(Text.literal("Inspect"),
                             ignored -> {
-                                McaBlueprintScreenBridge.openNextOn("catalog");
+                                McaBlueprintScreenBridge.openNextOn("buildings");
                                 ModNetworking.sendInspectTownBuilding(selectedBuilding.id());
                             })
-                    .dimensions(left + 190, top + 162, 72, 18)
+                    .dimensions(left + 190, top + 190, 72, 18)
                     .build();
             inspect.active = view.canManage() && !selectedBuilding.legacy();
             addDrawableChild(inspect);
 
             ButtonWidget register = ButtonWidget.builder(Text.literal(selectedBuilding.legacy() ? "MCA Building" : "Register"),
                             ignored -> {
-                                McaBlueprintScreenBridge.openNextOn("catalog");
+                                McaBlueprintScreenBridge.openNextOn("buildings");
                                 ModNetworking.sendRegisterTownBuilding(selectedBuilding.id());
                             })
-                    .dimensions(left + 268, top + 162, 74, 18)
+                    .dimensions(left + 268, top + 190, 74, 18)
                     .tooltip(Tooltip.of(Text.literal(cost(selectedBuilding))))
                     .build();
             register.active = view.canManage() && selectedBuilding.unlocked() && !selectedBuilding.legacy()
@@ -212,18 +241,18 @@ public class TownBlueprintScreen extends Screen {
         }
 
         ButtonWidget autoAssign = ButtonWidget.builder(Text.literal("Auto Assign"), ignored -> {
-                    McaBlueprintScreenBridge.openNextOn("villagers");
+                    McaBlueprintScreenBridge.openNextOn("residents");
                     ModNetworking.sendAutoAssignTownWorkers();
                 })
                 .dimensions(left + 256, top + 44, 86, 18)
                 .tooltip(Tooltip.of(Text.literal("Fill empty worker slots without changing valid assignments.")))
                 .build();
-        autoAssign.active = view.canManage() && !view.residents().isEmpty();
+        autoAssign.active = view.canManage() && !view.residents().isEmpty() && !showSpecialists;
         addDrawableChild(autoAssign);
 
         if (selectedResident == null) return;
         ButtonWidget unassign = ButtonWidget.builder(Text.literal("Unassign"), ignored -> {
-                    McaBlueprintScreenBridge.openNextOn("villagers");
+                    McaBlueprintScreenBridge.openNextOn("residents");
                     ModNetworking.sendAssignTownWorker(selectedResident.id(), new java.util.UUID(0L, 0L));
                 })
                 .dimensions(left + 192, top + 104, 72, 16)
@@ -237,7 +266,7 @@ public class TownBlueprintScreen extends Screen {
             TownBlueprintView.BuildingEntry building = workplaces.get(i);
             String label = building.name() + " " + building.workerCount() + "/" + building.workerSlots();
             ButtonWidget assign = ButtonWidget.builder(Text.literal(label), ignored -> {
-                        McaBlueprintScreenBridge.openNextOn("villagers");
+                        McaBlueprintScreenBridge.openNextOn("residents");
                         ModNetworking.sendAssignTownWorker(selectedResident.id(), building.id());
                     })
                     .dimensions(left + 270, top + 104 + i * 18, 72, 16)
@@ -278,7 +307,7 @@ public class TownBlueprintScreen extends Screen {
                         clearChildren();
                         init();
                     })
-                    .dimensions(left + 16, top + 46 + i * 16, 150, 15)
+                    .dimensions(left + 16, top + 56 + i * 15, 150, 14)
                     .tooltip(Tooltip.of(Text.literal(outputLine(building))))
                     .build();
             button.active = !building.equals(selectedRegisteredBuilding);
@@ -290,7 +319,7 @@ public class TownBlueprintScreen extends Screen {
                         clearChildren();
                         init();
                     })
-                    .dimensions(left + 250, top + 174, 82, 18).build();
+                    .dimensions(left + 250, top + 188, 82, 18).build();
             addDrawableChild(bonuses);
         }
     }
@@ -306,17 +335,17 @@ public class TownBlueprintScreen extends Screen {
         detect.active = view.canManage();
         addDrawableChild(detect);
 
-        List<TownBlueprintView.BuildingEntry> buildings = view.registeredBuildings().stream().limit(4).toList();
-        for (int i = 0; i < buildings.size(); i++) {
-            TownBlueprintView.BuildingEntry building = buildings.get(i);
-            ButtonWidget select = ButtonWidget.builder(Text.literal(building.name()), ignored -> {
-                        selectedRegisteredBuilding = building;
+        if (selectedRegisteredBuilding != null) {
+            addDrawableChild(ButtonWidget.builder(Text.literal("Info"), button -> {
                         page = "buildings";
+                        showBuildingCatalog = false;
+                        showOutputBonuses = false;
                         clearChildren();
                         init();
-                    }).dimensions(left + 190, top + 118 + i * 16, 150, 15)
-                    .tooltip(Tooltip.of(Text.literal(outputLine(building)))).build();
-            addDrawableChild(select);
+                    })
+                    .dimensions(left + 268, top + 58, 74, 18)
+                    .tooltip(Tooltip.of(Text.literal("Open this building's full details.")))
+                    .build());
         }
 
         ButtonWidget advanced = ButtonWidget.builder(Text.literal(advancedControls ? "Basic" : "Advanced"), button -> {
@@ -324,45 +353,30 @@ public class TownBlueprintScreen extends Screen {
                     clearChildren();
                     init();
                 })
-                .dimensions(left + 188, top + 148, 76, 18)
+                .dimensions(left + 188, top + 174, 76, 18)
                 .build();
         addDrawableChild(advanced);
 
         if (!advancedControls) return;
 
-        ButtonWidget refresh = ButtonWidget.builder(Text.literal("Refresh"), button -> {
-                    McaBlueprintScreenBridge.openNextOn("map");
-                    ModNetworking.sendOpenTownBlueprint();
-                })
-                .dimensions(left + 268, top + 148, 74, 18)
-                .build();
-        addDrawableChild(refresh);
-
         ButtonWidget remove = ButtonWidget.builder(Text.literal("Remove Building"), button -> {
                     McaBlueprintScreenBridge.openNextOn("map");
                     ModNetworking.sendRemoveTownBuilding();
                 })
-                .dimensions(left + 188, top + 172, 100, 18)
+                .dimensions(left + 268, top + 174, 74, 18)
                 .tooltip(Tooltip.of(Text.literal("Removes the nearest registered building within 12 blocks.")))
                 .build();
         remove.active = view.canManage();
         addDrawableChild(remove);
-
-        ButtonWidget rankUp = ButtonWidget.builder(Text.literal("Advance Tier"), button -> ModNetworking.sendAdvanceTown(view.anchorPos()))
-                .dimensions(left + 292, top + 172, 50, 18)
-                .tooltip(Tooltip.of(Text.literal("Advances the town if the next tier requirements are met.")))
-                .build();
-        rankUp.active = view.canManage() && view.rank().next() != null;
-        addDrawableChild(rankUp);
     }
 
-    private void addRankButtons(int left, int top) {
-        ButtonWidget upgrade = ButtonWidget.builder(Text.literal("Upgrade"), button -> { })
-                .dimensions(left + 130, top + 190, 100, 18)
-                .tooltip(Tooltip.of(Text.literal("Upgrade action pending.")))
+    private void addTownButtons(int left, int top) {
+        ButtonWidget advance = ButtonWidget.builder(Text.literal("Advance Town"), button -> ModNetworking.sendAdvanceTown(view.anchorPos()))
+                .dimensions(left + 242, top + 184, 100, 18)
+                .tooltip(Tooltip.of(Text.literal("Advance when all next-rank requirements are met.")))
                 .build();
-        upgrade.active = false;
-        addDrawableChild(upgrade);
+        advance.active = view.canManage() && view.rank().next() != null;
+        addDrawableChild(advance);
     }
 
     private void confirmRemoval() {
@@ -387,7 +401,9 @@ public class TownBlueprintScreen extends Screen {
         if (view.founding()) drawFounding(context, left, top);
         else drawEstablished(context, left, top);
         super.render(context, mouseX, mouseY, delta);
-        if (page.equals("catalog")) icons.forEach((button, stack) -> context.drawItem(stack, button.getX() + 4, button.getY() + 4));
+        if (page.equals("buildings") && showBuildingCatalog) {
+            icons.forEach((button, stack) -> context.drawItem(stack, button.getX() + 4, button.getY() + 4));
+        }
         drawRequirementTooltip(context, mouseX, mouseY);
     }
 
@@ -407,40 +423,48 @@ public class TownBlueprintScreen extends Screen {
         context.drawTextWithShadow(textRenderer, Text.literal("Specialists " + view.specialists() + "/" + view.rank().maxSpecialists()), left + 244, top + 8, 0xFFFFFF);
 
         switch (page) {
-            case "rank" -> drawRank(context, left, top);
-            case "villagers" -> drawVillagers(context, left, top);
-            case "catalog" -> drawCatalog(context, left, top);
-            case "buildings" -> drawBuildings(context, left, top);
+            case "town" -> drawTown(context, left, top);
+            case "residents" -> drawResidents(context, left, top);
+            case "buildings" -> {
+                if (showBuildingCatalog) drawCatalog(context, left, top);
+                else drawBuildings(context, left, top);
+            }
+            case "requests" -> drawRequests(context, left, top);
+            case "trade" -> drawTrade(context, left, top);
             case "rules" -> drawRules(context, left, top);
             default -> drawMap(context, left, top);
         }
     }
 
-    private void drawRank(DrawContext context, int left, int top) {
+    private void drawTown(DrawContext context, int left, int top) {
         String nextTier = view.rank().next() == null ? "Max" : view.rank().next().displayName();
-        context.drawTextWithShadow(textRenderer, Text.literal("Player Rank: " + view.playerRank()), left + 18, top + 48, 0xFFFFFF);
-        context.drawTextWithShadow(textRenderer,
-                Text.literal("Tier: " + view.rank().displayName() + " > " + nextTier), left + 18, top + 64, 0xFFE080);
-        for (int i = 0; i < view.infrastructure().size(); i++) {
+        context.drawTextWithShadow(textRenderer, Text.literal("Town Rank: " + view.rank().displayName()), left + 18, top + 44, 0xFFE080);
+        context.drawTextWithShadow(textRenderer, Text.literal("Next: " + nextTier), left + 18, top + 58, 0xFFFFFF);
+        context.drawTextWithShadow(textRenderer, Text.literal("Happiness: " + view.happiness()), left + 180, top + 44, 0xFFFFFF);
+        context.drawTextWithShadow(textRenderer, Text.literal("Mayor Role: " + view.playerRank()), left + 180, top + 58, 0xFFFFFF);
+
+        int infrastructureY = top + 78;
+        for (int i = 0; i < Math.min(5, view.infrastructure().size()); i++) {
             TownBlueprintView.InfrastructureEntry entry = view.infrastructure().get(i);
-            String line = entry.type().displayName() + ": " + entry.available() + " free ("
-                    + entry.provided() + " provided, " + entry.reserved() + " used)";
-            context.drawTextWithShadow(textRenderer, Text.literal(line), left + 18, top + 78 + i * 12,
+            String line = entry.type().displayName() + ": " + entry.available() + " free (" + entry.provided() + "/" + entry.reserved() + ")";
+            context.drawTextWithShadow(textRenderer, Text.literal(line), left + 18, infrastructureY + i * 12,
                     entry.available() > 0 ? 0xB8D8FF : 0xAAAAAA);
         }
-        int checklistY = top + 82 + view.infrastructure().size() * 12;
+
+        int checklistY = top + 142;
+        context.drawTextWithShadow(textRenderer, Text.literal("Next-rank requirements"), left + 18, checklistY, 0xFFE080);
         for (int i = 0; i < Math.min(5, view.rankChecklist().size()); i++) {
             String line = view.rankChecklist().get(i);
-            context.drawTextWithShadow(textRenderer, Text.literal(line), left + 18, checklistY + i * 13,
+            context.drawTextWithShadow(textRenderer, Text.literal(line), left + 18, checklistY + 14 + i * 12,
                     line.startsWith("✓") || line.startsWith("âœ“") ? 0x80D080 : 0xE08080);
         }
     }
 
     private void drawCatalog(DrawContext context, int left, int top) {
-        context.drawCenteredTextWithShadow(textRenderer, Text.literal("Building Catalog"), left + PANEL_WIDTH / 2, top + 32, 0xFFFFFF);
+        context.drawTextWithShadow(textRenderer, Text.literal("Building Catalog"), left + 190, top + 34, 0xFFE080);
         if (selectedBuilding == null) return;
         int x = left + 192;
-        int y = top + 74;
+        int y = top + 82;
         context.drawTextWithShadow(textRenderer, Text.literal(selectedBuilding.name()), x, y, 0xFFE080);
         List<OrderedText> lines = textRenderer.wrapLines(Text.literal(selectedBuilding.description()), 146);
         for (int i = 0; i < Math.min(4, lines.size()); i++) {
@@ -450,12 +474,13 @@ public class TownBlueprintScreen extends Screen {
             context.drawTextWithShadow(textRenderer, Text.literal("MCA building type"), x, y + 62, 0xAAAAAA);
             return;
         }
-        context.drawTextWithShadow(textRenderer, Text.literal(selectedBuilding.unlocked() ? "Unlocked" : "Locked"), x, y + 62, selectedBuilding.unlocked() ? 0x80D080 : 0xE08080);
-        context.drawTextWithShadow(textRenderer, Text.literal("Cost Requirements"), x, y + 70, requirementColor(selectedBuilding, true));
-        context.drawTextWithShadow(textRenderer, Text.literal("Furniture Requirements"), x, y + 86, requirementColor(selectedBuilding, false));
+        context.drawTextWithShadow(textRenderer, Text.literal(selectedBuilding.unlocked() ? "Unlocked" : "Locked"), x, y + 62,
+                selectedBuilding.unlocked() ? 0x80D080 : 0xE08080);
+        context.drawTextWithShadow(textRenderer, Text.literal("Cost Requirements"), x, y + 74, requirementColor(selectedBuilding, true));
+        context.drawTextWithShadow(textRenderer, Text.literal("Furniture Requirements"), x, y + 90, requirementColor(selectedBuilding, false));
     }
 
-    private void drawVillagers(DrawContext context, int left, int top) {
+    private void drawResidents(DrawContext context, int left, int top) {
         List<TownBlueprintView.ResidentEntry> entries = visibleResidents;
         if (selectedResident == null && !entries.isEmpty()) selectedResident = entries.get(0);
         int x = left + 192;
@@ -466,31 +491,82 @@ public class TownBlueprintScreen extends Screen {
         }
         context.drawTextWithShadow(textRenderer, Text.literal(selectedResident.name()), x, y, 0xFFE080);
         context.drawTextWithShadow(textRenderer, Text.literal(selectedResident.specialist() ? "Specialist: " + titleCase(selectedResident.specialistType()) : "Resident"), x, y + 14, 0xFFFFFF);
-        context.drawTextWithShadow(textRenderer, Text.literal("Work: " + selectedResident.assignedBuildingName()), x, y + 28, 0xB8D8FF);
+        context.drawTextWithShadow(textRenderer, Text.literal("Workplace: " + selectedResident.assignedBuildingName()), x, y + 28, 0xB8D8FF);
+        context.drawTextWithShadow(textRenderer, Text.literal("Status: " + (selectedResident.assignedBuildingName().equals("Unassigned") ? "Idle" : "Working")), x, y + 42, 0xCCCCCC);
     }
 
     private void drawBuildings(DrawContext context, int left, int top) {
-        context.drawTextWithShadow(textRenderer, Text.literal("Registered Buildings"), left + 18, top + 30, 0xFFE080);
         if (selectedRegisteredBuilding == null) {
             context.drawTextWithShadow(textRenderer, Text.literal("No buildings registered"), left + 190, top + 72, 0xAAAAAA);
             return;
         }
         TownBlueprintView.BuildingEntry building = selectedRegisteredBuilding;
         int x = left + 188;
-        int y = top + 52;
+        int y = top + 56;
         context.drawTextWithShadow(textRenderer, Text.literal(building.name()), x, y, 0xFFE080);
-        context.drawTextWithShadow(textRenderer, Text.literal("Tier " + building.tier() + "  Status " + titleCase(building.status())), x, y + 16, 0xFFFFFF);
-        context.drawTextWithShadow(textRenderer, Text.literal("Workers " + building.workerCount() + "/" + building.workerSlots()), x, y + 32, 0xFFFFFF);
-        context.drawTextWithShadow(textRenderer, Text.literal(outputLine(building)), x, y + 48, 0x80D080);
-        if ("farm".equals(building.type())) {
-            context.drawTextWithShadow(textRenderer, Text.literal("Crops: " + building.cropState()), x, y + 64, 0xB8D8FF);
+        context.drawTextWithShadow(textRenderer, Text.literal("Tier " + building.tier() + "  ·  " + titleCase(building.status())), x, y + 15, 0xFFFFFF);
+        context.drawTextWithShadow(textRenderer, Text.literal(outputLine(building)), x, y + 30, 0x80D080);
+        context.drawTextWithShadow(textRenderer, Text.literal("Workers " + building.workerCount() + "/" + building.workerSlots()), x, y + 45, 0xFFFFFF);
+
+        List<String> workers = view.residents().stream()
+                .filter(resident -> resident.assignedBuildingId().equals(building.id()))
+                .map(TownBlueprintView.ResidentEntry::name)
+                .limit(3).toList();
+        if (!workers.isEmpty()) {
+            context.drawTextWithShadow(textRenderer, Text.literal(String.join(", ", workers)), x, y + 59, 0xB8D8FF);
         }
-        if (showOutputBonuses) {
-            context.drawTextWithShadow(textRenderer, Text.literal("Output bonuses"), x, y + 82, 0xFFE080);
-            context.drawTextWithShadow(textRenderer, Text.literal("Base output: 100%"), x, y + 96, 0xDDDDDD);
-            context.drawTextWithShadow(textRenderer, Text.literal("Tier: +" + Math.max(0, building.tier() - 1) * 5 + "%"), x, y + 108, 0xDDDDDD);
-            context.drawTextWithShadow(textRenderer, Text.literal("Workers: " + building.workerCount() + "/" + building.workerSlots()), x, y + 120, 0xDDDDDD);
-            context.drawTextWithShadow(textRenderer, Text.literal("Furniture: up to +10%; synergies: up to +10%"), x, y + 132, 0xDDDDDD);
+        if ("farm".equals(building.type())) {
+            context.drawTextWithShadow(textRenderer, Text.literal("Crops: " + building.cropState()), x, y + 74, 0xB8D8FF);
+        }
+    }
+
+    private void drawRequests(DrawContext context, int left, int top) {
+        long day = currentDay();
+        int y = top + 44;
+        context.drawTextWithShadow(textRenderer, Text.literal("Town Requests"), left + 18, y, 0xFFE080);
+        if (view.requestName().isBlank()) {
+            context.drawTextWithShadow(textRenderer, Text.literal("No active community request."), left + 18, y + 16, 0xCCCCCC);
+        } else {
+            context.drawTextWithShadow(textRenderer, Text.literal(view.requestName() + " · " + view.requestType()), left + 18, y + 16, 0xFFFFFF);
+            context.drawTextWithShadow(textRenderer, Text.literal("Due in " + Math.max(0, view.requestDueDay() - day) + " days"), left + 18, y + 30, 0xCCCCCC);
+            for (int i = 0; i < Math.min(4, view.requestRequirements().size()); i++) {
+                context.drawTextWithShadow(textRenderer, Text.literal(view.requestRequirements().get(i)), left + 18, y + 46 + i * 12, 0xCCCCCC);
+            }
+            context.drawTextWithShadow(textRenderer, Text.literal("Reward: +" + view.requestProsperity() + " Prosperity, +"
+                    + view.requestTokens() + " Town Tokens"), left + 18, y + 98, 0x80D080);
+        }
+
+        int eventY = top + 158;
+        context.drawTextWithShadow(textRenderer, Text.literal("Events & Festivals"), left + 18, eventY, 0xFFE080);
+        if (view.eventName().isBlank()) {
+            context.drawTextWithShadow(textRenderer, Text.literal("No active disaster or town event."), left + 18, eventY + 15, 0xCCCCCC);
+        } else {
+            int color = "Disaster".equals(view.eventKind()) ? 0xE08080 : 0x80D080;
+            context.drawTextWithShadow(textRenderer, Text.literal(view.eventKind() + ": " + view.eventName()), left + 18, eventY + 15, color);
+            context.drawTextWithShadow(textRenderer, Text.literal("Remaining: " + Math.max(0, view.eventUntilDay() - day) + " days"), left + 18, eventY + 29, 0xCCCCCC);
+        }
+        String festival = day >= view.festivalReadyDay() ? "Festival: Available" : "Festival: Ready in " + (view.festivalReadyDay() - day) + " days";
+        context.drawTextWithShadow(textRenderer, Text.literal(festival), left + 188, eventY + 15, 0xCCCCCC);
+    }
+
+    private void drawTrade(DrawContext context, int left, int top) {
+        long day = currentDay();
+        context.drawTextWithShadow(textRenderer, Text.literal("Trade"), left + 18, top + 48, 0xFFE080);
+        String network = view.tradingPostLinked() ? "Connected to another town" : view.tradingPostBuildings() > 0
+                ? "Trading Post present · no town route" : "No Trading Post";
+        context.drawTextWithShadow(textRenderer, Text.literal("Trade Network: " + network), left + 18, top + 68,
+                view.tradingPostLinked() ? 0x80D080 : 0xCCCCCC);
+
+        context.drawTextWithShadow(textRenderer, Text.literal("Town Caravans"), left + 18, top + 98, 0xFFE080);
+        context.drawTextWithShadow(textRenderer, Text.literal("No active town-to-town trade."), left + 18, top + 114, 0xCCCCCC);
+        context.drawTextWithShadow(textRenderer, Text.literal("One active trade at a time will use this page."), left + 18, top + 128, 0xAAAAAA);
+
+        context.drawTextWithShadow(textRenderer, Text.literal("Wandering Caravan"), left + 18, top + 158, 0xFFE080);
+        String last = view.lastWanderingCaravanType().isBlank() ? "None yet" : titleCase(view.lastWanderingCaravanType());
+        context.drawTextWithShadow(textRenderer, Text.literal("Last theme: " + last), left + 18, top + 174, 0xCCCCCC);
+        if (view.nextWanderingCaravanDay() >= 0) {
+            context.drawTextWithShadow(textRenderer, Text.literal("Next possible visit in "
+                    + Math.max(0, view.nextWanderingCaravanDay() - day) + " days"), left + 188, top + 174, 0xCCCCCC);
         }
     }
 
@@ -506,7 +582,8 @@ public class TownBlueprintScreen extends Screen {
         context.drawItem(itemStack("minecraft:bell"), centerX - 8, centerY - 8);
         context.drawBorder(centerX - 10, centerY - 10, 20, 20, 0xFFFFE080);
         for (TownBlueprintView.BuildingEntry building : view.registeredBuildings()) {
-            drawBuildingFootprint(context, building, mapX, mapY, size, centerX, centerY, 0xFF80D080);
+            int color = building.equals(selectedRegisteredBuilding) ? 0xFFFFFFFF : 0xFFD8D8D0;
+            drawBuildingFootprint(context, building, mapX, mapY, size, centerX, centerY, color);
         }
         for (TownBlueprintView.BuildingEntry building : view.detectedBuildings()) {
             drawBuildingFootprint(context, building, mapX, mapY, size, centerX, centerY, 0xFFE0C060);
@@ -517,18 +594,23 @@ public class TownBlueprintScreen extends Screen {
         context.drawBorder(playerX - 3, playerY - 3, 6, 6, 0xFFFFFFFF);
         context.drawCenteredTextWithShadow(textRenderer, Text.literal("Center " + posText(view.centerPos())), mapX + size / 2, mapY + size + 4, 0xFFE080);
         context.drawCenteredTextWithShadow(textRenderer, Text.literal("Player " + posText(view.playerPos())), mapX + size / 2, mapY + size + 15, 0x40A0FF);
-        context.drawTextWithShadow(textRenderer, Text.literal("Buildings: " + view.registeredBuildings().size()), left + 190, top + 90, 0xFFFFFF);
-        context.drawTextWithShadow(textRenderer, Text.literal("Detected: " + view.detectedBuildings().size()), left + 190, top + 104, 0xE0C060);
-        for (int i = 0; i < Math.min(4, view.registeredBuildings().size()); i++) {
-            TownBlueprintView.BuildingEntry building = view.registeredBuildings().get(i);
-            String detail = building.name() + " T" + building.tier() + " " + titleCase(building.status())
-                    + " " + building.workerCount() + "/" + building.workerSlots() + "w Output " + building.output() + "%"
-                    + ("farm".equals(building.type()) ? " C" + building.cropState() : "");
-            context.drawTextWithShadow(textRenderer, Text.literal(detail), left + 190, top + 120 + i * 13,
-                    "ACTIVE".equals(building.status()) ? 0x80D080 : 0xE0A060);
+
+        int x = left + 188;
+        int y = top + 86;
+        if (selectedRegisteredBuilding == null) {
+            context.drawTextWithShadow(textRenderer, Text.literal("Select a building on the map"), x, y, 0xCCCCCC);
+            context.drawTextWithShadow(textRenderer, Text.literal("Registered: " + view.registeredBuildings().size()), x, y + 18, 0xFFFFFF);
+            context.drawTextWithShadow(textRenderer, Text.literal("Detected: " + view.detectedBuildings().size()), x, y + 32, 0xE0C060);
+        } else {
+            TownBlueprintView.BuildingEntry building = selectedRegisteredBuilding;
+            context.drawTextWithShadow(textRenderer, Text.literal(building.name()), x, y, 0xFFE080);
+            context.drawTextWithShadow(textRenderer, Text.literal("Residents / Workers: " + building.workerCount() + "/" + building.workerSlots()), x, y + 16, 0xFFFFFF);
+            context.drawTextWithShadow(textRenderer, Text.literal("Tier: " + building.tier()), x, y + 30, 0xFFFFFF);
+            context.drawTextWithShadow(textRenderer, Text.literal("Status: " + titleCase(building.status())), x, y + 44, 0xCCCCCC);
+            context.drawTextWithShadow(textRenderer, Text.literal(outputLine(building)), x, y + 58, 0x80D080);
         }
         if (advancedControls) {
-            drawWrapped(context, "Advanced controls include direct unregister for nearby buildings.", left + 190, top + 178, 150, 2, 0xCCCCCC);
+            drawWrapped(context, "Advanced controls include direct unregister for nearby buildings.", left + 188, top + 198, 154, 2, 0xCCCCCC);
         }
     }
 
@@ -570,11 +652,6 @@ public class TownBlueprintScreen extends Screen {
         drawWrapped(context, "Tax rate affects weekly taxes, happiness, and unrest.", left + 18, top + 114, 300, 3, 0xCCCCCC);
     }
 
-    private void drawPlaceholder(DrawContext context, int left, int top, String heading, String line) {
-        context.drawTextWithShadow(textRenderer, Text.literal(heading), left + 18, top + 52, 0xFFE080);
-        context.drawTextWithShadow(textRenderer, Text.literal(line), left + 18, top + 72, 0xCCCCCC);
-    }
-
     private void drawWrapped(DrawContext context, String text, int x, int y, int width, int maxLines, int color) {
         List<OrderedText> lines = textRenderer.wrapLines(Text.literal(text), width);
         for (int i = 0; i < Math.min(maxLines, lines.size()); i++) {
@@ -614,11 +691,11 @@ public class TownBlueprintScreen extends Screen {
     }
 
     private void drawRequirementTooltip(DrawContext context, int mouseX, int mouseY) {
-        if (!page.equals("catalog") || view.founding() || selectedBuilding == null || selectedBuilding.legacy()) return;
+        if (!page.equals("buildings") || !showBuildingCatalog || view.founding() || selectedBuilding == null || selectedBuilding.legacy()) return;
         int left = panelLeft();
         int top = panelTop();
-        drawRequirementTooltip(context, mouseX, mouseY, left + 192, top + 144, 150, 12, selectedBuilding, true);
-        drawRequirementTooltip(context, mouseX, mouseY, left + 192, top + 160, 150, 12, selectedBuilding, false);
+        drawRequirementTooltip(context, mouseX, mouseY, left + 192, top + 154, 150, 14, selectedBuilding, true);
+        drawRequirementTooltip(context, mouseX, mouseY, left + 192, top + 170, 150, 14, selectedBuilding, false);
     }
 
     private void drawRequirementTooltip(DrawContext context, int mouseX, int mouseY, int x, int y, int width, int height,
@@ -637,6 +714,10 @@ public class TownBlueprintScreen extends Screen {
 
     private int panelTop() {
         return (height - PANEL_HEIGHT) / 2;
+    }
+
+    private long currentDay() {
+        return client == null || client.world == null ? 0L : client.world.getTimeOfDay() / 24_000L;
     }
 
     private static String shortCategory(TownBuildingCategory category) {
@@ -687,7 +768,17 @@ public class TownBlueprintScreen extends Screen {
                 + (option.prosperity() > 0 ? ", " + option.prosperity() + " Prosperity" : "");
     }
 
+    private static String normalizePage(String value) {
+        return switch (value) {
+            case "rank" -> "town";
+            case "villagers" -> "residents";
+            case "catalog" -> "buildings";
+            default -> value;
+        };
+    }
+
     private static String titleCase(String value) {
+        if (value == null || value.isBlank()) return "";
         String text = value.toLowerCase(java.util.Locale.ROOT).replace('_', ' ');
         return Character.toUpperCase(text.charAt(0)) + text.substring(1);
     }
