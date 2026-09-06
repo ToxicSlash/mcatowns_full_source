@@ -21,6 +21,9 @@ class DefinitionSanityTest {
         for (TownResearchDefinition research : TownResearchDefinition.ALL) {
             assertTrue(researchIds.add(research.id()), "Duplicate research id: " + research.id());
             assertNotNull(TownResearchDefinition.get(research.id()), "Research lookup failed: " + research.id());
+            assertNotNull(research.specialist(), "Research has no owning specialist: " + research.id());
+            assertTrue(TownResearchDefinition.forSpecialist(research.specialist()).contains(research),
+                    "Research missing from specialist lookup: " + research.id());
             assertNotNull(TownBuildingDefinition.get(research.buildingId()),
                     "Research references missing building: " + research.buildingId());
         }
