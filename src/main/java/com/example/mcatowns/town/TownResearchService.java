@@ -15,12 +15,16 @@ public final class TownResearchService {
     private TownResearchService() {
     }
 
-    public static void research(ServerPlayerEntity player, UUID architectId, String researchId) {
+    /**
+     * Executes specialist-owned research. Current definitions are Architect-owned, but the service itself is generic.
+     */
+    public static void research(ServerPlayerEntity player, UUID specialistId, String researchId) {
         TownContext town = PlayerTownRegistry.get(player.getServerWorld()).getOwnedTown(player.getUuid()).orElse(null);
         TownResearchDefinition research = TownResearchDefinition.get(researchId);
         if (town == null || research == null) return;
         TownSavedData data = TownSavedData.get(player.getServerWorld(), town.townId());
-        if (!"architect".equals(data.getSpecialists().get(architectId)) || data.isBuildingUnlocked(research.buildingId())) {
+        String assignedType = data.getSpecialists().get(specialistId);
+        if (!research.specialist().id().equals(assignedType) || data.isBuildingUnlocked(research.buildingId())) {
             return;
         }
         String missingInfrastructure = research.infrastructureThresholds().entrySet().stream()
