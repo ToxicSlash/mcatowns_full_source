@@ -23,6 +23,7 @@ public abstract class TownBlueprintScreenMixin extends Screen {
     @Shadow(remap = false) private TownBlueprintView view;
     @Shadow(remap = false) private TownBlueprintView.BuildingEntry selectedRegisteredBuilding;
     @Shadow(remap = false) private boolean showOutputBonuses;
+    @Shadow(remap = false) private boolean showBuildingCatalog;
     @Shadow(remap = false) private String page;
 
     @Unique private static final int MCATOWNS_VISIBLE_BUILDINGS = 10;
@@ -60,7 +61,7 @@ public abstract class TownBlueprintScreenMixin extends Screen {
                         showOutputBonuses = false;
                         mcatowns$reinitialize();
                     })
-                    .dimensions(left + 16, top + 46 + i * 16, 150, 15)
+                    .dimensions(left + 16, top + 56 + i * 15, 150, 14)
                     .tooltip(Tooltip.of(Text.literal(mcatowns$outputLine(building))))
                     .build();
             button.active = !building.equals(selectedRegisteredBuilding);
@@ -72,7 +73,7 @@ public abstract class TownBlueprintScreenMixin extends Screen {
                         showOutputBonuses = !showOutputBonuses;
                         mcatowns$reinitialize();
                     })
-                    .dimensions(left + 250, top + 174, 82, 18).build();
+                    .dimensions(left + 250, top + 188, 82, 18).build();
             addDrawableChild(bonuses);
         }
     }
@@ -83,8 +84,8 @@ public abstract class TownBlueprintScreenMixin extends Screen {
         if (all.size() > MCATOWNS_VISIBLE_BUILDINGS) {
             int maxScroll = all.size() - MCATOWNS_VISIBLE_BUILDINGS;
             int trackX = left + 170;
-            int trackY = top + 46;
-            int trackHeight = 159;
+            int trackY = top + 56;
+            int trackHeight = 150;
             context.fill(trackX, trackY, trackX + 3, trackY + trackHeight, 0xFF3A3A3A);
             int handleHeight = Math.max(18, trackHeight * MCATOWNS_VISIBLE_BUILDINGS / all.size());
             int handleTravel = trackHeight - handleHeight;
@@ -92,29 +93,30 @@ public abstract class TownBlueprintScreenMixin extends Screen {
             context.fill(trackX, handleY, trackX + 3, handleY + handleHeight, 0xFFAAAAAA);
             int first = mcatowns$buildingScroll + 1;
             int last = Math.min(all.size(), mcatowns$buildingScroll + MCATOWNS_VISIBLE_BUILDINGS);
-            context.drawTextWithShadow(textRenderer, Text.literal(first + "-" + last + " / " + all.size()), left + 18, top + 207, 0xAAAAAA);
+            context.drawTextWithShadow(textRenderer, Text.literal(first + "-" + last + " / " + all.size()), left + 18, top + 208, 0xAAAAAA);
         }
 
         if (!showOutputBonuses || selectedRegisteredBuilding == null) return;
         TownBlueprintView.BuildingEntry building = selectedRegisteredBuilding;
         int x = left + 188;
-        int y = top + 52;
-        context.fill(x - 2, y + 78, left + 356, top + 170, 0xEE252525);
-        context.drawTextWithShadow(textRenderer, Text.literal("Output breakdown"), x, y + 82, 0xFFE080);
-        context.drawTextWithShadow(textRenderer, Text.literal("Base output: 100%"), x, y + 96, 0xDDDDDD);
-        context.drawTextWithShadow(textRenderer, Text.literal("Staffing: " + building.staffingPercent() + "% (" + building.workerCount() + "/" + building.workerSlots() + ")"), x, y + 108, 0xDDDDDD);
-        context.drawTextWithShadow(textRenderer, Text.literal("Tier modifier: +" + building.tierBonus() + "%"), x, y + 120, 0xDDDDDD);
-        context.drawTextWithShadow(textRenderer, Text.literal("Furniture: +" + building.furnitureBonus() + "% (" + building.furnitureCount() + ")"), x, y + 132, 0xDDDDDD);
-        context.drawTextWithShadow(textRenderer, Text.literal("Synergy: +" + building.synergyBonus() + "% (" + building.synergyCount() + ")"), x, y + 144, 0xDDDDDD);
-        context.drawTextWithShadow(textRenderer, Text.literal("Final output: " + building.output() + "%"), x, y + 156, 0x80D080);
+        int y = top + 56;
+        context.fill(x - 2, y + 26, left + 356, top + 184, 0xEE252525);
+        context.drawTextWithShadow(textRenderer, Text.literal("Output breakdown"), x, y + 30, 0xFFE080);
+        context.drawTextWithShadow(textRenderer, Text.literal("Base output: 100%"), x, y + 44, 0xDDDDDD);
+        context.drawTextWithShadow(textRenderer, Text.literal("Staffing: " + building.staffingPercent() + "% (" + building.workerCount() + "/" + building.workerSlots() + ")"), x, y + 58, 0xDDDDDD);
+        context.drawTextWithShadow(textRenderer, Text.literal("Tier modifier: +" + building.tierBonus() + "%"), x, y + 72, 0xDDDDDD);
+        context.drawTextWithShadow(textRenderer, Text.literal("Furniture: +" + building.furnitureBonus() + "% (" + building.furnitureCount() + ")"), x, y + 86, 0xDDDDDD);
+        context.drawTextWithShadow(textRenderer, Text.literal("Synergy: +" + building.synergyBonus() + "% (" + building.synergyCount() + ")"), x, y + 100, 0xDDDDDD);
+        context.drawTextWithShadow(textRenderer, Text.literal("Final output: " + building.output() + "%"), x, y + 116, 0x80D080);
     }
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double amount) {
-        if ("buildings".equals(page) && view.registeredBuildings().size() > MCATOWNS_VISIBLE_BUILDINGS) {
+        if ("buildings".equals(page) && !showBuildingCatalog
+                && view.registeredBuildings().size() > MCATOWNS_VISIBLE_BUILDINGS) {
             int left = mcatowns$panelLeft();
             int top = mcatowns$panelTop();
-            if (mouseX >= left + 12 && mouseX <= left + 178 && mouseY >= top + 40 && mouseY <= top + 210) {
+            if (mouseX >= left + 12 && mouseX <= left + 178 && mouseY >= top + 50 && mouseY <= top + 210) {
                 int maxScroll = view.registeredBuildings().size() - MCATOWNS_VISIBLE_BUILDINGS;
                 int next = Math.max(0, Math.min(maxScroll, mcatowns$buildingScroll + (amount < 0 ? 1 : -1)));
                 if (next != mcatowns$buildingScroll) {
@@ -149,7 +151,6 @@ public abstract class TownBlueprintScreenMixin extends Screen {
                     int index = view.registeredBuildings().indexOf(hit);
                     int maxScroll = Math.max(0, view.registeredBuildings().size() - MCATOWNS_VISIBLE_BUILDINGS);
                     mcatowns$buildingScroll = Math.max(0, Math.min(maxScroll, index - MCATOWNS_VISIBLE_BUILDINGS / 2));
-                    page = "buildings";
                     mcatowns$reinitialize();
                     return true;
                 }
