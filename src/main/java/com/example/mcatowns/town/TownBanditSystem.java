@@ -137,17 +137,17 @@ public final class TownBanditSystem {
     /** Tags a later-spawned Pillager/custom bandit so only MCA Towns bandits alter the owning town's Activity. */
     public static void tagBandit(LivingEntity entity, String townId, int activityReductionOnKill) {
         if (entity == null || townId == null || townId.isBlank()) return;
-        entity.addScoreboardTag(BANDIT_TAG);
-        entity.addScoreboardTag(TOWN_TAG_PREFIX + townId);
-        entity.addScoreboardTag(SCORE_TAG_PREFIX + Math.max(1, activityReductionOnKill));
+        entity.addCommandTag(BANDIT_TAG);
+        entity.addCommandTag(TOWN_TAG_PREFIX + townId);
+        entity.addCommandTag(SCORE_TAG_PREFIX + Math.max(1, activityReductionOnKill));
     }
 
     /** Returns true when the death belonged to a tagged MCA Towns bandit and Activity was reduced. */
     public static boolean handleBanditDeath(ServerWorld world, LivingEntity entity) {
-        if (entity == null || !entity.getScoreboardTags().contains(BANDIT_TAG)) return false;
+        if (entity == null || !entity.getCommandTags().contains(BANDIT_TAG)) return false;
         String townId = null;
         int reduction = BANDIT_KILL_REDUCTION;
-        for (String tag : entity.getScoreboardTags()) {
+        for (String tag : entity.getCommandTags()) {
             if (tag.startsWith(TOWN_TAG_PREFIX)) townId = tag.substring(TOWN_TAG_PREFIX.length());
             if (tag.startsWith(SCORE_TAG_PREFIX)) {
                 try {
