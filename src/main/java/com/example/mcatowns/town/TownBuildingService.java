@@ -50,6 +50,11 @@ public final class TownBuildingService {
             player.sendMessage(Text.translatable("text.mcatowns.building_limit"), true);
             return;
         }
+        if (!TownDefenceInfrastructure.canRegisterMore(data, type)) {
+            player.sendMessage(Text.literal("Town limit reached for " + definition.displayName()
+                    + " (maximum " + definition.maxPerTown() + ")."), true);
+            return;
+        }
         if (data.getProsperity() < definition.prosperityRequired()) {
             player.sendMessage(Text.translatable("text.mcatowns.need_prosperity", definition.prosperityRequired()), true);
             return;
@@ -139,7 +144,7 @@ public final class TownBuildingService {
         for (RegisteredTownBuilding building : data.getRegisteredBuildings()) {
             TownBuildingDefinition definition = TownBuildingDefinition.get(building.type());
             if (definition == null || building.status() == BuildingStatus.INFRASTRUCTURE_BLOCKED) continue;
-            populationCapacity += definition.populationCapacity();
+            populationCapacity += definition.populationCapacityForTier(building.tier());
             foodCapacity += definition.foodCapacity();
             floor += definition.prosperityBase();
         }
