@@ -33,21 +33,23 @@ This file tracks planned systems and design questions that are not yet final imp
 - [x] Base growth check: every 20 minutes, +5 Activity. Defence reduces the growth chance by 2.5 percentage points per Defence, with a 40% minimum chance.
 - [x] If the town owner is offline, natural growth cannot pass High (99); Extreme progression is online-only.
 - [x] Tagged MCA Towns bandit kills reduce Activity by 4 by default. Future special bandits can carry a larger reduction value.
-- [ ] Add Wild Band encounter reservations around roughly 300 blocks from a player town.
+- [x] Add saved Wild Band encounter reservations around roughly 300 blocks from a player town without loading their chunks.
   - Capacity: Minimal 1, Low 1, Moderate 2, High 3, Extreme 4.
-  - Physical generation only when a player approaches; never force-load chunks.
-  - If never physically generated within 15 minutes, remove the reservation.
-  - Once physically spawned, release its capacity slot after 10 minutes even if survivors unload/despawn; the survivors stay tagged so later kills still reduce Activity.
-- [ ] Add Town Bands around roughly 70 blocks from a loaded town.
+  - [ ] Physically generate ordinary Pillagers only when a player approaches.
+  - [x] If never physically generated within 15 minutes, remove the reservation.
+  - [x] Once physically spawned, release its capacity slot after 10 minutes even if survivors unload/despawn; the survivors remain independently taggable for later Activity reductions.
+- [x] Add saved Town Band reservations around roughly 70 blocks from the town.
   - Capacity: Minimal 0, Low 1, Moderate 1, High 2, Extreme 4.
-  - Use ordinary Pillagers for now; custom bandit mobs can replace them later.
-- [ ] Wild/Town band generation gets one 60% attempt every 5 minutes per town and fills at most one missing slot per successful attempt.
-- [ ] Add placeholder persistent Bandit Camps as saved sites represented by physical bandit groups until real camp structures are added.
+  - [ ] Physically spawn ordinary Pillagers only while the relevant town/player area is loaded; custom bandit mobs can replace them later.
+- [x] Wild/Town band generation gets one 60% attempt every 5 minutes per town and fills at most one missing slot per successful attempt.
+- [x] Add persistent placeholder Bandit Camp site reservations without force-loading distant chunks.
   - Camp roll every 40 minutes: Low 20%, Moderate 40%, High/Extreme 70%.
-  - Suggested camp capacities: Low 1, Moderate 2, High/Extreme 3.
-  - Candidate sites should be around 2,000 blocks away, with only positions at least 1,500 blocks from the town considered viable.
-  - Future structure placement should snap/revalidate against the structure-spacing system rather than force-loading arbitrary terrain.
-  - Clearing a camp reduces Activity by 20 and places that camp slot on an 80-minute replacement cooldown.
+  - Camp capacities: Low 1, Moderate 2, High/Extreme 3.
+  - Candidate sites are chosen around 1,800-2,200 blocks away and must be at least 1,500 blocks from every player town.
+  - [ ] Materialise the current placeholder camp as a physical Pillager group when approached.
+  - [ ] Future real camp structures should snap/revalidate against the structure-spacing system rather than force-loading arbitrary terrain.
+  - [x] Clearing a camp reduces Activity by 20 and places camp replacement on an 80-minute cooldown.
+- [x] Track encounter IDs/member counts so clearing a spawned group can immediately free its reservation; Wild reservations also self-release after their 10-minute spawned lifetime.
 - [ ] Extreme should later enable a true raid through the custom raid mod. MCA Towns owns the Activity/trigger state; the custom raid mod owns the actual raid waves.
 - [ ] Winning a true bandit raid should heavily reduce Activity and may trigger a festival.
 
@@ -59,12 +61,14 @@ This file tracks planned systems and design questions that are not yet final imp
   - Barracks: +1 Defence, +6 Guard Capacity at T1 and +6 capacity per building tier; maximum 3 per town.
   - Watchtower: +2 Defence; maximum 10 per town.
   - Outpost: +2 Defence; maximum 10 per town.
+- [x] Enforce the Barracks/Watchtower/Outpost per-town cap logic in the building-registration path; Watchtower/Outpost still need their actual building definitions/inspection rules.
 - [ ] Barracks upgrades: +1 Guard Attack Damage for each tier above T1.
 - [ ] Watchtower/Outpost upgrades: +2 Guard Max Health for each tier above T1.
 - [ ] Exact furniture, Prosperity and town-stage requirements for Defence building upgrades still need to be decided.
 - [x] Guard Villagers hired by the town consume normal population slots.
-- [ ] Residence progression: T1 Residence provides +2 population capacity; easy T2 upgrade provides +4. Exact furniture requirements still need to be decided.
-- [ ] Barracks GUI should recruit Guard Villagers using the configured town currency via **Search for Hires**; survival searches take 60 seconds, Creative spawns instantly.
+- [x] Residence capacity backend: T1 Residence provides +2 population capacity; T2+ provides +4.
+- [ ] Add the easy T2 Residence upgrade flow and decide its exact furniture requirements.
+- [x] Barracks GUI recruits Guard Villagers using the configured town currency via **Search for Hires**; survival searches take 60 seconds, Creative spawns instantly.
 - [ ] Barracks should later allow town-wide Guard stat training/upgrades with daily food upkeep from Town Food reserves.
   - Example: Strength +3 costs 3 Food/day per guard per Strength level = 9 Food/day per guard.
   - Decide the exact trainable stats, maximum levels, purchase costs, downgrade/suspension behaviour when food runs short, and whether upkeep is charged only for living/affiliated guards.
