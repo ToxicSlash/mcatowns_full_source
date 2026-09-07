@@ -70,6 +70,17 @@ This file tracks planned systems and design questions that are not yet final imp
 - [x] Use Guard Villagers mod NPCs as the standard guard type for standard guard detection/stat integration. Guard resident/hiring management is still TODO.
 - [ ] Keep military NPC hierarchy beyond standard Guard Villagers unresolved.
 
+## Player Access and Permissions
+
+- [ ] Use the Rules / Management area for human-player town access and permissions.
+- [ ] Keep human town membership separate from NPC Residents and population capacity; invited players never consume population slots.
+- [ ] Add an Owner role with full control, including invitations and destructive town-management actions.
+- [ ] Add a Co-Mayor role for trusted players who can manage ordinary town systems without transferring ownership.
+- [ ] Add a Town Member role for players who belong to the town but do not receive mayor-level management permissions.
+- [ ] Add invite / accept / remove flows rather than silently adding nearby players.
+- [ ] Decide exact permission matrix for building registration/removal, worker assignment, treasury withdrawal, rules/tax changes and town deletion.
+- [ ] Keep town deletion and ownership transfer Owner-only unless explicitly changed later.
+
 ## Specialists
 
 - [x] Keep direct NPC interaction as the specialist service/research entry point; no central Town Research tab.
@@ -99,7 +110,9 @@ This file tracks planned systems and design questions that are not yet final imp
 ## Buildings and UI
 
 - [x] Canonical main tabs: Overview/Map, Town, Buildings, Residents, Requests/Events, Trade, Rules/Management.
-- [x] Fold the standalone Building Catalog into the Buildings area rather than keeping it as a top-level tab.
+- [x] Fold the standalone Building Catalogue into the Buildings area rather than keeping it as a top-level tab.
+- [x] Buildings exposes explicit Building List / Catalogue sub-tabs.
+- [x] Catalogue includes a Detect Here step before inspection/registration, while map detection remains available for spatial use.
 - [x] Remove duplicate map-side first-four building buttons/text and use direct map selection + compact right summary + Info button.
 - [x] Buildings detail page shows actual assigned worker/resident names where available.
 - [ ] Keep simple building upgrades; exact upgrade rules/costs remain TODO.
