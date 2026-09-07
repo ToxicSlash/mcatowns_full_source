@@ -3,10 +3,14 @@ package com.example.mcatowns.town;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
+import net.minecraft.util.math.BlockPos;
+
+import java.util.List;
+import java.util.UUID;
 
 /**
- * First-release Bandit Activity backend. It owns pressure/timing/tagging only; physical band placement and custom
- * raid integration are intentionally separate so they can be tested in-game later.
+ * First-release Bandit Activity backend. It owns pressure, saved encounter reservations and tagging; physical mob
+ * materialisation and custom raid integration stay separate so they can be tested safely in-game later.
  */
 public final class TownBanditSystem {
     public static final int MAX_ACTIVITY = 120;
@@ -26,9 +30,19 @@ public final class TownBanditSystem {
     public static final double DEFENCE_CHANCE_REDUCTION_PER_POINT = 0.025D;
     public static final double MIN_ACTIVITY_INCREASE_CHANCE = 0.40D;
 
+    public static final int WILD_BAND_MIN_RADIUS = 260;
+    public static final int WILD_BAND_MAX_RADIUS = 340;
+    public static final int TOWN_BAND_MIN_RADIUS = 55;
+    public static final int TOWN_BAND_MAX_RADIUS = 85;
+    public static final int CAMP_MIN_RADIUS = 1800;
+    public static final int CAMP_MAX_RADIUS = 2200;
+    public static final int CAMP_MIN_DISTANCE_FROM_ANY_TOWN = 1500;
+    private static final int CAMP_POSITION_ATTEMPTS = 12;
+
     public static final String BANDIT_TAG = "mcatowns_bandit";
     private static final String TOWN_TAG_PREFIX = "mcatowns_bandit_town_";
     private static final String SCORE_TAG_PREFIX = "mcatowns_bandit_score_";
+    private static final String ENCOUNTER_TAG_PREFIX = "mcatowns_bandit_encounter_";
 
     private TownBanditSystem() { }
 
@@ -49,6 +63,87 @@ public final class TownBanditSystem {
         int defence = TownDefenceInfrastructure.defence(townData);
         int activity = applyGrowthRoll(state.activity(), defence, ownerOnline, world.getRandom().nextDouble());
         saved.put(context.townId(), state.withActivity(activity).withLastGrowthTick(now));
+    }
+
+    /**
+     * Maintains only lightweight encounter reservations. Positions are chosen mathematically and never load chunks.
+     * A later materialiser can spawn Pillagers when a player gets close to one of these reservations.
+     */
+    public static void tickEncounterReservations(ServerWorld world, TownContext context) {
+        if (!"player_created".equals(context.source())) return;
+        TownBanditSavedData saved = TownBanditSavedData.get(world);
+        long now = world.getTime();
+        saved.pruneExpired(context.townId(), now);
+        tryReserveBand(world, context, saved, now);
+        tryReserveCamp(world, context, saved, now);
+    }
+
+    private static void tryReserveBand(ServerWorld world, TownContext context, TownBanditSavedData saved, long now) {
+        int activity = saved.getOrCreate(context.townId()).activity();
+        int wildCapacity = wildBandCapacity(activity);
+        int townCapacity = townBandCapacity(activity);
+        int wildCount = saved.countEncounters(context.townId(), BanditEncounterType.WILD, now);
+        int townCount = saved.countEncounters(context.townId(), BanditEncounterType.TOWN, now);
+        int wildMissing = Math.max(0, wildCapacity - wildCount);
+        int townMissing = Math.max(0, townCapacity - townCount);
+        if (wildMissing <= 0 && townMissing <= 0) return;
+        if (!consumeBandSpawnAttempt(world, context.townId())) return;
+
+        BanditEncounterType type;
+        if (wildMissing > townMissing) {
+            type = BanditEncounterType.WILD;
+        } else if (townMissing > wildMissing) {
+            type = BanditEncounterType.TOWN;
+        } else {
+            type = world.getRandom().nextBoolean() ? BanditEncounterType.WILD : BanditEncounterType.TOWN;
+        }
+        if (type == BanditEncounterType.TOWN && townMissing <= 0) type = BanditEncounterType.WILD;
+        if (type == BanditEncounterType.WILD && wildMissing <= 0) type = BanditEncounterType.TOWN;
+
+        int minRadius = type == BanditEncounterType.WILD ? WILD_BAND_MIN_RADIUS : TOWN_BAND_MIN_RADIUS;
+        int maxRadius = type == BanditEncounterType.WILD ? WILD_BAND_MAX_RADIUS : TOWN_BAND_MAX_RADIUS;
+        BlockPos pos = chooseRingPosition(world, context.center(), minRadius, maxRadius);
+        int capacity = type == BanditEncounterType.WILD ? wildCapacity : townCapacity;
+        saved.reserveEncounter(context.townId(), type, pos, now, capacity);
+    }
+
+    private static void tryReserveCamp(ServerWorld world, TownContext context, TownBanditSavedData saved, long now) {
+        int activity = saved.getOrCreate(context.townId()).activity();
+        int capacity = campCapacity(activity);
+        if (capacity <= 0 || saved.countEncounters(context.townId(), BanditEncounterType.CAMP, now) >= capacity) return;
+        if (!consumeCampAttempt(world, context.townId())) return;
+
+        BlockPos candidate = null;
+        for (int i = 0; i < CAMP_POSITION_ATTEMPTS; i++) {
+            BlockPos test = chooseRingPosition(world, context.center(), CAMP_MIN_RADIUS, CAMP_MAX_RADIUS);
+            if (isCampCandidateFarFromTowns(world, test)) {
+                candidate = test;
+                break;
+            }
+        }
+        if (candidate != null) {
+            saved.reserveEncounter(context.townId(), BanditEncounterType.CAMP, candidate, now, capacity);
+        }
+    }
+
+    static BlockPos chooseRingPosition(ServerWorld world, BlockPos center, int minRadius, int maxRadius) {
+        int min = Math.max(0, Math.min(minRadius, maxRadius));
+        int max = Math.max(min, Math.max(minRadius, maxRadius));
+        double angle = world.getRandom().nextDouble() * Math.PI * 2.0D;
+        double radius = min + world.getRandom().nextDouble() * (max - min);
+        int x = center.getX() + (int) Math.round(Math.cos(angle) * radius);
+        int z = center.getZ() + (int) Math.round(Math.sin(angle) * radius);
+        return new BlockPos(x, center.getY(), z);
+    }
+
+    private static boolean isCampCandidateFarFromTowns(ServerWorld world, BlockPos candidate) {
+        long minimumSq = (long) CAMP_MIN_DISTANCE_FROM_ANY_TOWN * CAMP_MIN_DISTANCE_FROM_ANY_TOWN;
+        for (TownContext town : PlayerTownRegistry.get(world).getAllContexts()) {
+            long dx = (long) candidate.getX() - town.center().getX();
+            long dz = (long) candidate.getZ() - town.center().getZ();
+            if (dx * dx + dz * dz < minimumSq) return false;
+        }
+        return true;
     }
 
     public static int applyGrowthRoll(int currentActivity, int defence, boolean playerOnline, double roll) {
@@ -104,9 +199,14 @@ public final class TownBanditSystem {
                 .withCampCooldownUntilTick(world.getTime() + CAMP_REPLACEMENT_COOLDOWN_TICKS));
     }
 
+    public static void onCampCleared(ServerWorld world, String townId, UUID encounterId) {
+        TownBanditSavedData.get(world).clearEncounter(townId, encounterId);
+        onCampCleared(world, townId);
+    }
+
     /**
-     * Reserves the global 5-minute band attempt cadence. A successful result should create at most one missing
-     * Wild/Town encounter reservation; it must not fill every empty slot in one roll.
+     * Reserves the global 5-minute band attempt cadence. A successful result creates at most one missing Wild/Town
+     * reservation; it never fills every empty slot in one roll.
      */
     public static boolean consumeBandSpawnAttempt(ServerWorld world, String townId) {
         TownBanditSavedData saved = TownBanditSavedData.get(world);
@@ -119,7 +219,7 @@ public final class TownBanditSystem {
         return world.getRandom().nextDouble() < BAND_ATTEMPT_CHANCE;
     }
 
-    /** Camp placement policy only. Physical position/structure generation is deliberately not performed here. */
+    /** Camp placement policy only. No terrain/structure lookup occurs here, so no distant chunks are loaded. */
     public static boolean consumeCampAttempt(ServerWorld world, String townId) {
         TownBanditSavedData saved = TownBanditSavedData.get(world);
         TownBanditSavedData.State state = saved.getOrCreate(townId);
@@ -134,12 +234,31 @@ public final class TownBanditSystem {
         return chance > 0 && world.getRandom().nextInt(100) < chance;
     }
 
-    /** Tags a later-spawned Pillager/custom bandit so only MCA Towns bandits alter the owning town's Activity. */
+    public static List<BanditEncounter> getEncounterReservations(ServerWorld world, String townId) {
+        TownBanditSavedData saved = TownBanditSavedData.get(world);
+        saved.pruneExpired(townId, world.getTime());
+        return saved.getEncounters(townId);
+    }
+
+    public static boolean markEncounterSpawned(ServerWorld world, String townId, UUID encounterId, int memberCount) {
+        return TownBanditSavedData.get(world).markEncounterSpawned(townId, encounterId, world.getTime(), memberCount);
+    }
+
+    public static boolean clearEncounter(ServerWorld world, String townId, UUID encounterId) {
+        return TownBanditSavedData.get(world).clearEncounter(townId, encounterId);
+    }
+
+    /** Tags a spawned Pillager/custom bandit so only MCA Towns bandits alter the owning town's Activity. */
     public static void tagBandit(LivingEntity entity, String townId, int activityReductionOnKill) {
+        tagBandit(entity, townId, activityReductionOnKill, null);
+    }
+
+    public static void tagBandit(LivingEntity entity, String townId, int activityReductionOnKill, UUID encounterId) {
         if (entity == null || townId == null || townId.isBlank()) return;
         entity.addCommandTag(BANDIT_TAG);
         entity.addCommandTag(TOWN_TAG_PREFIX + townId);
         entity.addCommandTag(SCORE_TAG_PREFIX + Math.max(1, activityReductionOnKill));
+        if (encounterId != null) entity.addCommandTag(ENCOUNTER_TAG_PREFIX + encounterId);
     }
 
     /** Returns true when the death belonged to a tagged MCA Towns bandit and Activity was reduced. */
@@ -147,6 +266,7 @@ public final class TownBanditSystem {
         if (entity == null || !entity.getCommandTags().contains(BANDIT_TAG)) return false;
         String townId = null;
         int reduction = BANDIT_KILL_REDUCTION;
+        UUID encounterId = null;
         for (String tag : entity.getCommandTags()) {
             if (tag.startsWith(TOWN_TAG_PREFIX)) townId = tag.substring(TOWN_TAG_PREFIX.length());
             if (tag.startsWith(SCORE_TAG_PREFIX)) {
@@ -154,9 +274,23 @@ public final class TownBanditSystem {
                     reduction = Math.max(1, Integer.parseInt(tag.substring(SCORE_TAG_PREFIX.length())));
                 } catch (NumberFormatException ignored) { }
             }
+            if (tag.startsWith(ENCOUNTER_TAG_PREFIX)) {
+                try {
+                    encounterId = UUID.fromString(tag.substring(ENCOUNTER_TAG_PREFIX.length()));
+                } catch (IllegalArgumentException ignored) { }
+            }
         }
         if (townId == null || townId.isBlank()) return false;
+
+        boolean finalCampMember = false;
+        if (encounterId != null) {
+            TownBanditSavedData saved = TownBanditSavedData.get(world);
+            BanditEncounter encounter = saved.getEncounter(townId, encounterId).orElse(null);
+            boolean cleared = saved.recordEncounterMemberDeath(townId, encounterId);
+            finalCampMember = cleared && encounter != null && encounter.type() == BanditEncounterType.CAMP;
+        }
         reduceActivity(world, townId, reduction);
+        if (finalCampMember) onCampCleared(world, townId);
         return true;
     }
 
