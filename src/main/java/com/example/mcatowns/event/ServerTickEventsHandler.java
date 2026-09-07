@@ -60,7 +60,10 @@ public final class ServerTickEventsHandler {
         for (TownContext context : contexts) {
             try {
                 TownSavedData data = dataByTown.get(context.townId());
-                if (data != null) TownBanditSystem.tickActivity(world, context, data);
+                if (data != null) {
+                    TownBanditSystem.tickActivity(world, context, data);
+                    TownBanditSystem.tickEncounterReservations(world, context);
+                }
                 tickTown(world, day, context, contexts, dataByTown);
             } catch (RuntimeException exception) {
                 MCATowns.LOGGER.error("Failed ticking town {} in {}", context.townId(), world.getRegistryKey().getValue(), exception);
