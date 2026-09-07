@@ -20,8 +20,8 @@ public record TownResearchDefinition(
             case "granary" -> Map.of(InfrastructureType.AGRICULTURE, 2, InfrastructureType.LOGISTICS, 2);
             case "park" -> Map.of(InfrastructureType.COMMUNITY, 3);
             case "inn" -> Map.of(InfrastructureType.COMMUNITY, 4, InfrastructureType.LOGISTICS, 2);
-            case "guard_post" -> Map.of(InfrastructureType.SECURITY, 2, InfrastructureType.LOGISTICS, 2);
-            case "blacksmith" -> Map.of(InfrastructureType.SECURITY, 1, InfrastructureType.LOGISTICS, 2);
+            case "guard_post" -> Map.of(InfrastructureType.DEFENCE, 2, InfrastructureType.LOGISTICS, 2);
+            case "blacksmith" -> Map.of(InfrastructureType.DEFENCE, 1, InfrastructureType.LOGISTICS, 2);
             case "jeweler" -> Map.of(InfrastructureType.COMMERCE, 2, InfrastructureType.LOGISTICS, 2);
             case "scholar" -> Map.of(InfrastructureType.COMMUNITY, 4, InfrastructureType.LOGISTICS, 2);
             default -> Map.of();
