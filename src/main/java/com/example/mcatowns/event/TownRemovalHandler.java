@@ -2,7 +2,9 @@ package com.example.mcatowns.event;
 
 import com.example.mcatowns.integration.MCAIntegration;
 import com.example.mcatowns.town.PlayerTownRegistry;
+import com.example.mcatowns.town.TownBanditSavedData;
 import com.example.mcatowns.town.TownContext;
+import com.example.mcatowns.town.TownGuardRosterSavedData;
 import com.example.mcatowns.town.TownManager;
 import com.example.mcatowns.town.TownSavedData;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -40,12 +42,16 @@ public final class TownRemovalHandler {
         registry.removeTown(context.anchor(), player.getUuid(), hasAdminAccess(player)).ifPresentOrElse(removed -> {
                     MCAIntegration.removeTown(world, removed.mcaTownId());
                     TownSavedData.get(world, removed.townId()).prepareForDeletion();
+                    TownBanditSavedData.get(world).remove(removed.townId());
+                    TownGuardRosterSavedData.get(world).removeTown(removed.townId());
                     player.sendMessage(Text.translatable("text.mcatowns.town_removed"), false);
                 },
                 () -> {
                     if (hasAdminAccess(player) && context.townId().startsWith("mca_")) {
                         MCAIntegration.removeTown(world, context.townId());
                         TownSavedData.get(world, context.townId()).prepareForDeletion();
+                        TownBanditSavedData.get(world).remove(context.townId());
+                        TownGuardRosterSavedData.get(world).removeTown(context.townId());
                         player.sendMessage(Text.translatable("text.mcatowns.town_removed"), false);
                     }
                 });

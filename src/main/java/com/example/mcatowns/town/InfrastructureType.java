@@ -2,7 +2,7 @@ package com.example.mcatowns.town;
 
 public enum InfrastructureType {
     AGRICULTURE("Agriculture"),
-    SECURITY("Security"),
+    DEFENCE("Defence"),
     COMMERCE("Commerce"),
     COMMUNITY("Community"),
     LOGISTICS("Logistics");

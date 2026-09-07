@@ -4,10 +4,12 @@ import com.example.mcatowns.MCATowns;
 import com.example.mcatowns.event.BlueprintTownCreationHandler;
 import com.example.mcatowns.event.TownRemovalHandler;
 import com.example.mcatowns.registry.ModBlocks;
+import com.example.mcatowns.screen.BarracksScreenHandler;
 import com.example.mcatowns.screen.MayorDeskScreenHandler;
 import com.example.mcatowns.screen.SiloScreenHandler;
 import com.example.mcatowns.screen.StorehouseScreenHandler;
 import com.example.mcatowns.screen.TreasuryScreenHandler;
+import com.example.mcatowns.town.BarracksHireService;
 import com.example.mcatowns.town.BlueprintSessionService;
 import com.example.mcatowns.town.PlayerTownRegistry;
 import com.example.mcatowns.town.TownBuildingService;
@@ -44,6 +46,7 @@ public final class ModNetworking {
     public static final Identifier FESTIVAL = id("festival");
     public static final Identifier FOOD_RELIEF = id("food_relief");
     public static final Identifier BARRACKS_UPGRADE = id("barracks_upgrade");
+    public static final Identifier SEARCH_GUARD_HIRE = id("search_guard_hire");
     public static final Identifier TREASURY_DEPOSIT = id("treasury_deposit");
     public static final Identifier TREASURY_RETRIEVE = id("treasury_retrieve");
     public static final Identifier SILO_DEPOSIT = id("silo_deposit");
@@ -97,6 +100,7 @@ public final class ModNetworking {
         registerPositionPacket(FESTIVAL, ModNetworking::canUseDesk, MayorDeskActions::holdFestival);
         registerPositionPacket(FOOD_RELIEF, ModNetworking::canUseDesk, MayorDeskActions::emergencyFoodRelief);
         registerPositionPacket(BARRACKS_UPGRADE, ModNetworking::canUseDesk, MayorDeskActions::buyBarracksUpgrade);
+        registerPositionPacket(SEARCH_GUARD_HIRE, ModNetworking::canUseBarracks, BarracksHireService::searchForHires);
         registerPositionPacket(TREASURY_DEPOSIT, ModNetworking::canUseTreasury, TreasuryActions::deposit);
         registerPositionPacket(TREASURY_RETRIEVE, ModNetworking::canUseTreasury, TreasuryActions::retrieve);
         registerPositionPacket(SILO_DEPOSIT, ModNetworking::canUseSilo, SiloActions::deposit);
@@ -261,6 +265,14 @@ public final class ModNetworking {
         return player.squaredDistanceTo(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5) <= 64.0;
     }
 
+    private static boolean canUseBarracks(ServerPlayerEntity player, BlockPos pos) {
+        if (!player.getServerWorld().isChunkLoaded(pos)
+                || !player.getServerWorld().getBlockState(pos).isOf(ModBlocks.BARRACKS)
+                || !(player.currentScreenHandler instanceof BarracksScreenHandler barracksHandler)
+                || !barracksHandler.getPos().equals(pos)) return false;
+        return player.squaredDistanceTo(pos.getX() + 0.5D, pos.getY() + 0.5D, pos.getZ() + 0.5D) <= 64.0D;
+    }
+
     private static boolean canUseTreasury(ServerPlayerEntity player, BlockPos pos) {
         if (!player.getServerWorld().isChunkLoaded(pos)
                 || !player.getServerWorld().getBlockState(pos).isOf(ModBlocks.TREASURY)
@@ -325,6 +337,7 @@ public final class ModNetworking {
     public static void sendFestival(BlockPos pos) { sendPositionPacket(FESTIVAL, pos); }
     public static void sendEmergencyFoodRelief(BlockPos pos) { sendPositionPacket(FOOD_RELIEF, pos); }
     public static void sendBarracksUpgrade(BlockPos pos) { sendPositionPacket(BARRACKS_UPGRADE, pos); }
+    public static void sendSearchGuardHire(BlockPos pos) { sendPositionPacket(SEARCH_GUARD_HIRE, pos); }
     public static void sendTreasuryDeposit(BlockPos pos) { sendPositionPacket(TREASURY_DEPOSIT, pos); }
     public static void sendTreasuryRetrieve(BlockPos pos) { sendPositionPacket(TREASURY_RETRIEVE, pos); }
     public static void sendSiloDeposit(BlockPos pos) { sendPositionPacket(SILO_DEPOSIT, pos); }

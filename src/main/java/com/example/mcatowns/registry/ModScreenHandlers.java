@@ -1,6 +1,7 @@
 package com.example.mcatowns.registry;
 
 import com.example.mcatowns.MCATowns;
+import com.example.mcatowns.screen.BarracksScreenHandler;
 import com.example.mcatowns.screen.MayorDeskScreenHandler;
 import com.example.mcatowns.screen.SiloScreenHandler;
 import com.example.mcatowns.screen.TreasuryScreenHandler;
@@ -16,6 +17,7 @@ public class ModScreenHandlers {
     public static ScreenHandlerType<TreasuryScreenHandler> TREASURY;
     public static ScreenHandlerType<SiloScreenHandler> SILO;
     public static ScreenHandlerType<StorehouseScreenHandler> STOREHOUSE;
+    public static ScreenHandlerType<BarracksScreenHandler> BARRACKS;
 
     public static void register() {
         MAYOR_DESK = Registry.register(
@@ -37,6 +39,11 @@ public class ModScreenHandlers {
                 Registries.SCREEN_HANDLER,
                 new Identifier(MCATowns.MOD_ID, "storehouse"),
                 new ExtendedScreenHandlerType<>(StorehouseScreenHandler::new)
+        );
+        BARRACKS = Registry.register(
+                Registries.SCREEN_HANDLER,
+                new Identifier(MCATowns.MOD_ID, "barracks"),
+                new ExtendedScreenHandlerType<>(BarracksScreenHandler::new)
         );
     }
 }

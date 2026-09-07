@@ -19,7 +19,9 @@ public final class TownStatsRefresher {
                 MCATownsConfig.get().addonBuildingScanRadius,
                 snapshot.townHalls()
         );
-        int population = MCAIntegration.getPopulation(world, pos);
+        int mcaPopulation = MCAIntegration.getPopulation(world, pos);
+        // Tracked residents can include affiliated Guard Villagers, so they must consume the same population slots.
+        int population = Math.max(mcaPopulation, data.getResidents().size());
         int treasuryCount = TownManager.countAddonBlocks(world, pos, ModBlocks.TREASURY, effectiveAddonRadius);
         int barracksCount = TownManager.countAddonBlocks(world, pos, ModBlocks.BARRACKS, effectiveAddonRadius);
 
@@ -53,6 +55,11 @@ public final class TownStatsRefresher {
         data.setDailyFoodPotential(snapshot.dailyFoodProduction());
         data.setHasTreasuryBuilding(treasuryCount > 0);
         TownWorkforceSystem.refresh(data);
+
+        // Building tiers are authoritative for residence capacity. T1 = +2, T2+ = +4 for this release.
+        if (data.getRegisteredBuildingCount() > 0) {
+            data.setProgressionCapacities(TownDefenceInfrastructure.populationCapacity(data), data.getFoodCapacity());
+        }
 
         int projectedMcaTax = MCAIntegration.getMcaProjectedTaxIncome(world, pos);
         data.setMcaNormalTaxIncome(projectedMcaTax);

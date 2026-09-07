@@ -27,11 +27,11 @@ public record TownBuildingDefinition(
             case "park" -> Map.of(InfrastructureType.COMMUNITY, 3);
             case "inn" -> Map.of(InfrastructureType.COMMERCE, 2);
             case "storehouse" -> Map.of(InfrastructureType.LOGISTICS, 3);
-            case "bounty_board" -> Map.of(InfrastructureType.SECURITY, 1, InfrastructureType.COMMERCE, 1);
+            case "bounty_board" -> Map.of(InfrastructureType.COMMERCE, 1);
             case "civic_office" -> Map.of(InfrastructureType.COMMUNITY, 4,
                     InfrastructureType.LOGISTICS, 2, InfrastructureType.COMMERCE, 1);
-            case "guard_post" -> Map.of(InfrastructureType.SECURITY, 3);
-            case "blacksmith" -> Map.of(InfrastructureType.SECURITY, 1, InfrastructureType.COMMERCE, 1);
+            case "guard_post" -> Map.of(InfrastructureType.DEFENCE, 1);
+            case "blacksmith" -> Map.of(InfrastructureType.COMMERCE, 1);
             case "jeweler" -> Map.of(InfrastructureType.COMMERCE, 2);
             case "scholar" -> Map.of(InfrastructureType.COMMUNITY, 1);
             default -> Map.of();
@@ -58,6 +58,32 @@ public record TownBuildingDefinition(
         };
     }
 
+    /**
+     * Capacity that depends on the registered building tier. Residence furniture requirements are intentionally
+     * kept out of this method; inspection/upgrade rules decide whether a residence earns its tier.
+     */
+    public int populationCapacityForTier(int tier) {
+        if (!"residence".equals(id)) return populationCapacity;
+        return tier >= 2 ? 4 : 2;
+    }
+
+    /** Hard placement caps for the first defence release. */
+    public int maxPerTown() {
+        return switch (id) {
+            case "guard_post", "barracks" -> 3;
+            case "watchtower", "outpost" -> 10;
+            default -> Integer.MAX_VALUE;
+        };
+    }
+
+    /** Barracks provide six guard slots at T1 and another six for every building tier. */
+    public int guardCapacityForTier(int tier) {
+        return switch (id) {
+            case "guard_post", "barracks" -> 6 * Math.max(1, Math.min(3, tier));
+            default -> 0;
+        };
+    }
+
     public String infrastructureDescription() {
         String provides = infrastructurePart("Provides", providedInfrastructure());
         String uses = infrastructurePart("Uses", reservedInfrastructure());
@@ -76,7 +102,7 @@ public record TownBuildingDefinition(
 
     public static final List<TownBuildingDefinition> ALL = List.of(
             new TownBuildingDefinition("residence", "Residence", TownBuildingCategory.RESIDENTIAL,
-                    "+2 population capacity. Requires an MCA-valid enclosed home with a bed.", true, 0, 2, 0, 2, 0, 0),
+                    "+2 population capacity at T1; +4 at T2+. Requires an MCA-valid enclosed home with a bed.", true, 0, 2, 0, 2, 0, 0),
             new TownBuildingDefinition("farm", "Farm", TownBuildingCategory.FOOD,
                     "Basic food infrastructure. Crops remain physical and player-managed.", true, 0, 2, 0, 0, 0, 0),
             new TownBuildingDefinition("granary", "Granary", TownBuildingCategory.FOOD,
@@ -93,8 +119,8 @@ public record TownBuildingDefinition(
                     "Uses Bountiful's existing Bounty Board.", true, 0, 2, 0, 0, 0, 0),
             new TownBuildingDefinition("civic_office", "Civic Office", TownBuildingCategory.UTILITY,
                     "Specialist Building: Architect. Uses the Mayor Desk.", true, 0, 3, 0, 0, 0, 0),
-            new TownBuildingDefinition("guard_post", "Guard Post", TownBuildingCategory.UTILITY,
-                    "Defence workplace. Uses the existing Barracks block.", false, 5, 14, 30, 0, 0, 0),
+            new TownBuildingDefinition("guard_post", "Barracks", TownBuildingCategory.UTILITY,
+                    "+1 Defence. +6 Guard Capacity per tier. Maximum 3 per town.", false, 5, 14, 30, 0, 0, 0),
             new TownBuildingDefinition("blacksmith", "Blacksmith", TownBuildingCategory.UTILITY,
                     "Required workplace for the Blacksmith specialist.", false, 5, 14, 25, 0, 0, 0),
             new TownBuildingDefinition("jeweler", "Jeweler", TownBuildingCategory.UTILITY,

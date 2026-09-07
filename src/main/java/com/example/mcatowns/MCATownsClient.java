@@ -2,6 +2,7 @@ package com.example.mcatowns;
 
 import com.example.mcatowns.client.ClientModNetworking;
 import com.example.mcatowns.registry.ModScreenHandlers;
+import com.example.mcatowns.screen.BarracksScreen;
 import com.example.mcatowns.screen.MayorDeskScreen;
 import com.example.mcatowns.screen.SiloScreen;
 import com.example.mcatowns.screen.StorehouseScreen;
@@ -16,6 +17,7 @@ public class MCATownsClient implements ClientModInitializer {
         HandledScreens.register(ModScreenHandlers.TREASURY, TreasuryScreen::new);
         HandledScreens.register(ModScreenHandlers.SILO, SiloScreen::new);
         HandledScreens.register(ModScreenHandlers.STOREHOUSE, StorehouseScreen::new);
+        HandledScreens.register(ModScreenHandlers.BARRACKS, BarracksScreen::new);
         ClientModNetworking.register();
         MCATowns.LOGGER.info("MCA Towns client initialized");
     }

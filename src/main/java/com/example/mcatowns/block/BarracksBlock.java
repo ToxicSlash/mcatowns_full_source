@@ -1,13 +1,17 @@
 package com.example.mcatowns.block;
 
 import com.example.mcatowns.blockentity.BarracksBlockEntity;
+import com.example.mcatowns.registry.ModBlockEntities;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockEntityProvider;
 import net.minecraft.block.BlockRenderType;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.block.entity.BlockEntityTicker;
+import net.minecraft.block.entity.BlockEntityType;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.screen.NamedScreenHandlerFactory;
+import net.minecraft.server.world.ServerWorld;
 import net.minecraft.stat.Stats;
 import net.minecraft.util.ActionResult;
 import net.minecraft.util.Hand;
@@ -30,6 +34,17 @@ public class BarracksBlock extends Block implements BlockEntityProvider {
     @Override
     public BlockEntity createBlockEntity(BlockPos pos, BlockState state) {
         return new BarracksBlockEntity(pos, state);
+    }
+
+    @Nullable
+    @Override
+    public <T extends BlockEntity> BlockEntityTicker<T> getTicker(World world, BlockState state, BlockEntityType<T> type) {
+        if (world.isClient || type != ModBlockEntities.BARRACKS) return null;
+        return (tickerWorld, pos, tickerState, blockEntity) -> {
+            if (tickerWorld instanceof ServerWorld serverWorld && blockEntity instanceof BarracksBlockEntity barracks) {
+                BarracksBlockEntity.tick(serverWorld, pos, tickerState, barracks);
+            }
+        };
     }
 
     @Override

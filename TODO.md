@@ -2,36 +2,78 @@
 
 This file tracks planned systems and design questions that are not yet final implementation decisions. See `docs/IMPLEMENTATION_PLAN.md` for the current approved direction and existing-code alignment.
 
+## Initial pre-End release scope
+
+- [ ] Prioritize town upgrading, workers, specialists/research, basic Bandit Activity, festivals, travelling caravans and the upcoming economy revision.
+- [ ] Develop progression/content through roughly Town Stage 3 for this release; later town stages may remain present in legacy code but do not need complete content yet.
+- [ ] Defer Harbour/Shipments, simulated town-to-town trade, Adventurer's Guild, player co-mayor/member permissions, villager-trade town interaction and advanced raid integration.
+
 ## Bounties and Requests
 
 - [x] Bounties come only from the Bountiful Bounty Board; MCA Towns no longer treats generic hostile kills as bounties.
 - [x] Retire the legacy MCA Towns 30-hostile-kill bounty counter from player-facing gameplay while keeping old save data readable.
 - [ ] Design/implement an Architect-provided Bounty Decree (or equivalent Bountiful integration) that enables town-themed bounties in the board.
+- [ ] Bandit-specific board bounties should reduce Bandit Activity by an additional fixed amount.
 - [ ] Decide exact town rewards for completed board bounties.
 - [ ] Expand Town Requests beyond Storehouse material deliveries into community/civic needs.
 - [x] Keep normal ignored Town Requests non-punitive or only very mildly consequential.
 - [x] Present Town Requests, festivals and disaster/problem events together in the Requests / Events UI.
-- [ ] Allow only one normal disaster/problem event at a time; Bandit Activity may occur independently. Existing random events already use one active slot; independent Bandit Activity is still future work.
+- [ ] Allow only one normal disaster/problem event at a time; Bandit Activity may occur independently.
 
 ## Prosperity and Threats
 
 - [x] Add an effective Prosperity Base layer so temporary threats can suppress the current floor without destroying the permanent civic Base. Current suppression is zero until threat rules are approved.
 - [ ] Decide exact Prosperity thresholds and mild modifiers.
-- [ ] Add Town Threat events such as Bandit Activity, Monster Pressure, Food Shortage and Trade Disruption.
-- [ ] Prefer gradual pressure/world escalation over repeated large instant Prosperity losses.
+- [ ] Bandit Activity should mildly reduce town Happiness and Building Output at higher tiers; exact values still need balancing.
+- [ ] Do not implement Monster Pressure for this release.
 
-## Bandits and Scouting
+## Bandit Activity
 
-- [ ] Add hidden per-town Bandit Pressure.
-- [ ] Add persistent latent bandit sites that do not generate until a player approaches.
-  - Store candidate/site state in saved data.
-  - Revalidate before generation.
-  - Avoid towns and meaningful player builds.
-  - Never force-load chunks.
-  - Support long cooldown after clearing.
-- [ ] Potential site progression: Camp -> Outpost -> Tower -> Fortified Stronghold.
-- [ ] Add small bandit camp scouting/detection before the full Adventurer's Guild if useful.
-- [ ] Keep player-facing risk qualitative (Safe / Low Risk / Risky / Dangerous) unless a success percentage is more useful.
+- [x] Use a hidden 0-120 Bandit Activity score with player-facing tiers: Minimal (0-15), Low (16-40), Moderate (41-70), High (71-99), Extreme (100-120).
+- [x] Base growth check: every 20 minutes, +5 Activity. Defence reduces the growth chance by 2.5 percentage points per Defence, with a 40% minimum chance.
+- [x] If the town owner is offline, natural growth cannot pass High (99); Extreme progression is online-only.
+- [x] Tagged MCA Towns bandit kills reduce Activity by 4 by default. Future special bandits can carry a larger reduction value.
+- [ ] Add Wild Band encounter reservations around roughly 300 blocks from a player town.
+  - Capacity: Minimal 1, Low 1, Moderate 2, High 3, Extreme 4.
+  - Physical generation only when a player approaches; never force-load chunks.
+  - If never physically generated within 15 minutes, remove the reservation.
+  - Once physically spawned, release its capacity slot after 10 minutes even if survivors unload/despawn; the survivors stay tagged so later kills still reduce Activity.
+- [ ] Add Town Bands around roughly 70 blocks from a loaded town.
+  - Capacity: Minimal 0, Low 1, Moderate 1, High 2, Extreme 4.
+  - Use ordinary Pillagers for now; custom bandit mobs can replace them later.
+- [ ] Wild/Town band generation gets one 60% attempt every 5 minutes per town and fills at most one missing slot per successful attempt.
+- [ ] Add placeholder persistent Bandit Camps as saved sites represented by physical bandit groups until real camp structures are added.
+  - Camp roll every 40 minutes: Low 20%, Moderate 40%, High/Extreme 70%.
+  - Suggested camp capacities: Low 1, Moderate 2, High/Extreme 3.
+  - Candidate sites should be around 2,000 blocks away, with only positions at least 1,500 blocks from the town considered viable.
+  - Future structure placement should snap/revalidate against the structure-spacing system rather than force-loading arbitrary terrain.
+  - Clearing a camp reduces Activity by 20 and places that camp slot on an 80-minute replacement cooldown.
+- [ ] Extreme should later enable a true raid through the custom raid mod. MCA Towns owns the Activity/trigger state; the custom raid mod owns the actual raid waves.
+- [ ] Winning a true bandit raid should heavily reduce Activity and may trigger a festival.
+
+## Defence and Guards
+
+- [x] Rename the lightweight town stat from Security to Defence for the new infrastructure system.
+- [x] Defence slows Bandit Activity growth and grants affiliated Guard Villagers +1.5 Armour per Defence point.
+- [ ] Initial Defence buildings:
+  - Barracks: +1 Defence, +6 Guard Capacity at T1 and +6 capacity per building tier; maximum 3 per town.
+  - Watchtower: +2 Defence; maximum 10 per town.
+  - Outpost: +2 Defence; maximum 10 per town.
+- [ ] Barracks upgrades: +1 Guard Attack Damage for each tier above T1.
+- [ ] Watchtower/Outpost upgrades: +2 Guard Max Health for each tier above T1.
+- [ ] Exact furniture, Prosperity and town-stage requirements for Defence building upgrades still need to be decided.
+- [x] Guard Villagers hired by the town consume normal population slots.
+- [ ] Residence progression: T1 Residence provides +2 population capacity; easy T2 upgrade provides +4. Exact furniture requirements still need to be decided.
+- [ ] Barracks GUI should recruit Guard Villagers using the configured town currency via **Search for Hires**; survival searches take 60 seconds, Creative spawns instantly.
+- [ ] Barracks should later allow town-wide Guard stat training/upgrades with daily food upkeep from Town Food reserves.
+  - Example: Strength +3 costs 3 Food/day per guard per Strength level = 9 Food/day per guard.
+  - Decide the exact trainable stats, maximum levels, purchase costs, downgrade/suspension behaviour when food runs short, and whether upkeep is charged only for living/affiliated guards.
+
+## Festivals
+
+- [ ] Festival opportunities can be triggered by winning a bandit raid, completing a major Town Request/large supply request, or randomly while Prosperity is high.
+- [ ] Add a cooldown so festivals remain occasional/special.
+- [ ] Decide exact festival types and bonuses later; keep the trigger framework lightweight.
 
 ## Trade
 
@@ -43,19 +85,19 @@ This file tracks planned systems and design questions that are not yet final imp
 - [x] Despawn temporary caravan NPCs after a few Minecraft days.
 - [ ] Decide exact themed trade pools.
 
-### Town Caravans
+### Town Caravans — deferred
 
-- [ ] Add simulated town-to-town trade separate from Wandering Caravans.
+- [ ] Add simulated town-to-town trade separate from Wandering Caravans later.
 - [ ] Only one active town trade at a time initially.
 - [ ] Add cached/simple export resource pools rather than scanning every building at trade time.
 - [ ] Decide final pool categories (candidate ideas: Agriculture, Food/Livestock, Minerals, Manufactured, Luxury, Specialist).
 - [ ] Add Trade Capacity and decide its values/sources.
-- [ ] Add route risk/success affected by Bandit Pressure, Security and escorts.
+- [ ] Add route risk/success affected by Bandit Activity, Defence and escorts.
 - [ ] Add uncommon caravan interruption/rescue events.
 - [ ] Allow up to two Guard Villagers as simple caravan escorts.
 - [ ] Decide travel time, success formula, guard bonuses and interruption frequency.
 
-### Harbour / Shipping
+### Harbour / Shipping — deferred
 
 - [ ] Add Ports / Harbour infrastructure.
 - [ ] Add player-directed shipping requests / shipment contracts.
@@ -63,16 +105,17 @@ This file tracks planned systems and design questions that are not yet final imp
 
 ## Residents and Guards
 
-- [ ] Redefine Residents as all permanent town-affiliated NPCs, including MCA villagers and Guard Villagers.
-- [ ] Let Guard Villagers live in residences and use Barracks as workplace.
+- [ ] Residents are all permanent town-affiliated NPCs, including MCA villagers and Guard Villagers.
+- [x] Guard Villagers can be tracked as explicit town residents and consume population capacity.
+- [ ] Let Guard Villagers use residences/home assignment and Barracks as workplace.
 - [ ] Add resident status fields such as Working, On Patrol, Caravan Escort and Idle.
 - [ ] Expand resident detail UI with Name, Happiness, Occupation, Home, Workplace and status.
-- [x] Use Guard Villagers mod NPCs as the standard guard type for standard guard detection/stat integration. Guard resident/hiring management is still TODO.
+- [x] Use Guard Villagers mod NPCs as the standard guard type for standard guard detection/stat integration.
 - [ ] Keep military NPC hierarchy beyond standard Guard Villagers unresolved.
 
-## Player Access and Permissions
+## Player Access and Permissions — deferred
 
-- [ ] Use the Rules / Management area for human-player town access and permissions.
+- [ ] Use the Rules / Management area for human-player town access and permissions later.
 - [ ] Keep human town membership separate from NPC Residents and population capacity; invited players never consume population slots.
 - [ ] Add an Owner role with full control, including invitations and destructive town-management actions.
 - [ ] Add a Co-Mayor role for trusted players who can manage ordinary town systems without transferring ownership.
@@ -93,19 +136,12 @@ This file tracks planned systems and design questions that are not yet final imp
 - [ ] Stonemason service direction: Store tab for stone/masonry/decorative materials.
 - [ ] Blacksmith service direction: modular Store + Modify tabs (repair, rarity reforge, gem socketing).
 
-## Adventurer's Guild
+## Adventurer's Guild — deferred
 
 - [ ] Add later as a lightweight adventure/hunting/scouting building/system.
 - [ ] Keep it distinct from ordinary Bounty Board bounties.
 - [ ] Potential functions: special hunting contracts, bandit scouting, discovery/intelligence.
 - [ ] Do not turn it into a second full quest framework.
-
-## Barracks
-
-- [ ] Expand Barracks into Guard Villager management/hiring.
-- [ ] Add guard assignments and caravan escort selection.
-- [ ] Add guard loadouts / military upgrades after progression is finalized.
-- [ ] Barracks food/morale buff remains brainstorm-only until approved.
 
 ## Buildings and UI
 
@@ -115,18 +151,19 @@ This file tracks planned systems and design questions that are not yet final imp
 - [x] Catalogue includes a Detect Here step before inspection/registration, while map detection remains available for spatial use.
 - [x] Remove duplicate map-side first-four building buttons/text and use direct map selection + compact right summary + Info button.
 - [x] Buildings detail page shows actual assigned worker/resident names where available.
-- [ ] Keep simple building upgrades; exact upgrade rules/costs remain TODO.
+- [ ] Keep simple building upgrades; exact upgrade costs, town-stage gates, Prosperity gates and furniture requirements remain TODO.
 
 ## Economy
 
-- [ ] Replace generic currency abstraction with actual Create: Numismatics currency integration.
-- [ ] Clarify vanilla/MCA villager trade balance and how normal trading interacts with town economy.
+- [ ] Economy revision is planned for this release.
+- [ ] Replace generic currency abstraction with actual Create: Numismatics currency integration when the final denomination flow is decided.
+- [ ] Defer ordinary villager-trade/town-economy interaction for now.
 - [ ] Clarify specialist store/service pricing and progression.
 
 ## Other deferred design
 
-- [ ] Exact Prosperity effects on happiness/trades/services/Output.
+- [ ] Exact Prosperity effects on happiness/services/Output.
 - [ ] Exact Town Request generation rules/content.
 - [ ] Exact Bountiful Decree integration.
 - [ ] Final Adventurer's Guild progression.
-- [ ] Final Barracks upgrade/loadout system.
+- [ ] Final advanced Barracks training/loadout system.

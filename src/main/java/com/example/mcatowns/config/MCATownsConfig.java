@@ -47,6 +47,7 @@ public class MCATownsConfig {
     public int residentRecruitmentCost = 4;
     public int specialistChancePercent = 3;
     public int specialistRecruitmentCost = 12;
+    public int guardRecruitmentCost = 12;
     public int foodPerResidentPerDay = 1;
 
     public static MCATownsConfig get() {
@@ -132,6 +133,7 @@ public class MCATownsConfig {
         residentRecruitmentCost = clamp(residentRecruitmentCost, 0, 1024);
         specialistChancePercent = clamp(specialistChancePercent, 0, 100);
         specialistRecruitmentCost = clamp(specialistRecruitmentCost, 0, 1024);
+        guardRecruitmentCost = clamp(guardRecruitmentCost, 0, 1024);
         foodPerResidentPerDay = clamp(foodPerResidentPerDay, 0, 100);
         if (currencyItemId == null || currencyItemId.isBlank()) currencyItemId = "minecraft:emerald";
         if (greatEssenceItemId == null) greatEssenceItemId = "";

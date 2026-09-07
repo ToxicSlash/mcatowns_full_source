@@ -7,6 +7,7 @@ import com.example.mcatowns.integration.GuardStatIntegration;
 import com.example.mcatowns.integration.MCAIntegration;
 import com.example.mcatowns.integration.UnloadedActivityCompat;
 import com.example.mcatowns.integration.VillagerBusinessIntegration;
+import com.example.mcatowns.town.TownBanditSystem;
 import com.example.mcatowns.town.TownBuildingSnapshot;
 import com.example.mcatowns.town.TownCaravanSystem;
 import com.example.mcatowns.town.TownContext;
@@ -58,6 +59,8 @@ public final class ServerTickEventsHandler {
 
         for (TownContext context : contexts) {
             try {
+                TownSavedData data = dataByTown.get(context.townId());
+                if (data != null) TownBanditSystem.tickActivity(world, context, data);
                 tickTown(world, day, context, contexts, dataByTown);
             } catch (RuntimeException exception) {
                 MCATowns.LOGGER.error("Failed ticking town {} in {}", context.townId(), world.getRegistryKey().getValue(), exception);
@@ -85,8 +88,9 @@ public final class ServerTickEventsHandler {
             data.setDetectedTownHallBuildings(rangeBonusHallCount);
             effectiveGuardRadius = TownRangeSystem.getEffectiveRange(config.guardBuffRadius, rangeBonusHallCount);
             effectiveBusinessRadius = TownRangeSystem.getEffectiveRange(config.villagerBusinessRadius, rangeBonusHallCount);
-            int population = MCAIntegration.getPopulation(world, anchor);
-            if (population > 0 || data.getPopulation() <= 0) data.setPopulation(population);
+            int mcaPopulation = MCAIntegration.getPopulation(world, anchor);
+            int trackedPopulation = Math.max(mcaPopulation, data.getResidents().size());
+            if (trackedPopulation > 0 || data.getPopulation() <= 0) data.setPopulation(trackedPopulation);
             TownCaravanSystem.tickDaily(world, context, data, day);
             TownRandomEventSystem.tickDaily(world, data, daySnapshot, day);
             TownRequestService.tickDaily(world, context, data, day);
@@ -113,8 +117,7 @@ public final class ServerTickEventsHandler {
                 context, data, contexts, dataByTown, config.tradingPostLinkRange));
 
         if (isGuardRefreshTick(world, context)) {
-            GuardStatIntegration.applyBarracksBonuses(
-                    world, anchor, data.getBarracksLevel(), data.getDetectedArmoryBuildings(), effectiveGuardRadius);
+            GuardStatIntegration.applyTownDefenceBonuses(world, anchor, data, effectiveGuardRadius);
         }
 
         if (day - data.getLastTaxCollectionDay() >= config.taxCollectionDays) {
