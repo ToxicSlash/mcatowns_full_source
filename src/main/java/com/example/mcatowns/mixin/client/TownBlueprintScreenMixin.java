@@ -1,5 +1,7 @@
 package com.example.mcatowns.mixin.client;
 
+import com.example.mcatowns.client.McaBlueprintScreenBridge;
+import com.example.mcatowns.network.ModNetworking;
 import com.example.mcatowns.network.TownBlueprintView;
 import com.example.mcatowns.screen.TownBlueprintScreen;
 import net.minecraft.client.gui.DrawContext;
@@ -21,6 +23,7 @@ import java.util.List;
 @Mixin(value = TownBlueprintScreen.class, remap = false)
 public abstract class TownBlueprintScreenMixin extends Screen {
     @Shadow(remap = false) private TownBlueprintView view;
+    @Shadow(remap = false) private TownBlueprintView.BuildingOption selectedBuilding;
     @Shadow(remap = false) private TownBlueprintView.BuildingEntry selectedRegisteredBuilding;
     @Shadow(remap = false) private TownBlueprintView.ResidentEntry selectedResident;
     @Shadow(remap = false) private boolean showOutputBonuses;
@@ -32,6 +35,58 @@ public abstract class TownBlueprintScreenMixin extends Screen {
 
     protected TownBlueprintScreenMixin(Text title) {
         super(title);
+    }
+
+    @Inject(method = "addBuildingModeButtons", at = @At("HEAD"), cancellable = true, remap = false)
+    private void mcatowns$buildingSubTabs(int left, int top, CallbackInfo ci) {
+        ci.cancel();
+
+        ButtonWidget list = ButtonWidget.builder(Text.literal("Building List"), ignored -> {
+                    showBuildingCatalog = false;
+                    mcatowns$reinitialize();
+                })
+                .dimensions(left + 16, top + 30, 86, 18)
+                .tooltip(Tooltip.of(Text.literal("View and manage registered town buildings.")))
+                .build();
+        list.active = showBuildingCatalog;
+        addDrawableChild(list);
+
+        ButtonWidget catalogue = ButtonWidget.builder(Text.literal("Catalogue"), ignored -> {
+                    showBuildingCatalog = true;
+                    showOutputBonuses = false;
+                    mcatowns$reinitialize();
+                })
+                .dimensions(left + 106, top + 30, 74, 18)
+                .tooltip(Tooltip.of(Text.literal("Browse building types, inspect a target, then register it.")))
+                .build();
+        catalogue.active = !showBuildingCatalog;
+        addDrawableChild(catalogue);
+    }
+
+    @Inject(method = "addCatalogButtons", at = @At("TAIL"), remap = false)
+    private void mcatowns$addCatalogueDetection(int left, int top, CallbackInfo ci) {
+        ButtonWidget detect = ButtonWidget.builder(Text.literal("Detect Here"), ignored -> {
+                    McaBlueprintScreenBridge.openNextOn("catalog");
+                    ModNetworking.sendDetectTownBuilding();
+                })
+                .dimensions(left + 16, top + 188, 92, 18)
+                .tooltip(Tooltip.of(Text.literal("Detect the building or room you are currently looking at before inspection.")))
+                .build();
+        detect.active = view.canManage();
+        addDrawableChild(detect);
+    }
+
+    @Inject(method = "drawCatalog", at = @At("TAIL"), remap = false)
+    private void mcatowns$drawCatalogueDetectionState(DrawContext context, int left, int top, CallbackInfo ci) {
+        String target = view.detectedBuildings().isEmpty() ? "No target detected" : "Target detected";
+        int targetColor = view.detectedBuildings().isEmpty() ? 0xAAAAAA : 0xE0C060;
+        context.drawTextWithShadow(textRenderer, Text.literal(target), left + 16, top + 174, targetColor);
+
+        if (selectedBuilding != null && selectedBuilding.id().equals(view.inspectionType())) {
+            String result = view.inspectionPassed() ? "Inspection passed - ready to register" : "Inspection failed";
+            context.drawTextWithShadow(textRenderer, Text.literal(result), left + 188, top + 176,
+                    view.inspectionPassed() ? 0x80D080 : 0xE08080);
+        }
     }
 
     @Inject(method = "addBuildingButtons", at = @At("HEAD"), cancellable = true, remap = false)
