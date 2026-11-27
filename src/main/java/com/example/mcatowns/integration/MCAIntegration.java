@@ -620,16 +620,10 @@ public class MCAIntegration {
             return Optional.empty();
         }
         try {
-            Optional<?> villageOpt = findNearestVillage(world, pos, Math.max(64, MCATownsConfig.get().mcaVillageSearchMargin));
-            if (villageOpt.isEmpty()) {
-                return Optional.empty();
-            }
-            Object village = villageOpt.get();
-            Optional<?> buildingOpt = castOptional(invoke(village, "getBuildingAt", new Class<?>[]{Vec3i.class}, pos));
-            if (buildingOpt.isEmpty()) {
-                return Optional.empty();
-            }
-            Object building = buildingOpt.get();
+            Optional<?> buildingOpt = findBuildingAt(world, pos);
+            if (buildingOpt.isEmpty()) buildingOpt = findBuildingByCenter(world, pos);
+            Object building = buildingOpt.orElse(null);
+            if (building == null) return Optional.empty();
             String type = String.valueOf(invoke(building, "getType", new Class<?>[0]));
             return Optional.ofNullable(type);
         } catch (Throwable t) {
@@ -650,7 +644,9 @@ public class MCAIntegration {
 
     public static Optional<BuildingBounds> getBuildingBoundsAt(ServerWorld world, BlockPos pos) {
         try {
-            Object building = findBuildingAt(world, pos).orElse(null);
+            Optional<?> buildingOpt = findBuildingAt(world, pos);
+            if (buildingOpt.isEmpty()) buildingOpt = findBuildingByCenter(world, pos);
+            Object building = buildingOpt.orElse(null);
             if (building == null) return Optional.empty();
             Map<?, ?> blocks = castMap(invoke(building, "getBlocks", new Class<?>[0]));
             BlockPos min = null;
@@ -673,6 +669,33 @@ public class MCAIntegration {
             return min == null ? Optional.empty() : Optional.of(new BuildingBounds(min, max));
         } catch (Throwable ignored) {
             return Optional.empty();
+        }
+    }
+
+    /** Returns the distinct X/Z cells occupied by an MCA building. */
+    public static List<BlockPos> getBuildingFootprintAt(ServerWorld world, BlockPos pos) {
+        try {
+            Optional<?> buildingOpt = findBuildingAt(world, pos);
+            if (buildingOpt.isEmpty()) buildingOpt = findBuildingByCenter(world, pos);
+            Object building = buildingOpt.orElse(null);
+            if (building == null) return List.of();
+            Map<?, ?> blocks = castMap(invoke(building, "getBlocks", new Class<?>[0]));
+            java.util.Set<Long> seen = new java.util.HashSet<>();
+            List<BlockPos> footprint = new ArrayList<>();
+            for (Object value : blocks.values()) {
+                if (!(value instanceof Iterable<?> positions)) continue;
+                for (Object entry : positions) {
+                    if (!(entry instanceof Vec3i vec)) continue;
+                    long key = (((long) vec.getX()) << 32) ^ (vec.getZ() & 0xffffffffL);
+                    if (seen.add(key)) {
+                        footprint.add(new BlockPos(vec.getX(), vec.getY(), vec.getZ()));
+                        if (footprint.size() >= 512) return List.copyOf(footprint);
+                    }
+                }
+            }
+            return List.copyOf(footprint);
+        } catch (Throwable ignored) {
+            return List.of();
         }
     }
 
@@ -699,7 +722,45 @@ public class MCAIntegration {
         if (!isMcaLoaded()) return Optional.empty();
         Optional<?> village = findNearestVillage(world, pos, Math.max(64, MCATownsConfig.get().mcaVillageSearchMargin));
         if (village.isEmpty()) return Optional.empty();
-        return castOptional(invoke(village.get(), "getBuildingAt", new Class<?>[]{Vec3i.class}, pos));
+        Optional<?> building = castOptional(invoke(village.get(), "getBuildingAt", new Class<?>[]{Vec3i.class}, pos));
+        if (building.isEmpty() || !buildingContainsPosition(building.get(), pos)) {
+            return Optional.empty();
+        }
+        return building;
+    }
+
+    /**
+     * MCA's getBuildingAt can return the nearest building rather than a building
+     * containing the requested position. Never use that result for inspection.
+     */
+    private static boolean buildingContainsPosition(Object building, BlockPos pos) throws Exception {
+        Map<?, ?> blocks = castMap(invoke(building, "getBlocks", new Class<?>[0]));
+        for (Object value : blocks.values()) {
+            if (!(value instanceof Iterable<?> positions)) continue;
+            for (Object entry : positions) {
+                if (entry instanceof Vec3i vec
+                        && vec.getX() == pos.getX()
+                        && vec.getY() == pos.getY()
+                        && vec.getZ() == pos.getZ()) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private static Optional<?> findBuildingByCenter(ServerWorld world, BlockPos pos) throws Exception {
+        if (!isMcaLoaded()) return Optional.empty();
+        Optional<?> village = findNearestVillage(world, pos, Math.max(64, MCATownsConfig.get().mcaVillageSearchMargin));
+        if (village.isEmpty()) return Optional.empty();
+        Map<?, ?> buildings = castMap(invoke(village.get(), "getBuildings", new Class<?>[0]));
+        for (Object building : buildings.values()) {
+            Vec3i center = (Vec3i) invoke(building, "getCenter", new Class<?>[0]);
+            if (center.getX() == pos.getX() && center.getY() == pos.getY() && center.getZ() == pos.getZ()) {
+                return Optional.of(building);
+            }
+        }
+        return Optional.empty();
     }
 
     public static List<BlockPos> getNearestTownStorageCenters(ServerWorld world, BlockPos pos) {

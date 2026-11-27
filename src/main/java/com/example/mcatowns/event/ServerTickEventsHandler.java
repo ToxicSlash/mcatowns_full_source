@@ -26,6 +26,7 @@ import com.example.mcatowns.town.TownStorageDepositSystem;
 import com.example.mcatowns.town.TownTaxSystem;
 import com.example.mcatowns.town.TownTradeSystem;
 import com.example.mcatowns.town.TownUnrestSystem;
+import com.example.mcatowns.town.TownBuildingService;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.minecraft.entity.ItemEntity;
 import net.minecraft.item.ItemStack;
@@ -48,6 +49,9 @@ public final class ServerTickEventsHandler {
     }
 
     private static void tickWorld(ServerWorld world) {
+        if (world.getTime() % 40 == 0) {
+            world.getPlayers().forEach(TownBuildingService::periodicDetect);
+        }
         if (world.getTime() % TOWN_TICK_INTERVAL != 0) return;
 
         long day = TownManager.getDay(world);

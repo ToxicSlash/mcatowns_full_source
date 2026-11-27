@@ -15,6 +15,7 @@ import com.example.mcatowns.town.TownRequest;
 import com.example.mcatowns.town.TownRequestService;
 import com.example.mcatowns.town.TownResidentDetails;
 import com.example.mcatowns.town.TownSavedData;
+import com.example.mcatowns.town.TownBuildingService;
 import com.example.mcatowns.integration.MCAIntegration;
 import com.example.mcatowns.util.InventoryHelper;
 import net.fabricmc.fabric.api.event.player.UseItemCallback;
@@ -129,6 +130,7 @@ public final class BlueprintTownCreationHandler {
         }
 
         TownSavedData data = TownSavedData.get(player.getServerWorld(), town.townId());
+        TownBuildingService.expireUnregisteredOpenDetection(player);
         BlueprintSessionService.SessionState session = BlueprintSessionService.get(player);
         boolean canManage = hasAdminAccess(player) || ("player_created".equals(town.source())
                 ? PlayerTownRegistry.get(player.getServerWorld()).isOwner(town.townId(), player)
@@ -200,23 +202,34 @@ public final class BlueprintTownCreationHandler {
     }
 
     private static TownBlueprintView.BuildingEntry buildingEntry(net.minecraft.server.world.ServerWorld world, String type, String name, BlockPos pos, String icon) {
-        MCAIntegration.BuildingBounds bounds = MCAIntegration.getBuildingBoundsAt(world, pos)
-                .orElse(new MCAIntegration.BuildingBounds(pos, pos));
-        return new TownBlueprintView.BuildingEntry(new java.util.UUID(0L, 0L), type, name, pos, icon,
-                bounds.min(), bounds.max(), 1, "DETECTED", 0, 0, 0, 0,
-                0, 0, 0, 0, 0, 0);
+        TownBuildingService.DetectedStructure detected = TownBuildingService.describeDetectedStructure(world, pos)
+                .orElse(new TownBuildingService.DetectedStructure(type, name, false, pos, pos, pos, java.util.List.of()));
+        return new TownBlueprintView.BuildingEntry(new java.util.UUID(0L, 0L), detected.type(), detected.name(),
+                detected.anchor(), icon, detected.min(), detected.max(), 1, "DETECTED", 0, 0, 0, 0,
+                0, 0, 0, 0, 0, 0, detected.enclosed(), detected.footprint());
     }
 
     private static TownBlueprintView.BuildingEntry buildingEntry(net.minecraft.server.world.ServerWorld world, TownSavedData data,
                                                                   com.example.mcatowns.town.RegisteredTownBuilding building,
                                                                   String name, String icon) {
         TownBuildingDefinition definition = TownBuildingDefinition.get(building.type());
+        boolean enclosed = isEnclosedType(building.type());
+        boolean structureValid = !enclosed || TownBuildingService.isEnclosedStructureValid(world, building.anchor());
+        java.util.List<BlockPos> footprint = TownBuildingService.describeDetectedStructure(world, building.anchor())
+                .filter(TownBuildingService.DetectedStructure::enclosed)
+                .map(TownBuildingService.DetectedStructure::footprint)
+                .orElse(java.util.List.of());
         BuildingPerformance.OutputBreakdown breakdown = BuildingPerformance.calculateBreakdown(world, data, building);
         return new TownBlueprintView.BuildingEntry(building.id(), building.type(), name, building.anchor(), icon,
-                building.minPos(), building.maxPos(), building.tier(), building.status().name(), building.output(),
+                building.minPos(), building.maxPos(), building.tier(),
+                structureValid ? building.status().name() : "NEEDS_INSPECTION", building.output(),
                 building.workers().size(), definition == null ? 0 : definition.workersRequired(), building.cropState(),
                 breakdown.staffingPercent(), breakdown.tierBonus(), breakdown.furnitureBonus(), breakdown.synergyBonus(),
-                breakdown.furnitureCount(), breakdown.synergyCount());
+                breakdown.furnitureCount(), breakdown.synergyCount(), enclosed, footprint);
+    }
+
+    private static boolean isEnclosedType(String type) {
+        return !java.util.Set.of("campfire", "park", "bounty_board").contains(type);
     }
 
     private static java.util.List<TownBlueprintView.InfrastructureEntry> infrastructure(TownSavedData data) {
@@ -297,8 +310,14 @@ public final class BlueprintTownCreationHandler {
 
     private static BlockPos findPlacementPos(net.minecraft.server.world.ServerWorld world, ServerPlayerEntity player) {
         BlockPos front = player.getBlockPos().offset(player.getHorizontalFacing());
-        for (BlockPos candidate : new BlockPos[]{front, front.down(), front.up()}) {
-            if (world.getWorldBorder().contains(candidate) && world.getBlockState(candidate).isReplaceable()) {
+        int startY = Math.min(world.getTopY() - 1, player.getBlockY() + 1);
+        int bottomY = world.getBottomY() + 1;
+        for (int y = startY; y >= bottomY; y--) {
+            BlockPos candidate = new BlockPos(front.getX(), y, front.getZ());
+            BlockPos support = candidate.down();
+            if (world.getWorldBorder().contains(candidate)
+                    && world.getBlockState(candidate).isReplaceable()
+                    && world.getBlockState(support).isSolidBlock(world, support)) {
                 return candidate;
             }
         }

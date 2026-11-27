@@ -55,6 +55,12 @@ public class TownBlueprintScreen extends Screen {
             showBuildingCatalog = "catalog".equals(initialPage);
             this.page = normalizePage(initialPage);
         }
+        this.advancedControls = "map".equals(this.page) && McaBlueprintScreenBridge.mapAdvancedControls();
+    }
+
+    public TownBlueprintScreen(TownBlueprintView view, String initialPage, TownBuildingCategory initialCategory) {
+        this(view, initialPage);
+        if (initialCategory != null) this.category = initialCategory;
     }
 
     @Override

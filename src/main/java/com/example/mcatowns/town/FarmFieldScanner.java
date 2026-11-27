@@ -38,12 +38,23 @@ public final class FarmFieldScanner {
                     Math.min(min.getZ(), farmland.getZ()));
             max = new BlockPos(Math.max(max.getX(), farmland.getX()), Math.max(max.getY(), farmland.getY()),
                     Math.max(max.getZ(), farmland.getZ()));
-            if (world.getBlockState(farmland.up()).getBlock() instanceof CropBlock) crops++;
+            if (isCrop(world, farmland.up())) crops++;
 
             for (Direction direction : Direction.Type.HORIZONTAL) {
                 BlockPos adjacent = farmland.offset(direction);
                 for (int dy = -1; dy <= 1; dy++) {
                     BlockPos next = adjacent.add(0, dy, 0);
+                    if (!visited.contains(next.asLong()) && isLoadedFarmland(world, next)) {
+                        queue.addLast(next.toImmutable());
+                        break;
+                    }
+                }
+                // Allow a one-block irrigation channel or path between rows
+                // while keeping the scan bounded to the same field.
+                BlockPos beyond = adjacent.offset(direction);
+                if (world.getBlockState(adjacent).isSolidBlock(world, adjacent)) continue;
+                for (int dy = -1; dy <= 1; dy++) {
+                    BlockPos next = beyond.add(0, dy, 0);
                     if (!visited.contains(next.asLong()) && isLoadedFarmland(world, next)) {
                         queue.addLast(next.toImmutable());
                         break;
@@ -79,6 +90,13 @@ public final class FarmFieldScanner {
     private static boolean isLoadedFarmland(ServerWorld world, BlockPos pos) {
         return world.getWorldBorder().contains(pos) && world.isChunkLoaded(pos)
                 && world.getBlockState(pos).isOf(Blocks.FARMLAND);
+    }
+
+    private static boolean isCrop(ServerWorld world, BlockPos pos) {
+        net.minecraft.block.Block block = world.getBlockState(pos).getBlock();
+        return block instanceof CropBlock
+                || block instanceof net.minecraft.block.StemBlock
+                || block instanceof net.minecraft.block.NetherWartBlock;
     }
 
     public record Result(BlockPos anchor, BlockPos min, BlockPos max, int crops, int contributingCrops,

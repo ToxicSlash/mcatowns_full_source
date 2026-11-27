@@ -138,14 +138,27 @@ public abstract class BlueprintScreenMixin extends Screen {
                     .dimensions(width / 2 - 80 + (i % 5) * 28, height / 2 - 48 + (i / 5) * 30, 24, 24)
                     .tooltip(Tooltip.of(Text.literal(option.name() + "\n" + option.description())))
                     .build();
-            button.active = option != mcatowns$selectedBuilding;
+            button.active = true;
             mcatowns$controls.add(addDrawableChild(button));
             mcatowns$icons.put(button, mcatowns$buildingIcon(option.id()));
         }
         if (mcatowns$selectedBuilding != null) {
             TownBlueprintView.BuildingOption option = mcatowns$selectedBuilding;
+            ButtonWidget inspect = ButtonWidget.builder(Text.literal("Inspect"),
+                            ignored -> {
+                                McaBlueprintScreenBridge.openNextOn("catalog", mcatowns$category);
+                                ModNetworking.sendInspectTownBuilding(option.id());
+                            })
+                    .dimensions(width / 2 - 80, height / 2 + 70, 108, 18)
+                    .tooltip(Tooltip.of(Text.literal("Inspect the selected structure at your current position.")))
+                    .build();
+            inspect.active = McaBlueprintScreenBridge.getView().canManage() && !option.legacy();
+            mcatowns$controls.add(addDrawableChild(inspect));
             ButtonWidget register = ButtonWidget.builder(Text.literal("Register " + option.name()),
-                            ignored -> ModNetworking.sendRegisterTownBuilding(option.id()))
+                            ignored -> {
+                                McaBlueprintScreenBridge.openNextOn("catalog", mcatowns$category);
+                                ModNetworking.sendRegisterTownBuilding(option.id());
+                            })
                     .dimensions(width / 2 + 34, height / 2 + 70, 145, 18)
                     .tooltip(Tooltip.of(Text.literal(mcatowns$cost(option))))
                     .build();
