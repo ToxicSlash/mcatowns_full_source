@@ -100,6 +100,11 @@ public final class TownBuildingService {
             return;
         }
         FarmFieldScanner.Result farm = "farm".equals(type) ? FarmFieldScanner.scan(world, pos) : null;
+        if (farm != null && data.getRegisteredBuildings().stream()
+                .anyMatch(building -> "farm".equals(building.type()) && farm.tiles().contains(building.anchor()))) {
+            player.sendMessage(Text.literal("This connected farm is already registered."), true);
+            return;
+        }
         DetectedStructure detected = describeDetectedStructure(world, pos).orElse(null);
         MCAIntegration.BuildingBounds detectedBounds = farm != null
                 ? new MCAIntegration.BuildingBounds(farm.min(), farm.max())
@@ -172,6 +177,11 @@ public final class TownBuildingService {
     }
 
     public static Optional<DetectedStructure> describeDetectedStructure(ServerWorld world, BlockPos pos) {
+        if (FarmFieldScanner.farmlandAt(world, pos) != null) {
+            FarmFieldScanner.Result field = FarmFieldScanner.scan(world, pos);
+            return Optional.of(new DetectedStructure("farm", "Farm", false, field.anchor(),
+                    field.min(), field.max(), field.tiles()));
+        }
         Optional<String> mcaType = MCAIntegration.getBuildingTypeAt(world, pos);
         if (mcaType.isPresent()) {
             List<BlockPos> footprint = MCAIntegration.getBuildingFootprintAt(world, pos);
@@ -375,10 +385,8 @@ public final class TownBuildingService {
             return campfire;
         }
 
-        Block block = world.getBlockState(lookedAt).getBlock();
-        if (block == Blocks.FARMLAND || block instanceof net.minecraft.block.CropBlock) {
-            return lookedAt;
-        }
+        BlockPos selectedFarmland = FarmFieldScanner.farmlandAt(world, lookedAt);
+        if (selectedFarmland != null) return selectedFarmland;
         BlockPos nearbyFarm = findNearbyFarm(world, player.getBlockPos(), 8);
         if (nearbyFarm != null) {
             return nearbyFarm;
@@ -737,16 +745,7 @@ public final class TownBuildingService {
     }
 
     private static boolean isFarmBlock(ServerWorld world, BlockPos pos) {
-        net.minecraft.block.Block block = world.getBlockState(pos).getBlock();
-        return world.getBlockState(pos).isOf(Blocks.FARMLAND)
-                || (isFarmPlant(block)
-                && world.getBlockState(pos.down()).isOf(Blocks.FARMLAND));
-    }
-
-    private static boolean isFarmPlant(Block block) {
-        return block instanceof net.minecraft.block.CropBlock
-                || block instanceof net.minecraft.block.StemBlock
-                || block instanceof net.minecraft.block.NetherWartBlock;
+        return FarmFieldScanner.farmlandAt(world, pos) != null;
     }
 
     /** Finds a nearby marker and validates the open structure around it. */
