@@ -1,0 +1,232 @@
+name: DevHub MCA integration
+on:
+  push:
+    branches: [dev]
+    paths-ignore: ['**/*.md']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: town-devhub-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  discover:
+    runs-on: [self-hosted, Windows, "${{ vars.ADADV_VISUAL_RUNNER_LABEL || 'visual-test' }}"]
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: cmd
+    env:
+      ADADV_INSTANCE_PATH: ${{ vars.ADADV_INSTANCE_PATH }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Locate installed Python
+        id: locate_python
+        run: |
+          where py >nul 2>&1
+          if not errorlevel 1 (
+            py -3 -c "import sys; print(sys.executable)" > python-path.txt 2>nul
+            if not errorlevel 1 goto found_python
+          )
+          where python >nul 2>&1
+          if not errorlevel 1 (
+            python -c "import sys; print(sys.executable)" > python-path.txt 2>nul
+            if not errorlevel 1 goto found_python
+          )
+          for %%P in ("%LOCALAPPDATA%\Python\pythoncore-3.15-64\python.exe" "%LOCALAPPDATA%\Programs\Python\Python315\python.exe" "%LOCALAPPDATA%\Programs\Python\Python314\python.exe" "%LOCALAPPDATA%\Programs\Python\Python313\python.exe" "%LOCALAPPDATA%\Programs\Python\Python312\python.exe" "%LOCALAPPDATA%\Programs\Python\Python311\python.exe") do (
+            if exist %%P (
+              echo %%~P > python-path.txt
+              goto found_python
+            )
+          )
+          echo Installing portable Python in runner temporary directory
+          set "PORTABLE=%RUNNER_TEMP%\town-python-3.11.9"
+          if not exist "%PORTABLE%\python.exe" (
+            curl.exe --fail --location --retry 3 https://www.python.org/ftp/python/3.11.9/python-3.11.9-embed-amd64.zip --output "%RUNNER_TEMP%\town-python.zip"
+            if errorlevel 1 exit /b 1
+            if not exist "%PORTABLE%" mkdir "%PORTABLE%"
+            tar.exe -xf "%RUNNER_TEMP%\town-python.zip" -C "%PORTABLE%"
+            if errorlevel 1 exit /b 1
+          )
+          "%PORTABLE%\python.exe" -c "import sys; print(sys.executable)" > python-path.txt
+          if errorlevel 1 exit /b 1
+          :found_python
+          set /p PYTHON_EXE=<python-path.txt
+          echo PYTHON_EXE=%PYTHON_EXE%>>"%GITHUB_ENV%"
+          echo Using %PYTHON_EXE%
+      - name: Verify interactive desktop
+        run: powershell.exe -NoProfile -NonInteractive -Command "if ((Get-Process -Id $PID).SessionId -eq 0 -or -not [Environment]::UserInteractive) { throw 'Visual runner must use an interactive desktop' }"
+      - name: Discover MCA and installed farming dependency closure
+        run: '"%PYTHON_EXE%" tools/prepare_town_fixture.py'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: town-desktop-inputs
+          path: build/town-desktop-inputs/
+          retention-days: 1
+          if-no-files-found: error
+  background:
+    needs: discover
+    runs-on: [self-hosted, Windows, "${{ vars.ADADV_BACKGROUND_RUNNER_LABEL || 'background' }}"]
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: cmd
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Locate installed Python
+        id: locate_python
+        run: |
+          where py >nul 2>&1
+          if not errorlevel 1 (
+            py -3 -c "import sys; print(sys.executable)" > python-path.txt 2>nul
+            if not errorlevel 1 goto found_python
+          )
+          where python >nul 2>&1
+          if not errorlevel 1 (
+            python -c "import sys; print(sys.executable)" > python-path.txt 2>nul
+            if not errorlevel 1 goto found_python
+          )
+          for %%P in ("%LOCALAPPDATA%\Python\pythoncore-3.15-64\python.exe" "%LOCALAPPDATA%\Programs\Python\Python315\python.exe" "%LOCALAPPDATA%\Programs\Python\Python314\python.exe" "%LOCALAPPDATA%\Programs\Python\Python313\python.exe" "%LOCALAPPDATA%\Programs\Python\Python312\python.exe" "%LOCALAPPDATA%\Programs\Python\Python311\python.exe") do (
+            if exist %%P (
+              echo %%~P > python-path.txt
+              goto found_python
+            )
+          )
+          echo Installing portable Python in runner temporary directory
+          set "PORTABLE=%RUNNER_TEMP%\town-python-3.11.9"
+          if not exist "%PORTABLE%\python.exe" (
+            curl.exe --fail --location --retry 3 https://www.python.org/ftp/python/3.11.9/python-3.11.9-embed-amd64.zip --output "%RUNNER_TEMP%\town-python.zip"
+            if errorlevel 1 exit /b 1
+            if not exist "%PORTABLE%" mkdir "%PORTABLE%"
+            tar.exe -xf "%RUNNER_TEMP%\town-python.zip" -C "%PORTABLE%"
+            if errorlevel 1 exit /b 1
+          )
+          "%PORTABLE%\python.exe" -c "import sys; print(sys.executable)" > python-path.txt
+          if errorlevel 1 exit /b 1
+          :found_python
+          set /p PYTHON_EXE=<python-path.txt
+          echo PYTHON_EXE=%PYTHON_EXE%>>"%GITHUB_ENV%"
+          echo Using %PYTHON_EXE%
+      - uses: actions/download-artifact@v4
+        with:
+          name: town-desktop-inputs
+          path: build/town-desktop-inputs
+      - name: Verify transferred fixture
+        run: '"%PYTHON_EXE%" tools/verify_town_fixture.py'
+      - name: Build and real MCA world regression
+        run: |
+          if not exist build\gametest mkdir build\gametest
+          echo eula=true>build\gametest\eula.txt
+          call gradlew.bat build runGametest -PtownInstalledFixture=true --no-daemon --console=plain > town-background.log 2>&1
+          set "RESULT=%ERRORLEVEL%"
+          type town-background.log
+          if not "%RESULT%"=="0" exit /b %RESULT%
+          if not exist build\gametest-results.xml exit /b 1
+          findstr /c:"TOWN_MCA_WORLD_OK" town-background.log >nul
+          if errorlevel 1 exit /b 1
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: town-devhub-background
+          path: |
+            town-background.log
+            build/gametest-results.xml
+            build/gametest/logs/latest.log
+            build/test-results/test/
+            build/libs/*.jar
+          if-no-files-found: warn
+  visual:
+    needs: discover
+    runs-on: [self-hosted, Windows, "${{ vars.ADADV_VISUAL_RUNNER_LABEL || 'visual-test' }}"]
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: cmd
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Locate installed Python
+        id: locate_python
+        run: |
+          where py >nul 2>&1
+          if not errorlevel 1 (
+            py -3 -c "import sys; print(sys.executable)" > python-path.txt 2>nul
+            if not errorlevel 1 goto found_python
+          )
+          where python >nul 2>&1
+          if not errorlevel 1 (
+            python -c "import sys; print(sys.executable)" > python-path.txt 2>nul
+            if not errorlevel 1 goto found_python
+          )
+          for %%P in ("%LOCALAPPDATA%\Python\pythoncore-3.15-64\python.exe" "%LOCALAPPDATA%\Programs\Python\Python315\python.exe" "%LOCALAPPDATA%\Programs\Python\Python314\python.exe" "%LOCALAPPDATA%\Programs\Python\Python313\python.exe" "%LOCALAPPDATA%\Programs\Python\Python312\python.exe" "%LOCALAPPDATA%\Programs\Python\Python311\python.exe") do (
+            if exist %%P (
+              echo %%~P > python-path.txt
+              goto found_python
+            )
+          )
+          echo Installing portable Python in runner temporary directory
+          set "PORTABLE=%RUNNER_TEMP%\town-python-3.11.9"
+          if not exist "%PORTABLE%\python.exe" (
+            curl.exe --fail --location --retry 3 https://www.python.org/ftp/python/3.11.9/python-3.11.9-embed-amd64.zip --output "%RUNNER_TEMP%\town-python.zip"
+            if errorlevel 1 exit /b 1
+            if not exist "%PORTABLE%" mkdir "%PORTABLE%"
+            tar.exe -xf "%RUNNER_TEMP%\town-python.zip" -C "%PORTABLE%"
+            if errorlevel 1 exit /b 1
+          )
+          "%PORTABLE%\python.exe" -c "import sys; print(sys.executable)" > python-path.txt
+          if errorlevel 1 exit /b 1
+          :found_python
+          set /p PYTHON_EXE=<python-path.txt
+          echo PYTHON_EXE=%PYTHON_EXE%>>"%GITHUB_ENV%"
+          echo Using %PYTHON_EXE%
+      - uses: actions/download-artifact@v4
+        with:
+          name: town-desktop-inputs
+          path: build/town-desktop-inputs
+      - name: Verify transferred fixture
+        run: '"%PYTHON_EXE%" tools/verify_town_fixture.py'
+      - name: Verify interactive desktop
+        run: powershell.exe -NoProfile -NonInteractive -Command "if ((Get-Process -Id $PID).SessionId -eq 0 -or -not [Environment]::UserInteractive) { throw 'Visual runner must use an interactive desktop' }"
+      - name: MCA client title screen and framebuffer probe
+        timeout-minutes: 15
+        run: |
+          if exist build\town-visual\town-title-ready.txt del /q build\town-visual\town-title-ready.txt
+          if exist build\town-visual\town-title.png del /q build\town-visual\town-title.png
+          call gradlew.bat runTownVisual -PtownInstalledFixture=true --no-daemon --console=plain > town-visual.log 2>&1
+          set "RESULT=%ERRORLEVEL%"
+          type town-visual.log
+          if not "%RESULT%"=="0" exit /b %RESULT%
+          if not exist build\town-visual\town-title.png exit /b 1
+          findstr /b /c:"TOWN_MCA_CLIENT_TITLE_OK" build\town-visual\town-title-ready.txt >nul
+          if errorlevel 1 exit /b 1
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: town-devhub-visual
+          path: |
+            town-visual.log
+            build/town-visual/town-title.png
+            build/town-visual/town-title-ready.txt
+            build/town-visual/logs/latest.log
+            build/town-visual/crash-reports/
+          if-no-files-found: warn

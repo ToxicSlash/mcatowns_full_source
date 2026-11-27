@@ -29,7 +29,9 @@ dependencies {
     modImplementation "com.terraformersmc:modmenu:7.2.2"
     modRuntimeOnly "dev.architectury:architectury-fabric:9.2.14"
     def localMcaJar = file("libs/minecraft-comes-alive-7.6.15+1.20.1-universal.jar")
-    if (localMcaJar.exists()) {
+    if (providers.gradleProperty("townInstalledFixture").isPresent()) {
+        modRuntimeOnly fileTree("build/town-desktop-inputs/jars") { include "*.jar" }
+    } else if (localMcaJar.exists()) {
         modRuntimeOnly files(localMcaJar)
     }
 
@@ -89,12 +91,20 @@ loom {
         }
     }
     runs {
+        townVisual {
+            client()
+            name "MCA Towns Visual Test"
+            source sourceSets.gametest
+            vmArg "-Dtown.test.visual=true"
+            runDir "build/town-visual"
+        }
         gametest {
             server()
             name "MCA Towns Game Tests"
             source sourceSets.gametest
             vmArg "-Dfabric-api.gametest"
             vmArg "-Dfabric-api.gametest.report-file=${project.layout.buildDirectory.file('gametest-results.xml').get().asFile.absolutePath}"
+            if (providers.gradleProperty("townInstalledFixture").isPresent()) vmArg "-Dtown.test.mca=true"
             runDir "build/gametest"
         }
     }

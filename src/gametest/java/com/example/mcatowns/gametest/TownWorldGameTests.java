@@ -4,6 +4,12 @@ import com.example.mcatowns.town.BuildingFootprint;
 import com.example.mcatowns.town.FarmFieldScanner;
 import com.example.mcatowns.town.TownBuildingService;
 import net.fabricmc.fabric.api.gametest.v1.FabricGameTest;
+import net.fabricmc.loader.api.FabricLoader;
+import net.minecraft.registry.Registries;
+import net.minecraft.util.Identifier;
+import net.minecraft.block.FarmlandBlock;
+import net.minecraft.block.CropBlock;
+import com.example.mcatowns.integration.MCAIntegration;
 import net.minecraft.block.Blocks;
 import net.minecraft.test.GameTest;
 import net.minecraft.test.TestContext;
@@ -15,6 +21,23 @@ import java.util.Set;
 
 /** Real server-world fixtures. The test mod is not included in the production jar. */
 public final class TownWorldGameTests implements FabricGameTest {
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE)
+    public void installedMcaAndFarmRegistry(TestContext context) {
+        if (Boolean.getBoolean("town.test.mca")) {
+            context.assertTrue(MCAIntegration.isMcaLoaded(), "MCA must be installed for the integration suite");
+            context.assertTrue(Registries.ITEM.containsId(new Identifier("mca", "blueprint")),
+                    "MCA blueprint must be registered");
+            for (var id : Registries.BLOCK.getIds()) {
+                var block = Registries.BLOCK.get(id);
+                if (!id.getNamespace().equals("minecraft") && (block instanceof FarmlandBlock || block instanceof CropBlock)) {
+                    System.out.println("TOWN_INSTALLED_FARM_BLOCK " + id);
+                }
+            }
+            System.out.println("TOWN_MCA_WORLD_OK");
+        }
+        context.complete();
+    }
+
     @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE)
     public void irrigatedAndPathedFarm(TestContext context) {
         for (int x = 1; x <= 5; x++) {

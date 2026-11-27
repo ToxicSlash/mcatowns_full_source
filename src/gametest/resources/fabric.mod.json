@@ -3,10 +3,13 @@
   "id": "mcatowns_gametest",
   "version": "1.0.0",
   "name": "MCA Towns World Regression Tests",
-  "environment": "server",
+  "environment": "*",
   "entrypoints": {
     "fabric-gametest": [
       "com.example.mcatowns.gametest.TownWorldGameTests"
+    ],
+    "client": [
+      "com.example.mcatowns.gametest.TownVisualProbe"
     ]
   },
   "depends": {
