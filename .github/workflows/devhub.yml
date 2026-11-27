@@ -127,25 +127,20 @@ jobs:
           path: build/town-desktop-inputs
       - name: Verify transferred fixture
         run: '"%PYTHON_EXE%" tools/verify_town_fixture.py'
-      - name: Build and real MCA world regression
-        run: |
-          if not exist build\gametest mkdir build\gametest
-          echo eula=true>build\gametest\eula.txt
-          call gradlew.bat build runGametest -PtownInstalledFixture=true --no-daemon --console=plain > town-background.log 2>&1
-          set "RESULT=%ERRORLEVEL%"
-          type town-background.log
-          if not "%RESULT%"=="0" exit /b %RESULT%
-          if not exist build\gametest-results.xml exit /b 1
-          findstr /c:"TOWN_MCA_WORLD_OK" town-background.log >nul
-          if errorlevel 1 exit /b 1
+      - name: Compile and remap production mod and isolated test mod
+        run: call gradlew.bat build remapTownProbe --no-daemon --console=plain
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Real MCA production world regression
+        run: '"%PYTHON_EXE%" tools/run_town_runtime.py server'
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: town-devhub-background
           path: |
-            town-background.log
-            build/gametest-results.xml
-            build/gametest/logs/latest.log
+            build/town-runtime-evidence/
             build/test-results/test/
             build/libs/*.jar
           if-no-files-found: warn
@@ -207,26 +202,19 @@ jobs:
         run: '"%PYTHON_EXE%" tools/verify_town_fixture.py'
       - name: Verify interactive desktop
         run: powershell.exe -NoProfile -NonInteractive -Command "if ((Get-Process -Id $PID).SessionId -eq 0 -or -not [Environment]::UserInteractive) { throw 'Visual runner must use an interactive desktop' }"
-      - name: MCA client title screen and framebuffer probe
+      - name: Compile and remap production mod and isolated test mod
+        run: call gradlew.bat build remapTownProbe --no-daemon --console=plain
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: MCA production client and framebuffer probe
         timeout-minutes: 15
-        run: |
-          if exist build\town-visual\town-title-ready.txt del /q build\town-visual\town-title-ready.txt
-          if exist build\town-visual\town-title.png del /q build\town-visual\town-title.png
-          call gradlew.bat runTownVisual -PtownInstalledFixture=true --no-daemon --console=plain > town-visual.log 2>&1
-          set "RESULT=%ERRORLEVEL%"
-          type town-visual.log
-          if not "%RESULT%"=="0" exit /b %RESULT%
-          if not exist build\town-visual\town-title.png exit /b 1
-          findstr /b /c:"TOWN_MCA_CLIENT_TITLE_OK" build\town-visual\town-title-ready.txt >nul
-          if errorlevel 1 exit /b 1
+        run: '"%PYTHON_EXE%" tools/run_town_runtime.py client'
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: town-devhub-visual
           path: |
-            town-visual.log
-            build/town-visual/town-title.png
-            build/town-visual/town-title-ready.txt
-            build/town-visual/logs/latest.log
-            build/town-visual/crash-reports/
+            build/town-runtime-evidence/
           if-no-files-found: warn

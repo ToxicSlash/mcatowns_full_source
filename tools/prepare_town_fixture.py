@@ -10,7 +10,7 @@ import zipfile
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "build" / "town-desktop-inputs"
 # Core dependencies already pinned by the existing Loom build.
-BUILTINS = {"minecraft", "java", "fabricloader", "fabric-api", "cloth-config", "architectury", "modmenu"}
+BUILTINS = {"minecraft", "java", "fabricloader"}
 OPTIONAL = {"farmersdelight", "farm_and_charm", "bountifulfares", "immersive_weathering"}
 
 def sha(path):
@@ -98,16 +98,12 @@ def main():
     records = [(p, metadata(p)) for p in discover()]
     records = [(p, m) for p, m in records if m and m.get("environment") != "client"
                and m.get("id") not in {"automodpack", "mcatowns"}]
-    roots = {"mca"} | {m["id"] for _, m in records if m["id"] in OPTIONAL}
+    roots = {"mca", "fabric-api"} | {m["id"] for _, m in records if m["id"] in OPTIONAL}
     required = set(roots)
-    # Fabric API modules are provided by the pinned API aggregate in Loom.
     provided = set(BUILTINS)
     chosen = {}
     while required - provided:
-        mid = sorted(required - provided)[0]
-        if mid.startswith("fabric-") and mid != "fabric-language-kotlin":
-            provided.add(mid)
-            continue
+        mid = min(required - provided, key=lambda x: (x != "fabric-api", x))
         matches = [(p, m) for p, m in records if mid == m["id"] or mid in m.get("provides", [])]
         if not matches:
             matches = [(p, m) for p, m in records if m.get("jars") and mid in ids_in(p)]

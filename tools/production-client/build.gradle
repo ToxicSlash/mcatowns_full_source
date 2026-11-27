@@ -1,0 +1,18 @@
+import net.fabricmc.loom.task.prod.ClientProductionRunTask
+plugins { id 'fabric-loom' version '1.10.5' }
+repositories {
+    mavenCentral()
+    maven { url = 'https://maven.fabricmc.net/' }
+}
+dependencies {
+    minecraft 'com.mojang:minecraft:1.20.1'
+    mappings 'net.fabricmc:yarn:1.20.1+build.10:v2'
+    modImplementation 'net.fabricmc:fabric-loader:0.19.5'
+}
+tasks.register('runTownClient', ClientProductionRunTask) {
+    mods.setFrom(fileTree(providers.gradleProperty('townRuntimeMods').get()) { include '*.jar' })
+    runDir.set(file(providers.gradleProperty('townRunDir').get()))
+    jvmArgs.addAll(['-Dtown.test.visual=true'])
+    programArgs.addAll(['--username', 'TownVisualCI', '--width', '1280', '--height', '720'])
+    useXVFB = false
+}

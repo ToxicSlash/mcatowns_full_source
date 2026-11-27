@@ -33,7 +33,26 @@ public final class TownWorldGameTests implements FabricGameTest {
                     System.out.println("TOWN_INSTALLED_FARM_BLOCK " + id);
                 }
             }
-            System.out.println("TOWN_MCA_WORLD_OK");
+            // Check installed CropBlock implementations using the same scanner as registration.
+            BlockPos soil = new BlockPos(2, 2, 2);
+            context.setBlockState(soil.down(), Blocks.DIRT);
+            context.setBlockState(soil, Blocks.FARMLAND);
+            int verified = 0;
+            for (var id : Registries.BLOCK.getIds()) {
+                var block = Registries.BLOCK.get(id);
+                if (id.getNamespace().equals("minecraft") || !(block instanceof CropBlock)) continue;
+                var state = block.getDefaultState();
+                BlockPos absolute = context.getAbsolutePos(soil.up());
+                if (!state.canPlaceAt(context.getWorld(), absolute)) continue;
+                context.setBlockState(soil.up(), state);
+                var result = FarmFieldScanner.scan(context.getWorld(), absolute);
+                context.assertTrue(result.crops() == 1, "Installed crop not detected: " + id);
+                context.setBlockState(soil.up(), Blocks.AIR);
+                verified++;
+                System.out.println("TOWN_INSTALLED_CROP_OK " + id);
+            }
+            context.assertTrue(verified > 0, "No installed farmland-compatible crop was exercised");
+            System.out.println("TOWN_MCA_WORLD_OK " + verified);
         }
         context.complete();
     }

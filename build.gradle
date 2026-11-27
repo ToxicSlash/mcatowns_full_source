@@ -29,9 +29,7 @@ dependencies {
     modImplementation "com.terraformersmc:modmenu:7.2.2"
     modRuntimeOnly "dev.architectury:architectury-fabric:9.2.14"
     def localMcaJar = file("libs/minecraft-comes-alive-7.6.15+1.20.1-universal.jar")
-    if (providers.gradleProperty("townInstalledFixture").isPresent()) {
-        modRuntimeOnly fileTree("build/town-desktop-inputs/jars") { include "*.jar" }
-    } else if (localMcaJar.exists()) {
+    if (localMcaJar.exists()) {
         modRuntimeOnly files(localMcaJar)
     }
 
@@ -108,4 +106,16 @@ loom {
             runDir "build/gametest"
         }
     }
+}
+
+// Remap the isolated test mod separately; installed runtime jars never enter Loom's remapper.
+tasks.register('townProbeJar', Jar) {
+    dependsOn tasks.named('gametestClasses')
+    from sourceSets.gametest.output
+    archiveClassifier = 'gametest-dev'
+}
+tasks.register('remapTownProbe', net.fabricmc.loom.task.RemapJarTask) {
+    dependsOn tasks.named('townProbeJar')
+    inputFile.set(tasks.named('townProbeJar').flatMap { it.archiveFile })
+    archiveClassifier = 'gametest'
 }
