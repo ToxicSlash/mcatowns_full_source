@@ -1,6 +1,7 @@
 package com.example.mcatowns.mixin.client;
 
 import com.example.mcatowns.client.McaBlueprintScreenBridge;
+import com.example.mcatowns.client.TownMapFootprint;
 import com.example.mcatowns.network.ModNetworking;
 import com.example.mcatowns.network.TownBlueprintView;
 import com.example.mcatowns.screen.TownBlueprintScreen;
@@ -206,13 +207,8 @@ public abstract class TownBlueprintScreenMixin extends Screen {
             int size = 136;
             if (mouseX >= mapX && mouseX <= mapX + size && mouseY >= mapY && mouseY <= mapY + size) {
                 TownBlueprintView.BuildingEntry hit = view.registeredBuildings().stream()
-                        .filter(building -> mcatowns$footprint(building, mapX, mapY, size).contains(mouseX, mouseY))
-                        .min(Comparator.comparingDouble(building -> {
-                            Rect rect = mcatowns$footprint(building, mapX, mapY, size);
-                            double dx = mouseX - (rect.left + rect.right) / 2.0;
-                            double dy = mouseY - (rect.top + rect.bottom) / 2.0;
-                            return dx * dx + dy * dy;
-                        }))
+                        .filter(building -> TownMapFootprint.hit(building, view.centerPos(), mapX, mapY, size, mouseX, mouseY))
+                        .min(Comparator.comparingInt(building -> Math.max(1, building.footprint().size())))
                         .orElse(null);
                 if (hit != null) {
                     selectedRegisteredBuilding = hit;
@@ -236,11 +232,9 @@ public abstract class TownBlueprintScreenMixin extends Screen {
         int size = 136;
         if (mouseX < mapX || mouseX > mapX + size || mouseY < mapY || mouseY > mapY + size) return;
         view.registeredBuildings().stream()
-                .filter(building -> mcatowns$footprint(building, mapX, mapY, size).contains(mouseX, mouseY))
-                .findFirst().ifPresent(building -> {
-                    Rect rect = mcatowns$footprint(building, mapX, mapY, size);
-                    context.drawBorder(rect.left - 1, rect.top - 1, rect.width() + 2, rect.height() + 2, 0xFFFFFFFF);
-                });
+                .filter(building -> TownMapFootprint.hit(building, view.centerPos(), mapX, mapY, size, mouseX, mouseY))
+                .min(Comparator.comparingInt(building -> Math.max(1, building.footprint().size())))
+                .ifPresent(building -> TownMapFootprint.draw(context, building, view.centerPos(), mapX, mapY, size, 0xFFFFFFFF));
     }
 
     @Unique private void mcatowns$reinitialize() { clearChildren(); init(); }
@@ -256,37 +250,7 @@ public abstract class TownBlueprintScreenMixin extends Screen {
         return line;
     }
 
-    @Unique
-    private Rect mcatowns$footprint(TownBlueprintView.BuildingEntry building, int mapX, int mapY, int size) {
-        int centerX = mapX + size / 2;
-        int centerY = mapY + size / 2;
-        int x1 = centerX + mcatowns$clampMapOffset(building.minPos().getX() - view.centerPos().getX(), size);
-        int x2 = centerX + mcatowns$clampMapOffset(building.maxPos().getX() - view.centerPos().getX(), size);
-        int y1 = centerY + mcatowns$clampMapOffset(building.minPos().getZ() - view.centerPos().getZ(), size);
-        int y2 = centerY + mcatowns$clampMapOffset(building.maxPos().getZ() - view.centerPos().getZ(), size);
-        int left = Math.max(mapX + 1, Math.min(x1, x2));
-        int right = Math.min(mapX + size - 1, Math.max(x1, x2));
-        int top = Math.max(mapY + 1, Math.min(y1, y2));
-        int bottom = Math.min(mapY + size - 1, Math.max(y1, y2));
-        int width = Math.max(6, right - left + 1);
-        int height = Math.max(6, bottom - top + 1);
-        if (left + width > mapX + size - 1) left = mapX + size - 1 - width;
-        if (top + height > mapY + size - 1) top = mapY + size - 1 - height;
-        return new Rect(left, top, left + width, top + height);
-    }
-
-    @Unique private static int mcatowns$clampMapOffset(int blocks, int mapSize) {
-        int clamped = Math.max(-64, Math.min(64, blocks));
-        return clamped * (mapSize / 2 - 5) / 64;
-    }
-
     @Unique private int mcatowns$panelLeft() { return Math.max(128, width / 2 - 180); }
     @Unique private int mcatowns$panelTop() { return (height - 220) / 2; }
 
-    @Unique
-    private record Rect(int left, int top, int right, int bottom) {
-        boolean contains(double x, double y) { return x >= left && x <= right && y >= top && y <= bottom; }
-        int width() { return Math.max(1, right - left); }
-        int height() { return Math.max(1, bottom - top); }
-    }
 }

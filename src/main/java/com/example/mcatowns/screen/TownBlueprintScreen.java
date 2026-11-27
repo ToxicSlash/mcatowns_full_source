@@ -1,6 +1,7 @@
 package com.example.mcatowns.screen;
 
 import com.example.mcatowns.client.McaBlueprintScreenBridge;
+import com.example.mcatowns.client.TownMapFootprint;
 import com.example.mcatowns.event.BlueprintTownCreationHandler;
 import com.example.mcatowns.network.ModNetworking;
 import com.example.mcatowns.network.TownBlueprintView;
@@ -636,22 +637,7 @@ public class TownBlueprintScreen extends Screen {
 
     private void drawBuildingFootprint(DrawContext context, TownBlueprintView.BuildingEntry building,
                                        int mapX, int mapY, int size, int centerX, int centerY, int color) {
-        int x1 = centerX + clampMapOffset(building.minPos().getX() - view.centerPos().getX(), size);
-        int x2 = centerX + clampMapOffset(building.maxPos().getX() - view.centerPos().getX(), size);
-        int y1 = centerY + clampMapOffset(building.minPos().getZ() - view.centerPos().getZ(), size);
-        int y2 = centerY + clampMapOffset(building.maxPos().getZ() - view.centerPos().getZ(), size);
-        int left = Math.max(mapX + 1, Math.min(x1, x2));
-        int right = Math.min(mapX + size - 1, Math.max(x1, x2));
-        int top = Math.max(mapY + 1, Math.min(y1, y2));
-        int bottom = Math.min(mapY + size - 1, Math.max(y1, y2));
-        int width = Math.max(6, right - left + 1);
-        int height = Math.max(6, bottom - top + 1);
-        if (left + width > mapX + size - 1) left = mapX + size - 1 - width;
-        if (top + height > mapY + size - 1) top = mapY + size - 1 - height;
-        context.drawBorder(left, top, width, height, color);
-        int x = centerX + clampMapOffset(building.pos().getX() - view.centerPos().getX(), size);
-        int y = centerY + clampMapOffset(building.pos().getZ() - view.centerPos().getZ(), size);
-        context.fill(x - 1, y - 1, x + 2, y + 2, color);
+        TownMapFootprint.draw(context, building, view.centerPos(), mapX, mapY, size, color);
     }
 
     private void drawRules(DrawContext context, int left, int top) {

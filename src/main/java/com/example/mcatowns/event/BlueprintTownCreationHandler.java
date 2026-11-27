@@ -214,9 +214,10 @@ public final class BlueprintTownCreationHandler {
                                                                   String name, String icon) {
         TownBuildingDefinition definition = TownBuildingDefinition.get(building.type());
         boolean enclosed = isEnclosedType(building.type());
-        boolean structureValid = !enclosed || TownBuildingService.isEnclosedStructureValid(world, building.anchor());
-        java.util.List<BlockPos> footprint = TownBuildingService.describeDetectedStructure(world, building.anchor())
-                .filter(TownBuildingService.DetectedStructure::enclosed)
+        var detected = TownBuildingService.describeDetectedStructure(world, building.anchor());
+        boolean structureValid = !enclosed || detected.map(TownBuildingService.DetectedStructure::enclosed).orElse(false);
+        java.util.List<BlockPos> footprint = detected
+                .filter(structure -> enclosed ? structure.enclosed() : "farm".equals(building.type()) && "farm".equals(structure.type()))
                 .map(TownBuildingService.DetectedStructure::footprint)
                 .orElse(java.util.List.of());
         BuildingPerformance.OutputBreakdown breakdown = BuildingPerformance.calculateBreakdown(world, data, building);
@@ -229,7 +230,7 @@ public final class BlueprintTownCreationHandler {
     }
 
     private static boolean isEnclosedType(String type) {
-        return !java.util.Set.of("campfire", "park", "bounty_board").contains(type);
+        return !java.util.Set.of("campfire", "park", "bounty_board", "farm").contains(type);
     }
 
     private static java.util.List<TownBlueprintView.InfrastructureEntry> infrastructure(TownSavedData data) {

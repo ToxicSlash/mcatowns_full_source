@@ -184,9 +184,14 @@ public final class TownBuildingService {
         }
         Optional<String> mcaType = MCAIntegration.getBuildingTypeAt(world, pos);
         if (mcaType.isPresent()) {
-            List<BlockPos> footprint = MCAIntegration.getBuildingFootprintAt(world, pos);
-            MCAIntegration.BuildingBounds bounds = MCAIntegration.getBuildingBoundsAt(world, pos)
-                    .orElse(boundsForFootprint(footprint, pos));
+            // MCA's block map includes blocks at roof height. Never project that
+            // directly onto the floor plan: overhangs are not walls.
+            List<BlockPos> footprint = traceEnclosedFootprint(world, pos);
+            for (int dy : new int[]{-1, 1, -2, 2}) {
+                if (!footprint.isEmpty()) break;
+                footprint = traceEnclosedFootprint(world, pos.add(0, dy, 0));
+            }
+            MCAIntegration.BuildingBounds bounds = boundsForFootprint(footprint, pos);
             return Optional.of(new DetectedStructure("mca_" + mcaType.get(), "Unregistered Structure", true,
                     pos, bounds.min(), bounds.max(), footprint));
         }
@@ -503,6 +508,7 @@ public final class TownBuildingService {
                 for (net.minecraft.util.math.Direction direction : net.minecraft.util.math.Direction.Type.HORIZONTAL) {
                     BlockPos candidate = pos.offset(direction);
                     if (candidate.getY() != y || cells.contains(mapCellKey(candidate.getX(), candidate.getZ()))
+                            || !world.isChunkLoaded(candidate) || !world.getWorldBorder().contains(candidate)
                             || !isSolidStructureBlock(world, candidate) || !hasRoof(world, candidate, 12)) {
                         continue;
                     }
@@ -528,14 +534,21 @@ public final class TownBuildingService {
     }
 
     private static BlockPos findInteriorStart(ServerWorld world, BlockPos center) {
+        BlockPos nearest = null;
+        double distance = Double.MAX_VALUE;
         for (BlockPos candidate : BlockPos.iterate(center.add(-2, 0, -2), center.add(2, 0, 2))) {
-            if (isInteriorCell(world, candidate, center.getY())) return candidate.toImmutable();
+            double candidateDistance = candidate.getSquaredDistance(center);
+            if (candidateDistance < distance && isInteriorCell(world, candidate, center.getY())) {
+                nearest = candidate.toImmutable();
+                distance = candidateDistance;
+            }
         }
-        return null;
+        return nearest;
     }
 
     private static boolean isInteriorCell(ServerWorld world, BlockPos pos, int y) {
-        if (pos.getY() != y || !isSolidStructureBlock(world, pos.down()) || !hasRoof(world, pos, 12)) {
+        if (pos.getY() != y || !world.isChunkLoaded(pos) || !world.getWorldBorder().contains(pos)
+                || !isSolidStructureBlock(world, pos.down()) || !hasRoof(world, pos, 12)) {
             return false;
         }
         Block block = world.getBlockState(pos).getBlock();
@@ -861,6 +874,7 @@ public final class TownBuildingService {
     }
 
     private static boolean isEnclosureWallBlock(ServerWorld world, BlockPos pos) {
+        if (!world.isChunkLoaded(pos) || !world.getWorldBorder().contains(pos)) return false;
         net.minecraft.block.Block block = world.getBlockState(pos).getBlock();
         return isSolidStructureBlock(world, pos)
                 || block instanceof net.minecraft.block.AbstractGlassBlock

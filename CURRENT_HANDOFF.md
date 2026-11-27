@@ -9,7 +9,7 @@ Branch: dev only. Keep main unchanged. Fabric 1.20.1 / Java 17.
 
 ## Active batch
 - Farm registration: connected field traversal, irrigation/path gaps, stepped rows, crop/soil selection, duplicate farm guard, loaded-chunk safety and regression tests. New tests pending CI.
-- User requires blueprint outline to follow walls only, not roof overhangs or a bounding rectangle. Existing renderer ignores BuildingEntry.footprint; MCAIntegration's raw all-height block projection can include roofs. Next batch: derive verified wall-level footprint, retain irregular concavities, use same geometry for drawing/hover/selection and test rectangle/L/U shapes, doors, overhangs, multiple elevations and unloaded chunks. Farm map should follow actual field tiles.
+- Blueprint now uses traced enclosed floor cells instead of MCA's raw all-height block projection. Render/hover/selection share a wall-boundary geometry helper; fallback is a location marker, not a fabricated rectangle. Registered and detected farm tiles feed the same geometry. Unit tests cover rectangle/L/U/duplicate cells. Still need live fixtures for overhangs, doors, furniture, multi-room buildings, multiple elevations, loaded/unloaded chunks, and exact visual appearance.
 - Confirm actual crop varieties and farmland types from ADADV pack; avoid broadening crop rules to weeds. Test fields with different irrigation and paths, chunk edges, partial unload/reload, existing registered farm persistence and duplicate attempts.
 
 ## Stages
