@@ -31,6 +31,12 @@ jobs:
       - run: chmod +x gradlew
       - name: Compile and run unit tests
         run: ./gradlew build --stacktrace
+      - name: Run isolated Minecraft world regression tests
+        run: |
+          mkdir -p build/gametest
+          printf 'eula=true\n' > build/gametest/eula.txt
+          timeout 240s ./gradlew runGametest --stacktrace
+          test -s build/gametest-results.xml
       - name: Dedicated server smoke test
         shell: bash
         run: |
@@ -83,3 +89,16 @@ jobs:
             echo 'Client crash signature found in smoke-test log.'
             exit 1
           fi
+
+      - name: Upload regression reports and logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: town-regression-evidence
+          path: |
+            build/test-results/test/
+            build/gametest-results.xml
+            build/gametest/logs/latest.log
+            server-smoke.log
+            client-smoke.log
+          if-no-files-found: warn

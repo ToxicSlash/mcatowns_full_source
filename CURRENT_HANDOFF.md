@@ -8,8 +8,8 @@ Branch: dev only. Keep main unchanged. Fabric 1.20.1 / Java 17.
 - New DevHub background/visual runners reported by user; exact status not accessible from the runner admin endpoint. Other ADADV workflows use Windows self-hosted labels background / visual-test (variable overrides); verify labels here before dispatch.
 
 ## Active batch
-- Farm registration: connected field traversal, irrigation/path gaps, stepped rows, crop/soil selection, duplicate farm guard, loaded-chunk safety and regression tests. Run 45973460812 compiled but failed six FarmFieldScanner tests during static initialization (registry-dependent crop tag). Deferred initialization to actual world queries; combined farm and outline retest pending.
-- Blueprint now uses traced enclosed floor cells instead of MCA's raw all-height block projection. Render/hover/selection share a wall-boundary geometry helper; fallback is a location marker, not a fabricated rectangle. Registered and detected farm tiles feed the same geometry. Unit tests cover rectangle/L/U/duplicate cells. Still need live fixtures for overhangs, doors, furniture, multi-room buildings, multiple elevations, loaded/unloaded chunks, and exact visual appearance.
+- Farm registration: connected field traversal, irrigation/path gaps, stepped rows, crop/soil selection, duplicate farm guard, loaded-chunk safety and regression tests. Run 45973460812 compiled but failed six FarmFieldScanner tests during static initialization (registry-dependent crop tag). Deferred initialization to actual world queries; run 45973724988 passed compilation and unit tests; startup checks were still running at last inspection.
+- Blueprint now uses traced enclosed floor cells instead of MCA's raw all-height block projection. Render/hover/selection share a wall-boundary geometry helper; fallback is a location marker, not a fabricated rectangle. Registered and detected farm tiles feed the same geometry. Unit tests cover rectangle/L/U/duplicate cells. Added isolated Fabric GameTest fixtures for real-world irrigated/pathed fields, a separating fence, rectangular and concave rooms with overhanging roofs. Their first CI run is pending. Still need doors, furniture, multi-room buildings, multiple elevations, loaded/unloaded chunks, actual MCA integration and exact visual appearance.
 - Confirm actual crop varieties and farmland types from ADADV pack; avoid broadening crop rules to weeds. Test fields with different irrigation and paths, chunk edges, partial unload/reload, existing registered farm persistence and duplicate attempts.
 
 ## Stages
@@ -19,4 +19,4 @@ Branch: dev only. Keep main unchanged. Fabric 1.20.1 / Java 17.
 4. UI consolidation; then military/bandits, trade, specialists per docs/IMPLEMENTATION_PLAN.md.
 5. Disposable ADADV-2.0 modpack integration (exclude AutoModpack itself); preserve original instance/saves.
 
-No gameplay tests passed for this new batch yet. Keep pending CI and live verification separate from completed work.
+No real-world gameplay fixtures have passed yet. Keep pending CI and live verification separate from completed work. Test mod sources are isolated in src/gametest; run ./gradlew runGametest. CI uploads reports and logs.
