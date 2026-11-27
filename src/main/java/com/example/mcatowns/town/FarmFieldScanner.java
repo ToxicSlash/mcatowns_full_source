@@ -26,7 +26,10 @@ public final class FarmFieldScanner {
     public static final int MIN_CROPS = 12;
     public static final int MAX_CONTRIBUTING_CROPS = 144;
     private static final int MAX_VISITED_FARMLAND = 256;
-    private static final TagKey<Block> COMMON_CROPS = TagKey.of(RegistryKeys.BLOCK, new Identifier("c", "crops"));
+    // Registry-dependent initialization is deferred until a real world crop query.
+    private static final class CropTags {
+        private static final TagKey<Block> COMMON_CROPS = TagKey.of(RegistryKeys.BLOCK, new Identifier("c", "crops"));
+    }
 
     private FarmFieldScanner() { }
 
@@ -121,7 +124,7 @@ public final class FarmFieldScanner {
         var state = world.getBlockState(pos);
         Block block = state.getBlock();
         return block instanceof CropBlock || block instanceof StemBlock || block instanceof AttachedStemBlock
-                || block instanceof NetherWartBlock || state.isIn(COMMON_CROPS);
+                || block instanceof NetherWartBlock || state.isIn(CropTags.COMMON_CROPS);
     }
 
     public record Result(BlockPos anchor, BlockPos min, BlockPos max, int crops, int contributingCrops,

@@ -8,7 +8,7 @@ Branch: dev only. Keep main unchanged. Fabric 1.20.1 / Java 17.
 - New DevHub background/visual runners reported by user; exact status not accessible from the runner admin endpoint. Other ADADV workflows use Windows self-hosted labels background / visual-test (variable overrides); verify labels here before dispatch.
 
 ## Active batch
-- Farm registration: connected field traversal, irrigation/path gaps, stepped rows, crop/soil selection, duplicate farm guard, loaded-chunk safety and regression tests. New tests pending CI.
+- Farm registration: connected field traversal, irrigation/path gaps, stepped rows, crop/soil selection, duplicate farm guard, loaded-chunk safety and regression tests. Run 45973460812 compiled but failed six FarmFieldScanner tests during static initialization (registry-dependent crop tag). Deferred initialization to actual world queries; combined farm and outline retest pending.
 - Blueprint now uses traced enclosed floor cells instead of MCA's raw all-height block projection. Render/hover/selection share a wall-boundary geometry helper; fallback is a location marker, not a fabricated rectangle. Registered and detected farm tiles feed the same geometry. Unit tests cover rectangle/L/U/duplicate cells. Still need live fixtures for overhangs, doors, furniture, multi-room buildings, multiple elevations, loaded/unloaded chunks, and exact visual appearance.
 - Confirm actual crop varieties and farmland types from ADADV pack; avoid broadening crop rules to weeds. Test fields with different irrigation and paths, chunk edges, partial unload/reload, existing registered farm persistence and duplicate attempts.
 
