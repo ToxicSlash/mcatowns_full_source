@@ -83,7 +83,7 @@ def connected_probe(root, mods, binary, project):
                        "runTownClient"]
             execute(command, root, client_log, 360)
             server_text = server_log.read_text(encoding="utf-8", errors="replace")
-            for marker in ("FOUND_DENIED", "FOUNDED", "INFRASTRUCTURE_DENIED", "CAMPFIRE", "REGISTER", "DUPLICATE", "SERVER"):
+            for marker in ("FOUND_DENIED", "FOUNDED", "MCA_BOUND", "INFRASTRUCTURE_DENIED", "CAMPFIRE", "REGISTER", "DUPLICATE", "RESIDENCE", "SERVER"):
                 if "TOWN_CONNECTED_" + marker + "_OK" not in server_text:
                     raise RuntimeError("Missing connected server marker: " + marker)
             if not (shared / "town-connected-map.png").is_file() or not (shared / "ack-map").is_file():
@@ -162,7 +162,7 @@ def main():
                     raise RuntimeError("No production GameTest report")
                 xml = ET.parse(report)
                 cases = xml.findall(".//testcase")
-                if len(cases) < 9 or xml.findall(".//failure") or xml.findall(".//error"):
+                if len(cases) < 11 or xml.findall(".//failure") or xml.findall(".//error"):
                     raise RuntimeError("Production GameTest failure or incomplete report")
                 if "TOWN_MCA_WORLD_OK" not in log.read_text(encoding="utf-8", errors="replace"):
                     raise RuntimeError("MCA world marker absent")

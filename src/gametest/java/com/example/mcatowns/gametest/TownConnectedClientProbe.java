@@ -39,6 +39,8 @@ public final class TownConnectedClientProbe implements ClientModInitializer {
                         case "blocked_register", "register", "duplicate_register" -> ModNetworking.sendRegisterTownBuilding("farm");
                         case "campfire_inspect" -> ModNetworking.sendInspectTownBuilding("campfire");
                         case "campfire_register" -> ModNetworking.sendRegisterTownBuilding("campfire");
+                        case "residence_inspect" -> ModNetworking.sendInspectTownBuilding("residence");
+                        case "residence_register" -> ModNetworking.sendRegisterTownBuilding("residence");
                         case "map" -> ModNetworking.sendOpenTownBlueprint();
                         case "complete" -> {
                             done = true;
@@ -55,11 +57,15 @@ public final class TownConnectedClientProbe implements ClientModInitializer {
                 if (phase.equals("map") && ticks >= 60 && !Files.exists(shared.resolve("ack-map"))
                         && client.currentScreen instanceof TownBlueprintScreen) {
                     var view = McaBlueprintScreenBridge.getView();
-                    if (view == null || view.founding() || view.registeredBuildings().size() != 2) return;
+                    if (view == null || view.founding() || view.registeredBuildings().size() != 3) return;
                     var farm = view.registeredBuildings().stream().filter(x -> x.type().equals("farm")).findFirst().orElseThrow();
                     if (!farm.type().equals("farm") || farm.enclosed() || farm.cropState() != 18
                             || farm.footprint().size() != 18 || !view.canManage()) {
                         throw new IllegalStateException("Server-fed farm view wrong: " + farm);
+                    }
+                    var home = view.registeredBuildings().stream().filter(x -> x.type().equals("residence")).findFirst().orElseThrow();
+                    if (!home.enclosed() || home.footprint().size() != 21 || home.status().equals("NEEDS_INSPECTION")) {
+                        throw new IllegalStateException("Server-fed residence outline wrong: " + home);
                     }
                     try (NativeImage image = ScreenshotRecorder.takeScreenshot(client.getFramebuffer())) {
                         int background = 0;

@@ -499,6 +499,73 @@ public final class TownBuildingService {
     private static List<BlockPos> traceEnclosedFootprint(ServerWorld world, BlockPos center) {
         BlockPos start = findInteriorStart(world, center);
         if (start == null) return List.of();
+        List<BlockPos> firstRoom = traceSingleRoom(world, start, start, MIN_ENCLOSED_FLOOR_AREA);
+        if (firstRoom.isEmpty()) return List.of();
+        // Treat a door as a wall unless the room on its other side is also
+        // independently enclosed. Exterior doors must not admit roof overhangs.
+        Set<BlockPos> connected = new java.util.LinkedHashSet<>(firstRoom);
+        ArrayDeque<BlockPos> frontier = new ArrayDeque<>(firstRoom);
+        Set<BlockPos> checkedDoors = new HashSet<>();
+        Set<BlockPos> rejectedRooms = new HashSet<>();
+        while (!frontier.isEmpty()) {
+            BlockPos cell = frontier.removeFirst();
+            for (var direction : net.minecraft.util.math.Direction.Type.HORIZONTAL) {
+                BlockPos doorPos = cell.offset(direction);
+                if (connected.contains(doorPos) || !withinTrace(start, doorPos)
+                        || !world.isChunkLoaded(doorPos) || !world.getWorldBorder().contains(doorPos)) continue;
+                var state = world.getBlockState(doorPos);
+                if (!(state.getBlock() instanceof net.minecraft.block.DoorBlock)
+                        || state.get(net.minecraft.block.DoorBlock.HALF) != net.minecraft.block.enums.DoubleBlockHalf.LOWER
+                        || state.get(net.minecraft.block.DoorBlock.FACING).getAxis() != direction.getAxis()
+                        || !hasEnclosureWallHeight(world, doorPos, start.getY())
+                        || !checkedDoors.add(doorPos)) continue;
+                if (checkedDoors.size() > 32) return List.of();
+                BlockPos beyond = doorPos.offset(direction);
+                if (connected.contains(beyond)) {
+                    connected.add(doorPos);
+                    continue;
+                }
+                if (rejectedRooms.contains(beyond)) continue;
+                List<BlockPos> room = traceSingleRoom(world, beyond, start, 1);
+                if (room.isEmpty()) {
+                    rejectedRooms.add(beyond);
+                    continue;
+                }
+                if (!world.getBlockState(doorPos.down()).isSolidBlock(world, doorPos.down())) continue;
+                connected.add(doorPos);
+                for (BlockPos pos : room) if (connected.add(pos)) frontier.addLast(pos);
+                if (connected.size() > MAX_ENCLOSED_TRACE_CELLS) return List.of();
+            }
+        }
+
+        // Include a solid internal partition only where both sides belong to
+        // the verified connected rooms. Keep exterior walls and courtyard gaps
+        // out of the projected floor plan.
+        Set<BlockPos> partitions = new HashSet<>();
+        for (BlockPos pos : connected) {
+            for (var direction : net.minecraft.util.math.Direction.Type.HORIZONTAL) {
+                BlockPos wall = pos.offset(direction);
+                if (!connected.contains(wall) && connected.contains(wall.offset(direction))
+                        && withinTrace(start, wall) && hasEnclosureWallHeight(world, wall, start.getY())
+                        && isSolidStructureBlock(world, wall.down()) && hasRoof(world, wall, 12)) {
+                    partitions.add(wall);
+                }
+            }
+        }
+        connected.addAll(partitions);
+        if (connected.size() > MAX_ENCLOSED_TRACE_CELLS) return List.of();
+        List<BlockPos> result = List.copyOf(connected);
+        return hasClosedInteriorBoundary(world, result, start.getY()) ? result : List.of();
+    }
+
+    private static boolean withinTrace(BlockPos start, BlockPos pos) {
+        return pos.getY() == start.getY()
+                && Math.abs(pos.getX() - start.getX()) < ENCLOSED_TRACE_RADIUS
+                && Math.abs(pos.getZ() - start.getZ()) < ENCLOSED_TRACE_RADIUS;
+    }
+
+    private static List<BlockPos> traceSingleRoom(ServerWorld world, BlockPos start, BlockPos origin, int minArea) {
+        if (!withinTrace(origin, start) || !isInteriorCell(world, start, origin.getY())) return List.of();
         ArrayDeque<BlockPos> queue = new ArrayDeque<>();
         Set<BlockPos> visited = new HashSet<>();
         List<BlockPos> footprint = new ArrayList<>();
@@ -511,9 +578,7 @@ public final class TownBuildingService {
             footprint.add(current.toImmutable());
             for (net.minecraft.util.math.Direction direction : net.minecraft.util.math.Direction.Type.HORIZONTAL) {
                 BlockPos next = current.offset(direction);
-                int dx = Math.abs(next.getX() - start.getX());
-                int dz = Math.abs(next.getZ() - start.getZ());
-                if (dx < ENCLOSED_TRACE_RADIUS && dz < ENCLOSED_TRACE_RADIUS) {
+                if (withinTrace(origin, next)) {
                     queue.addLast(next);
                 } else if (isInteriorCell(world, next, start.getY())) {
                     // A room that reaches the safety boundary is treated as
@@ -522,7 +587,7 @@ public final class TownBuildingService {
                 }
             }
         }
-        if (reachedTraceLimit || footprint.size() < MIN_ENCLOSED_FLOOR_AREA) {
+        if (reachedTraceLimit || footprint.size() < minArea) {
             return List.of();
         }
         includeInteriorSolidDecorations(world, footprint, start.getY());
@@ -566,6 +631,7 @@ public final class TownBuildingService {
         for (net.minecraft.util.math.Direction direction : net.minecraft.util.math.Direction.Type.HORIZONTAL) {
             BlockPos neighbor = pos.offset(direction);
             if (interiorCells.contains(mapCellKey(neighbor.getX(), neighbor.getZ()))) continue;
+            if (!world.isChunkLoaded(neighbor) || !world.getWorldBorder().contains(neighbor)) return true;
             if (world.getBlockState(neighbor).isAir() || world.getBlockState(neighbor).isReplaceable()) return true;
         }
         return false;
@@ -885,6 +951,7 @@ public final class TownBuildingService {
     }
 
     private static boolean isRoofBlock(ServerWorld world, BlockPos pos) {
+        if (world.isOutOfHeightLimit(pos) || !world.isChunkLoaded(pos) || !world.getWorldBorder().contains(pos)) return false;
         Block block = world.getBlockState(pos).getBlock();
         return isSolidStructureBlock(world, pos)
                 || block instanceof net.minecraft.block.AbstractGlassBlock
@@ -908,7 +975,8 @@ public final class TownBuildingService {
     }
 
     private static boolean isSolidStructureBlock(ServerWorld world, BlockPos pos) {
-        return world.getBlockState(pos).isSolidBlock(world, pos);
+        return !world.isOutOfHeightLimit(pos) && world.isChunkLoaded(pos) && world.getWorldBorder().contains(pos)
+                && world.getBlockState(pos).isSolidBlock(world, pos);
     }
 
     private static boolean isEnclosureWallBlock(ServerWorld world, BlockPos pos) {

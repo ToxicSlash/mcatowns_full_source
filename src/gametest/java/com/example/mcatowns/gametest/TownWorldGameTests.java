@@ -157,6 +157,57 @@ public final class TownWorldGameTests implements FabricGameTest {
     }
 
     @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE)
+    public void connectedRoomsIgnoreExteriorDoorAndRoof(TestContext context) {
+        partitionedHouse(context, true);
+    }
+
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE)
+    public void unconnectedRoomsRemainSeparate(TestContext context) {
+        partitionedHouse(context, false);
+    }
+
+    private static void partitionedHouse(TestContext context, boolean connected) {
+        for (int x = -1; x <= 9; x++) for (int z = -1; z <= 5; z++) {
+            context.setBlockState(new BlockPos(x, 1, z), Blocks.STONE);
+            context.setBlockState(new BlockPos(x, 4, z), Blocks.OAK_PLANKS);
+        }
+        for (int x = 0; x <= 8; x++) for (int z = 0; z <= 4; z++) {
+            if (x == 0 || x == 4 || x == 8 || z == 0 || z == 4) {
+                context.setBlockState(new BlockPos(x, 2, z), Blocks.STONE_BRICKS);
+                context.setBlockState(new BlockPos(x, 3, z), Blocks.STONE_BRICKS);
+            }
+        }
+        placeDoor(context, new BlockPos(0, 2, 2), true);
+        if (connected) placeDoor(context, new BlockPos(4, 2, 2), false);
+        var world = context.getWorld();
+        for (int startX : new int[]{2, 6}) {
+            var structure = TownBuildingService.describeDetectedStructure(world,
+                    context.getAbsolutePos(new BlockPos(startX, 2, 2))).orElseThrow();
+            Set<BlockPos> expected = new HashSet<>();
+            int min = connected ? 1 : startX - 1;
+            int max = connected ? 7 : startX + 1;
+            for (int x = min; x <= max; x++) for (int z = 1; z <= 3; z++) {
+                expected.add(context.getAbsolutePos(new BlockPos(x, 2, z)));
+            }
+            context.assertTrue(structure.enclosed(), "Room must be enclosed");
+            context.assertTrue(expected.equals(new HashSet<>(structure.footprint())),
+                    "Room grouping or exterior roof boundary incorrect: " + structure.footprint().size());
+            context.assertTrue(BuildingFootprint.boundary(structure.footprint()).size() == (connected ? 20 : 12),
+                    "Incorrect external wall perimeter");
+        }
+        context.complete();
+    }
+
+    private static void placeDoor(TestContext context, BlockPos pos, boolean open) {
+        var state = Blocks.OAK_DOOR.getDefaultState()
+                .with(net.minecraft.block.DoorBlock.FACING, Direction.EAST)
+                .with(net.minecraft.block.DoorBlock.OPEN, open);
+        context.setBlockState(pos, state);
+        context.setBlockState(pos.up(), state.with(net.minecraft.block.DoorBlock.HALF,
+                net.minecraft.block.enums.DoubleBlockHalf.UPPER));
+    }
+
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE)
     public void furnishedRoomKeepsWallFootprint(TestContext context) {
         Set<BlockPos> interior = new HashSet<>();
         for (int x = 2; x <= 5; x++) for (int z = 2; z <= 5; z++) interior.add(new BlockPos(x, 2, z));

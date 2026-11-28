@@ -1,21 +1,22 @@
 # MCA Towns — current handoff
 
-Branch: dev only. Keep main unchanged. Fabric 1.20.1 / Java 17 compilation; Java 21 reduced production fixture.
+Branch: dev only. Keep main unchanged. Fabric 1.20.1 / Java 17 compile, Java 21 reduced production fixture.
 
 ## Verified checkpoint
-- b222c8f: standard run 46108448778 and DevHub run 46108448797 both passed. All 8 required production GameTests, 13 modded crop types and 6 farmland types; Immersive Weathering weeds excluded. Actual shutdown/restart preserved registered farm UUID, bounds, crop count, blocks and duplicate guard. Client actual map pixels verified (156258 background, 4410 outline) using synthetic map data. Rectangular/L/U and door/window/slab overhang world fixtures passed.
-- Both DevHub runners and desktop artifact transfer verified. Read shared DEVHUB_RUNNER_STANDARD.md before modifying workflows. Keep installed runtime jars unchanged, compile with original Loom, stage standalone GameTest module, wait for overlays and validate screenshot pixels. Original pack untouched.
-- Earlier baseline 25b4234 passed compilation and startup (not MCA gameplay).
+- 9940671: standard run 46115465507 and DevHub run 46115465515 both passed. 9 real-world production tests (including furnished-room, rectangular/L/U, exterior door/window/slab overhang), 13 modded crop and 6 soil types, weeds excluded. Real normal-server restart preserved farm UUID, bounds, crops, blocks and duplicate guard.
+- Same run connected actual survival player via loopback: crown denial and exact founding payment, real MCA bell candidate id 0 (isVillage=false), farm inspection, infrastructure denial, campfire registration, farm registration, duplicate rejection without currency consumption, server-fed farm map screenshot. All passed. Standalone baseline dependency closure separated from Numismatics/Create connected closure; external Create tests TestFluids.thresholdSwitch and TestItems.attributeFilters previously failed and remain unresolved.
+- Read shared DEVHUB_RUNNER_STANDARD.md; both runners, original production dependency jars, artifact hash transfer, standalone GameTest module, real framebuffer validation verified. Original user pack untouched.
+- Earlier baseline b222c8f passed 8 production GameTests, restart and synthetic map rendering.
 
 ## Active batch
-- Added connected disposable loopback production server/client probe using actual normal blueprint C2S packets and real survival player. Numismatics added to desktop dependency discovery when installed; actual crown required. Verify rejected founding without crown, successful founding with exact crown/scrap payment, real farm inspection, registration payment, second-end duplicate denial without payment, server-fed map footprint and screenshot. Record actual MCA link diagnostics; successful player settlement does not alone prove MCA native village binding. Run 46110054177 connected client joined, rejected missing crown, founded successfully, consumed crown/scraps and MCA reports a bell-centered village candidate (id 0, isVillage=false). Farm inspection passed, registration failed with no Community infrastructure. New probe verifies missing infrastructure rejection, then registers a real campfire before farm, verifies costs and server-fed UI. Added preservation of active farm inspection when the periodic seed changes within the same connected field. Background GameTests included 61 extra Create dependency tests after Numismatics was added; two external tests failed (TestFluids.thresholdSwitch, TestItems.attributeFilters). Separate the original MCA/farming dependency closure for standalone GameTests, retain full Numismatics closure for connected gameplay; no external test failure concealed. Added furnished-room regression. Run 46113381127 and 46113381099 both failed compilation because the new periodic farm inspection path referenced an undeclared world variable. Declared ServerWorld in periodicDetect; rerun before treating any new checks as passed. Connected probe uses test-only fixture player and world, no changes to user saves. MCA onboarding may interfere; inspect logs rather than bypassing gameplay requirements.
-- Registration now checks target town boundary and loaded target after inspection, not just player location.
-- Outstanding: actual MCA native building recognition and residence validation, multiplayer non-owner authority, multi-room/elevation footprints, user interface interactions beyond packet probe, actual chunk unload/anchor repair and full pack compatibility.
+- New bounded door-connected room tracing merges only independently enclosed rooms and their internal partitions. Exterior door/roof overhang excluded, unconnected rooms separate. Added two world fixtures; 11 required GameTests. Guard loaded/height/border for roof and solid queries. Retest required.
+- Connected survival probe now asserts MCA bell candidate mapping to founded player settlement, builds a furnished two-room home after founding, inspects/registers residence through normal packets, verifies exact cost, capacity and 21-cell server-fed outline, logs actual MCA house recognition. MCA mature native village (isVillage=true) not yet proved. Pending live results; do not conflate player-founded settlement with mature MCA village.
+- Outstanding: native MCA residence recognition if not verified, multiplayer non-owner authority, multi-level/stepped buildings, duplicate residence prevention, persistent footprint for unloaded chunks, anchor repair, full pack integration.
 
 ## Stages
-1. Essential regression infrastructure and real MCA/player founding, authority and gameplay.
-2. Farm and building detection / map correctness, existing systems verification.
-3. Profile town ticks, building scans, saved state, network and unloaded activity.
+1. Essential regression infrastructure, real MCA/player founding, authority and gameplay.
+2. Farm and building detection/map correctness and existing systems verification.
+3. Profile town ticks, scans, saved state, network and unloaded activity.
 4. UI consolidation, military/bandits, trade, specialists per docs/IMPLEMENTATION_PLAN.md.
-5. Disposable ADADV-2.0 modpack integration (exclude AutoModpack itself).
-A queued build is progress, not completion. Keep passing and pending evidence distinct.
+5. Disposable ADADV-2.0 integration (exclude AutoModpack itself).
+Queued runs are progress, not verified completion.
