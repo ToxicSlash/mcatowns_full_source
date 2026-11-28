@@ -28,6 +28,23 @@ import java.util.Set;
 /** Real server-world fixtures. The test mod is not included in the production jar. */
 public final class TownWorldGameTests implements FabricGameTest {
     @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE)
+    public void townSchedulingCoversEveryTownExactlyOnce(TestContext context) {
+        for (int count : new int[]{0, 1, 2, 19, 20, 21, 67, 1024, 10000}) {
+            int next = 0;
+            int peak = 0;
+            for (int phase = 0; phase < com.example.mcatowns.town.TownTickSchedule.SLICES; phase++) {
+                var slice = com.example.mcatowns.town.TownTickSchedule.slice(count, phase);
+                context.assertTrue(slice.from() == next && slice.to() >= next, "Slice overlaps or misses towns");
+                peak = Math.max(peak, slice.to() - slice.from());
+                next = slice.to();
+            }
+            context.assertTrue(next == count && peak == (count + 19) / 20, "Unbalanced schedule for " + count);
+            if (count == 1024) System.out.println("TOWN_SCHEDULE_SCALE towns=" + count + " peak_towns_per_tick=" + peak);
+        }
+        context.complete();
+    }
+
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE)
     public void tradeLinkScaleAndParity(TestContext context) {
         var towns = new java.util.ArrayList<com.example.mcatowns.town.TownContext>();
         var data = new java.util.HashMap<String, TownSavedData>();

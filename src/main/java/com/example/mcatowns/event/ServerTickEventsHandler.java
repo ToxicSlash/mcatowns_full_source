@@ -41,17 +41,37 @@ import java.util.Map;
 public final class ServerTickEventsHandler {
     private static final long TOWN_TICK_INTERVAL = 200L;
     private static final int GUARD_REFRESH_TOWN_TICKS = 3;
+    private static final Map<ServerWorld, TownCycle> ACTIVE_CYCLES = new HashMap<>();
+
+    private static final class TownCycle {
+        final long start;
+        final List<TownContext> contexts;
+        final Map<String, TownSavedData> data;
+        final TownTradeSystem.LinkIndex links;
+        int processed;
+        int maxPerTick;
+        long peakNanos;
+        long totalNanos;
+
+        TownCycle(long start, List<TownContext> contexts, Map<String, TownSavedData> data) {
+            this.start = start;
+            this.contexts = contexts;
+            this.data = data;
+            this.links = new TownTradeSystem.LinkIndex(contexts, data, MCATownsConfig.get().tradingPostLinkRange);
+        }
+    }
 
     private ServerTickEventsHandler() { }
 
     public static void register() {
         ServerTickEvents.END_WORLD_TICK.register(ServerTickEventsHandler::tickWorld);
         net.fabricmc.fabric.api.event.lifecycle.v1.ServerWorldEvents.UNLOAD.register((server, world) -> {
+            ACTIVE_CYCLES.remove(world);
             FarmWeedMaintenanceService.clearWorld(world);
+            VillagerBusinessIntegration.clearWorld(world);
             com.example.mcatowns.town.BlueprintSessionService.clearWorld(world);
         });
-        net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents.DISCONNECT.register((handler, server) ->
-                com.example.mcatowns.town.BlueprintSessionService.clear(handler.player.getUuid()));
+
     }
 
     private static void tickWorld(ServerWorld world) {
@@ -63,35 +83,61 @@ public final class ServerTickEventsHandler {
                 world.getProfiler().pop();
             }
         }
-        if (world.getTime() % TOWN_TICK_INTERVAL != 0) return;
+        long now = world.getTime();
+        int phase = (int) Math.floorMod(now, TOWN_TICK_INTERVAL);
+        if (phase >= com.example.mcatowns.town.TownTickSchedule.SLICES) {
+            ACTIVE_CYCLES.remove(world);
+            return;
+        }
 
         world.getProfiler().push("mcatowns_town_tick");
+        long started = System.nanoTime();
         try {
-            tickAllTowns(world);
+            if (phase == 0) {
+                List<TownContext> contexts = TownManager.getTickContexts(world);
+                Map<String, TownSavedData> data = new HashMap<>();
+                for (TownContext town : contexts) data.put(town.townId(), TownSavedData.get(world, town.townId()));
+                ACTIVE_CYCLES.put(world, new TownCycle(now, contexts, data));
+            }
+            TownCycle cycle = ACTIVE_CYCLES.get(world);
+            // No replay after a world-time discontinuity or a late world load.
+            if (cycle == null || cycle.start != now - phase) return;
+            tickSlice(world, cycle, phase);
+            long duration = System.nanoTime() - started;
+            cycle.totalNanos += duration;
+            cycle.peakNanos = Math.max(cycle.peakNanos, duration);
+            if (phase == com.example.mcatowns.town.TownTickSchedule.SLICES - 1) {
+                if (!cycle.contexts.isEmpty() && Boolean.getBoolean("town.test.profile")) {
+                    MCATowns.LOGGER.info("TOWN_TICK_PROFILE towns={} processed={} peak_towns_per_tick={} total_ns={} peak_ns={}",
+                            cycle.contexts.size(), cycle.processed, cycle.maxPerTick, cycle.totalNanos, cycle.peakNanos);
+                }
+                ACTIVE_CYCLES.remove(world);
+            }
         } finally {
             world.getProfiler().pop();
         }
     }
 
-    private static void tickAllTowns(ServerWorld world) {
+    private static void tickSlice(ServerWorld world, TownCycle cycle, int phase) {
         long day = TownManager.getDay(world);
-        List<TownContext> contexts = TownManager.getTickContexts(world);
-        Map<String, TownSavedData> dataByTown = new HashMap<>();
-        for (TownContext context : contexts) {
-            dataByTown.put(context.townId(), TownSavedData.get(world, context.townId()));
-        }
-
-        var links = new TownTradeSystem.LinkIndex(contexts, dataByTown, MCATownsConfig.get().tradingPostLinkRange);
-        for (TownContext context : contexts) {
+        var slice = com.example.mcatowns.town.TownTickSchedule.slice(cycle.contexts.size(), phase);
+        int count = 0;
+        for (int i = slice.from(); i < slice.to(); i++) {
+            TownContext context = cycle.contexts.get(i);
             try {
-                TownSavedData data = dataByTown.get(context.townId());
+                // A player town can be deleted between slices. Never recreate
+                // its saved data or reserve new encounters after deletion.
+                if ("player_created".equals(context.source())
+                        && com.example.mcatowns.town.PlayerTownRegistry.get(world).getTownById(context.townId()).isEmpty()) continue;
+                TownSavedData data = cycle.data.get(context.townId());
                 if (data != null) {
                     TownBanditSystem.tickActivity(world, context, data);
                     TownBanditSystem.tickEncounterReservations(world, context);
                 }
                 world.getProfiler().push("town_simulation");
                 try {
-                    tickTown(world, day, context, links, dataByTown);
+                    tickTown(world, day, context, cycle.links, cycle.data, cycle.start);
+                    count++;
                 } finally {
                     world.getProfiler().pop();
                 }
@@ -99,10 +145,12 @@ public final class ServerTickEventsHandler {
                 MCATowns.LOGGER.error("Failed ticking town {} in {}", context.townId(), world.getRegistryKey().getValue(), exception);
             }
         }
+        cycle.processed += count;
+        cycle.maxPerTick = Math.max(cycle.maxPerTick, count);
     }
 
     private static void tickTown(ServerWorld world, long day, TownContext context,
-                                 TownTradeSystem.LinkIndex links, Map<String, TownSavedData> dataByTown) {
+                                 TownTradeSystem.LinkIndex links, Map<String, TownSavedData> dataByTown, long cycleStart) {
         BlockPos anchor = context.center();
         TownSavedData data = dataByTown.get(context.townId());
         if (data == null || !world.getWorldBorder().contains(anchor) || !world.isChunkLoaded(anchor)) return;
@@ -179,7 +227,7 @@ public final class ServerTickEventsHandler {
         if (UnloadedActivityCompat.isImmersiveWeatheringLoaded()) {
             FarmWeedMaintenanceService.maintainLoadedFarms(world, context, data);
         }
-        VillagerBusinessIntegration.tickMcaVillagersForStores(world, anchor, data, effectiveBusinessRadius);
+        VillagerBusinessIntegration.tickMcaVillagersForStores(world, anchor, data, effectiveBusinessRadius, cycleStart);
     }
 
     private static boolean isGuardRefreshTick(ServerWorld world, TownContext context) {

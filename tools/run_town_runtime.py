@@ -65,7 +65,7 @@ def connected_probe(root, mods, binary, project):
     server_log = OUT / "connected-server.log"
     client_log = OUT / "connected-client.log"
     with server_log.open("w", encoding="utf-8") as output:
-        server = subprocess.Popen(["java", "-Xmx3G", "-Dtown.test.connected=" + str(shared),
+        server = subprocess.Popen(["java", "-Xmx3G", "-Dtown.test.profile=true", "-Dtown.test.connected=" + str(shared),
                                    "-jar", str(launcher), "nogui"], cwd=server_dir,
                                   stdin=subprocess.PIPE, stdout=output, stderr=subprocess.STDOUT)
         try:
@@ -126,6 +126,8 @@ def connected_probe(root, mods, binary, project):
             for marker in ("FOUND_DENIED", "FOUNDED", "MCA_BOUND", "INFRASTRUCTURE_DENIED", "CAMPFIRE", "REGISTER", "DUPLICATE", "RESIDENCE", "DUPLICATE_HOME", "SERVER", "VISITOR"):
                 if "TOWN_CONNECTED_" + marker + "_OK" not in server_text:
                     raise RuntimeError("Missing connected server marker: " + marker)
+            if "TOWN_TICK_PROFILE towns=" not in server_text:
+                raise RuntimeError("Live town cycle profiler evidence missing")
             if not (shared / "town-connected-map.png").is_file() or not (shared / "ack-map").is_file():
                 raise RuntimeError("No server-fed map evidence")
             print("TOWN_CONNECTED_END_TO_END_OK")
@@ -202,7 +204,7 @@ def main():
                     raise RuntimeError("No production GameTest report")
                 xml = ET.parse(report)
                 cases = xml.findall(".//testcase")
-                if len(cases) < 14 or xml.findall(".//failure") or xml.findall(".//error"):
+                if len(cases) < 15 or xml.findall(".//failure") or xml.findall(".//error"):
                     raise RuntimeError("Production GameTest failure or incomplete report")
                 if "TOWN_MCA_WORLD_OK" not in log.read_text(encoding="utf-8", errors="replace"):
                     raise RuntimeError("MCA world marker absent")

@@ -18,15 +18,26 @@ import java.util.UUID;
 
 public class VillagerBusinessIntegration {
     private static final Map<VisitKey, Long> NEXT_ELIGIBLE_VISIT_TICK = new HashMap<>();
-    private static final Map<String, Long> LAST_CLEANUP_TICK = new HashMap<>();
+    private static final Map<ServerWorld, Long> LAST_CLEANUP_TICK = new HashMap<>();
+
+    public static void clearWorld(ServerWorld world) {
+        LAST_CLEANUP_TICK.remove(world);
+        NEXT_ELIGIBLE_VISIT_TICK.keySet().removeIf(key -> key.world() == world);
+    }
 
     public static void tickMcaVillagersForStores(ServerWorld world, BlockPos townPos, TownSavedData data) {
         tickMcaVillagersForStores(world, townPos, data, MCATownsConfig.get().villagerBusinessRadius);
     }
 
     public static void tickMcaVillagersForStores(ServerWorld world, BlockPos townPos, TownSavedData data, int radius) {
+        tickMcaVillagersForStores(world, townPos, data, radius, world.getTime());
+    }
+
+    public static void tickMcaVillagersForStores(ServerWorld world, BlockPos townPos, TownSavedData data, int radius, long cycleStart) {
         long worldTime = world.getTime();
-        if (Math.floorMod(worldTime, MCATownsConfig.get().storeVisitTickRate) >= 200) return;
+        // Preserve the old cycle-based eligibility gate despite spreading
+        // actual visits over the next 20 ticks.
+        if (Math.floorMod(cycleStart, MCATownsConfig.get().storeVisitTickRate) >= 200) return;
         int current = Math.max(0, data.getBusinessActivityScore() - 1);
 
         List<BlockPos> stands = findNearbyStands(world, townPos, radius);
@@ -43,12 +54,11 @@ public class VillagerBusinessIntegration {
             return;
         }
 
-        String dimension = world.getRegistryKey().getValue().toString();
-        long lastCleanup = LAST_CLEANUP_TICK.getOrDefault(dimension, Long.MIN_VALUE);
-        if (worldTime < lastCleanup || worldTime - lastCleanup >= 24000L) {
-            NEXT_ELIGIBLE_VISIT_TICK.entrySet().removeIf(e -> e.getKey().dimension().equals(dimension)
-                    && e.getValue() + 24000L < worldTime);
-            LAST_CLEANUP_TICK.put(dimension, worldTime);
+        Long lastCleanup = LAST_CLEANUP_TICK.get(world);
+        if (lastCleanup == null || worldTime < lastCleanup || worldTime - lastCleanup >= 24000L) {
+            NEXT_ELIGIBLE_VISIT_TICK.entrySet().removeIf(e -> e.getKey().world() == world
+                    && (lastCleanup != null && worldTime < lastCleanup || e.getValue() + 24000L < worldTime));
+            LAST_CLEANUP_TICK.put(world, worldTime);
         }
 
         float visitMultiplier = getStoreVisitMultiplier(data.getHappiness());
@@ -59,7 +69,7 @@ public class VillagerBusinessIntegration {
             }
             if (world.random.nextFloat() > 0.18f * visitMultiplier || !villager.getNavigation().isIdle()) continue;
 
-            VisitKey key = new VisitKey(dimension, villager.getUuid());
+            VisitKey key = new VisitKey(world, villager.getUuid());
             long eligibleAt = NEXT_ELIGIBLE_VISIT_TICK.getOrDefault(key, 0L);
             if (worldTime < eligibleAt) continue;
 
@@ -115,5 +125,5 @@ public class VillagerBusinessIntegration {
         return stands;
     }
 
-    private record VisitKey(String dimension, UUID villagerId) { }
+    private record VisitKey(ServerWorld world, UUID villagerId) { }
 }
