@@ -3,6 +3,12 @@ package com.example.mcatowns.gametest;
 import com.example.mcatowns.town.BuildingFootprint;
 import com.example.mcatowns.town.FarmFieldScanner;
 import com.example.mcatowns.town.TownBuildingService;
+import com.example.mcatowns.town.TownSavedData;
+import com.example.mcatowns.town.RegisteredTownBuilding;
+import com.example.mcatowns.town.BuildingStatus;
+import net.minecraft.nbt.NbtCompound;
+import java.util.UUID;
+import java.util.List;
 import net.fabricmc.fabric.api.gametest.v1.FabricGameTest;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.registry.Registries;
@@ -119,7 +125,51 @@ public final class TownWorldGameTests implements FabricGameTest {
         assertRoom(context, interior, new BlockPos(2, 2, 4), 16);
     }
 
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE)
+    public void uShapeWithCourtyard(TestContext context) {
+        Set<BlockPos> interior = new HashSet<>();
+        for (int x = 2; x <= 6; x++) for (int z = 2; z <= 5; z++) {
+            if (x < 4 || x > 5 || z == 5) interior.add(new BlockPos(x, 2, z));
+        }
+        assertRoom(context, interior, new BlockPos(2, 2, 3), 24);
+    }
+
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE)
+    public void doorAndWindowDoNotExtendOutline(TestContext context) {
+        Set<BlockPos> interior = new HashSet<>();
+        for (int x = 2; x <= 4; x++) for (int z = 2; z <= 4; z++) interior.add(new BlockPos(x, 2, z));
+        assertRoom(context, interior, new BlockPos(3, 2, 3), 12, true);
+    }
+
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE)
+    public void registeredFarmSaveDataAndDuplicateGuard(TestContext context) {
+        for (int x = 1; x <= 6; x++) for (int z = 1; z <= 3; z++) {
+            context.setBlockState(new BlockPos(x, 1, z), Blocks.DIRT);
+            context.setBlockState(new BlockPos(x, 2, z), Blocks.FARMLAND);
+            context.setBlockState(new BlockPos(x, 3, z), Blocks.WHEAT);
+        }
+        var world = context.getWorld();
+        var field = FarmFieldScanner.scan(world, context.getAbsolutePos(new BlockPos(1, 3, 1)));
+        var otherEnd = FarmFieldScanner.scan(world, context.getAbsolutePos(new BlockPos(6, 3, 3)));
+        context.assertTrue(field.valid(), "Farm should be eligible");
+        var data = TownSavedData.create();
+        var farm = new RegisteredTownBuilding(UUID.randomUUID(), "farm", field.tier(), field.anchor(),
+                field.min(), field.max(), BuildingStatus.ACTIVE, 50, List.of(), 1L, field.contributingCrops());
+        context.assertTrue(!TownBuildingService.isFarmAlreadyRegistered(data, field), "New farm must not be duplicate");
+        context.assertTrue(data.registerBuilding(farm), "Farm must register in town save");
+        context.assertTrue(TownBuildingService.isFarmAlreadyRegistered(data, otherEnd), "Other end of same field must be duplicate");
+        var restored = TownSavedData.fromNbt(data.writeNbt(new NbtCompound()));
+        context.assertTrue(restored.getRegisteredBuildings().size() == 1, "Exactly one farm must persist");
+        context.assertTrue(farm.equals(restored.getRegisteredBuildings().get(0)), "Saved farm properties must round-trip");
+        context.assertTrue(TownBuildingService.isFarmAlreadyRegistered(restored, otherEnd), "Duplicate guard must survive save/load");
+        context.complete();
+    }
+
     private static void assertRoom(TestContext context, Set<BlockPos> interior, BlockPos start, int perimeter) {
+        assertRoom(context, interior, start, perimeter, false);
+    }
+
+    private static void assertRoom(TestContext context, Set<BlockPos> interior, BlockPos start, int perimeter, boolean openings) {
         // Floor and roof deliberately extend outside the actual wall boundary.
         for (int x = 0; x < 8; x++) {
             for (int z = 0; z < 8; z++) {
@@ -135,6 +185,14 @@ public final class TownWorldGameTests implements FabricGameTest {
                     context.setBlockState(wall.up(), Blocks.STONE_BRICKS);
                 }
             }
+        }
+        if (openings) {
+            var door = Blocks.OAK_DOOR.getDefaultState().with(net.minecraft.block.DoorBlock.OPEN, true);
+            context.setBlockState(new BlockPos(1, 2, 3), door);
+            context.setBlockState(new BlockPos(1, 3, 3), door.with(net.minecraft.block.DoorBlock.HALF,
+                    net.minecraft.block.enums.DoubleBlockHalf.UPPER));
+            context.setBlockState(new BlockPos(3, 3, 1), Blocks.GLASS_PANE);
+            for (int x = 0; x < 8; x++) context.setBlockState(new BlockPos(x, 4, 0), Blocks.OAK_SLAB);
         }
         var detected = TownBuildingService.describeDetectedStructure(context.getWorld(), context.getAbsolutePos(start));
         context.assertTrue(detected.isPresent(), "Enclosed building must be detected");

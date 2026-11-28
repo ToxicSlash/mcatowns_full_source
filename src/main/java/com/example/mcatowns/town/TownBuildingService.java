@@ -100,8 +100,7 @@ public final class TownBuildingService {
             return;
         }
         FarmFieldScanner.Result farm = "farm".equals(type) ? FarmFieldScanner.scan(world, pos) : null;
-        if (farm != null && data.getRegisteredBuildings().stream()
-                .anyMatch(building -> "farm".equals(building.type()) && farm.tiles().contains(building.anchor()))) {
+        if (farm != null && isFarmAlreadyRegistered(data, farm)) {
             player.sendMessage(Text.literal("This connected farm is already registered."), true);
             return;
         }
@@ -260,15 +259,38 @@ public final class TownBuildingService {
         data.setProsperityBase(Math.min(data.getTownRank().maxProsperity(), floor));
     }
 
+    public static boolean isFarmAlreadyRegistered(TownSavedData data, FarmFieldScanner.Result field) {
+        return data.getRegisteredBuildings().stream()
+                .anyMatch(building -> "farm".equals(building.type()) && field.tiles().contains(building.anchor()));
+    }
+
+    // Do not overwrite known field bounds/crop counts from a partially unloaded field.
+    static boolean farmBoundsLoaded(RegisteredTownBuilding building, java.util.function.Predicate<BlockPos> loaded) {
+        int minX = building.minPos().getX() >> 4, maxX = building.maxPos().getX() >> 4;
+        int minZ = building.minPos().getZ() >> 4, maxZ = building.maxPos().getZ() >> 4;
+        // Malformed or ancient bounds must not cause unbounded chunk probes.
+        if ((long) (maxX - minX + 1) * (maxZ - minZ + 1) > 4096) return false;
+        for (int x = minX; x <= maxX; x++) {
+            for (int z = minZ; z <= maxZ; z++) {
+                if (!loaded.test(new BlockPos(x << 4, building.anchor().getY(), z << 4))) return false;
+            }
+        }
+        return true;
+    }
+
     public static void refreshInspectionState(ServerWorld world, TownSavedData data, long day) {
         for (RegisteredTownBuilding building : data.getRegisteredBuildings()) {
             if (!world.isChunkLoaded(building.anchor())) continue;
             try {
                 RegisteredTownBuilding updated = building;
                 if ("farm".equals(building.type())) {
+                    if (!farmBoundsLoaded(building, world::isChunkLoaded)) continue;
                     FarmFieldScanner.Result field = FarmFieldScanner.scan(world, building.anchor());
-                    updated = new RegisteredTownBuilding(building.id(), building.type(), field.tier(), field.anchor(),
-                            field.min(), field.max(), field.valid() ? BuildingStatus.ACTIVE : BuildingStatus.NEEDS_INSPECTION,
+                    // A damaged anchor must not permanently erase the old field bounds.
+                    BlockPos min = field.tiles().isEmpty() ? building.minPos() : field.min();
+                    BlockPos max = field.tiles().isEmpty() ? building.maxPos() : field.max();
+                    updated = new RegisteredTownBuilding(building.id(), building.type(), field.tier(), building.anchor(),
+                            min, max, field.valid() ? BuildingStatus.ACTIVE : BuildingStatus.NEEDS_INSPECTION,
                             building.output(), building.workers(), day, field.contributingCrops());
                 }
                 int output = BuildingPerformance.calculateOutput(world, data, updated);

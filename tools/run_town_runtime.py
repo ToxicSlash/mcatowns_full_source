@@ -54,6 +54,13 @@ def main():
             raise RuntimeError("Expected one remapped jar for " + mid)
         selected.extend(matches)
     selected.extend((ROOT / "build/town-desktop-inputs/jars").glob("*.jar"))
+    if mode == "server":
+        game_test_jars = [p for p in (ROOT / "build/town-test-runtime").glob("*.jar")
+                          if metadata(p).get("id") == "fabric-gametest-api-v1"]
+        if len(game_test_jars) != 1:
+            raise RuntimeError("Expected standalone production Fabric GameTest module")
+        selected.extend(game_test_jars)
+        print("TOWN_GAMETEST_RUNTIME_STAGED", game_test_jars[0].name, sha(game_test_jars[0]))
     (OUT / "runtime.json").write_text(json.dumps({p.name: sha(p) for p in selected}, indent=2))
     with tempfile.TemporaryDirectory(prefix="town-", dir=os.environ["RUNNER_TEMP"], ignore_cleanup_errors=True) as tmp:
         root = Path(tmp)
@@ -78,7 +85,7 @@ def main():
                     raise RuntimeError("No production GameTest report")
                 xml = ET.parse(report)
                 cases = xml.findall(".//testcase")
-                if len(cases) < 5 or xml.findall(".//failure") or xml.findall(".//error"):
+                if len(cases) < 8 or xml.findall(".//failure") or xml.findall(".//error"):
                     raise RuntimeError("Production GameTest failure or incomplete report")
                 if "TOWN_MCA_WORLD_OK" not in log.read_text(encoding="utf-8", errors="replace"):
                     raise RuntimeError("MCA world marker absent")
@@ -96,9 +103,15 @@ def main():
                     raise RuntimeError("Client title evidence missing")
                 if not marker.read_text().startswith("TOWN_MCA_CLIENT_TITLE_OK"):
                     raise RuntimeError("Invalid client marker")
+                map_marker = run / "town-map-ready.txt"
+                if not map_marker.is_file() or not (run / "town-map.png").is_file():
+                    raise RuntimeError("Blueprint map screenshot evidence missing")
+                if not map_marker.read_text().startswith("TOWN_BLUEPRINT_MAP_OK"):
+                    raise RuntimeError("Invalid blueprint map marker")
                 print(marker.read_text())
+                print(map_marker.read_text())
         finally:
-            for name in ("gametest-results.xml", "town-title-ready.txt", "town-title.png", "logs/latest.log"):
+            for name in ("gametest-results.xml", "town-title-ready.txt", "town-title.png", "town-map-ready.txt", "town-map.png", "logs/latest.log"):
                 src = run / name
                 if src.is_file():
                     shutil.copy2(src, OUT / src.name)

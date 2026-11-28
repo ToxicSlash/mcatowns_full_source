@@ -119,3 +119,21 @@ tasks.register('remapTownProbe', net.fabricmc.loom.task.RemapJarTask) {
     inputFile.set(tasks.named('townProbeJar').flatMap { it.archiveFile })
     archiveClassifier = 'gametest'
 }
+
+// The published Fabric API aggregate omits the development-only GameTest module.
+// Resolve the original intermediary jar, not a Loom-remapped development copy.
+configurations {
+    townGameTestRuntime {
+        transitive = false
+    }
+}
+dependencies {
+    townGameTestRuntime fabricApi.module("fabric-gametest-api-v1", project.fabric_version)
+}
+tasks.register('stageTownGameTestRuntime', Copy) {
+    from configurations.townGameTestRuntime
+    into layout.buildDirectory.dir('town-test-runtime')
+}
+tasks.named('remapTownProbe') {
+    dependsOn tasks.named('stageTownGameTestRuntime')
+}
