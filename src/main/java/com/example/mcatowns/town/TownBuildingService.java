@@ -153,7 +153,8 @@ public final class TownBuildingService {
     public static void periodicDetect(ServerPlayerEntity player) {
         TownContext town = editableTown(player);
         if (!isHoldingBlueprint(player) || town == null) return;
-        TownSavedData data = TownSavedData.get(player.getServerWorld(), town.townId());
+        ServerWorld world = player.getServerWorld();
+        TownSavedData data = TownSavedData.get(world, town.townId());
         BlueprintSessionService.SessionState session = BlueprintSessionService.get(player);
         BlockPos target = detectNearbyPlayer(player);
         if (target != null && "farm".equals(session.inspectionType()) && session.inspectionPassed()
