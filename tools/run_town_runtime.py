@@ -83,7 +83,7 @@ def connected_probe(root, mods, binary, project):
                        "runTownClient"]
             execute(command, root, client_log, 360)
             server_text = server_log.read_text(encoding="utf-8", errors="replace")
-            for marker in ("FOUND_DENIED", "FOUNDED", "REGISTER", "DUPLICATE", "SERVER"):
+            for marker in ("FOUND_DENIED", "FOUNDED", "INFRASTRUCTURE_DENIED", "CAMPFIRE", "REGISTER", "DUPLICATE", "SERVER"):
                 if "TOWN_CONNECTED_" + marker + "_OK" not in server_text:
                     raise RuntimeError("Missing connected server marker: " + marker)
             if not (shared / "town-connected-map.png").is_file() or not (shared / "ack-map").is_file():
@@ -120,7 +120,17 @@ def main():
         if len(matches) != 1:
             raise RuntimeError("Expected one remapped jar for " + mid)
         selected.extend(matches)
-    selected.extend((ROOT / "build/town-desktop-inputs/jars").glob("*.jar"))
+    fixture = ROOT / "build/town-desktop-inputs"
+    manifest = json.loads((fixture / "manifest.json").read_text(encoding="utf-8"))
+    installed = list((fixture / "jars").glob("*.jar"))
+    if mode == "server":
+        names = set(manifest["baseline_jars"])
+        assert names and names <= {p.name for p in installed}, "Missing baseline dependency"
+        installed = [p for p in installed if p.name in names]
+        print("TOWN_BASELINE_RUNTIME", sorted(names))
+    elif "numismatics" not in manifest["roots"]:
+        raise RuntimeError("Connected founding requires installed Numismatics")
+    selected.extend(installed)
     if mode == "server":
         game_test_jars = [p for p in (ROOT / "build/town-test-runtime").glob("*.jar")
                           if metadata(p).get("id") == "fabric-gametest-api-v1"]
@@ -152,7 +162,7 @@ def main():
                     raise RuntimeError("No production GameTest report")
                 xml = ET.parse(report)
                 cases = xml.findall(".//testcase")
-                if len(cases) < 8 or xml.findall(".//failure") or xml.findall(".//error"):
+                if len(cases) < 9 or xml.findall(".//failure") or xml.findall(".//error"):
                     raise RuntimeError("Production GameTest failure or incomplete report")
                 if "TOWN_MCA_WORLD_OK" not in log.read_text(encoding="utf-8", errors="replace"):
                     raise RuntimeError("MCA world marker absent")

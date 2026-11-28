@@ -23,6 +23,7 @@ import java.nio.file.Path;
 public final class TownConnectedServerProbe implements ModInitializer {
     private static final BlockPos BASE = new BlockPos(2, 100, 2);
     private static final BlockPos FARM = BASE.add(8, 0, 0);
+    private static final BlockPos CAMPFIRE = BASE.add(0, 0, 14);
     private Path shared;
     private String phase = "";
     private int age;
@@ -55,6 +56,10 @@ public final class TownConnectedServerProbe implements ModInitializer {
                         world.setBlockState(p, Blocks.FARMLAND.getDefaultState().with(FarmlandBlock.MOISTURE, 7));
                         world.setBlockState(p.up(), Blocks.WHEAT.getDefaultState());
                     }
+                    for (int x = -2; x <= 2; x++) for (int z = -4; z <= 2; z++) {
+                        world.setBlockState(CAMPFIRE.add(x, -1, z), Blocks.STONE.getDefaultState());
+                    }
+                    world.setBlockState(CAMPFIRE, Blocks.CAMPFIRE.getDefaultState());
                     player.getInventory().clear();
                     player.getInventory().selectedSlot = 0;
                     player.getInventory().setStack(0, new ItemStack(Registries.ITEM.get(new Identifier("mca", "blueprint"))));
@@ -91,13 +96,43 @@ public final class TownConnectedServerProbe implements ModInitializer {
                 } else if (phase.equals("inspect")) {
                     var inspection = BlueprintSessionService.get(player);
                     require(inspection.inspectionPassed() && inspection.inspectionType().equals("farm"), "Real farm inspection did not pass");
+                    require(!TownBuildingService.canAllocateInfrastructure(data, TownBuildingDefinition.get("farm")),
+                            "Fresh settlement must not have free community capacity");
+                    advance("blocked_register");
+                } else if (phase.equals("blocked_register")) {
+                    require(data.getRegisteredBuildings().isEmpty(), "Farm registered without community infrastructure");
+                    require(InventoryHelper.count(player.getInventory(), Items.EMERALD) == 16, "Blocked registration charged currency");
+                    System.out.println("TOWN_CONNECTED_INFRASTRUCTURE_DENIED_OK");
+                    player.teleport(world, CAMPFIRE.getX() + .5, CAMPFIRE.getY(), CAMPFIRE.getZ() - 1.5, 0, 25);
+                    BlueprintSessionService.clear(player.getUuid());
+                    advance("campfire_inspect");
+                } else if (phase.equals("campfire_inspect")) {
+                    var session = BlueprintSessionService.get(player);
+                    require(session.inspectionPassed() && session.inspectionType().equals("campfire"),
+                            "Campfire inspection failed: " + session.primaryDetected());
+                    advance("campfire_register");
+                } else if (phase.equals("campfire_register")) {
+                    require(data.getRegisteredBuildings().size() == 1
+                            && data.getRegisteredBuildings().get(0).type().equals("campfire"), "Campfire registration failed");
+                    require(TownBuildingService.canAllocateInfrastructure(data, TownBuildingDefinition.get("farm")),
+                            "Registered campfire did not unlock community capacity");
+                    require(InventoryHelper.count(player.getInventory(), Items.EMERALD) == 16 - campfirePrice(), "Campfire charged wrong currency");
+                    System.out.println("TOWN_CONNECTED_CAMPFIRE_OK");
+                    player.teleport(world, FARM.getX() + .5, FARM.getY(), FARM.getZ() + .5, 0, 0);
+                    BlueprintSessionService.clear(player.getUuid());
+                    advance("farm_inspect");
+                } else if (phase.equals("farm_inspect")) {
+                    require(BlueprintSessionService.get(player).inspectionPassed(), "Farm inspection after community failed");
                     advance("register");
                 } else if (phase.equals("register")) {
-                    require(data.getRegisteredBuildings().size() == 1, "Farm registration failed");
-                    var farm = data.getRegisteredBuildings().get(0);
+                    var session = BlueprintSessionService.get(player);
+                    require(data.getRegisteredBuildings().size() == 2,
+                            "Farm registration failed: inspection=" + session.inspectionPassed() + " target=" + session.inspectionTarget()
+                                    + " community=" + data.getInfrastructureAvailable(InfrastructureType.COMMUNITY));
+                    var farm = data.getRegisteredBuildings().stream().filter(x -> x.type().equals("farm")).findFirst().orElseThrow();
                     require(farm.type().equals("farm") && farm.cropState() == 18, "Farm count incorrect " + farm);
                     int price = TownBuildingDefinition.get("farm").registrationCurrency();
-                    require(InventoryHelper.count(player.getInventory(), Items.EMERALD) == 16 - price, "Wrong registration currency");
+                    require(InventoryHelper.count(player.getInventory(), Items.EMERALD) == 16 - campfirePrice() - price, "Wrong registration currency");
                     System.out.println("TOWN_CONNECTED_REGISTER_OK " + farm.id());
                     player.teleport(world, FARM.getX() + 5.5, FARM.getY(), FARM.getZ() + 2.5, 0, 0);
                     BlueprintSessionService.clear(player.getUuid());
@@ -106,9 +141,9 @@ public final class TownConnectedServerProbe implements ModInitializer {
                     require(BlueprintSessionService.get(player).inspectionPassed(), "Duplicate candidate did not inspect");
                     advance("duplicate_register");
                 } else if (phase.equals("duplicate_register")) {
-                    require(data.getRegisteredBuildings().size() == 1, "Connected farm registered twice");
+                    require(data.getRegisteredBuildings().size() == 2, "Connected farm registered twice");
                     int price = TownBuildingDefinition.get("farm").registrationCurrency();
-                    require(InventoryHelper.count(player.getInventory(), Items.EMERALD) == 16 - price, "Duplicate registration consumed currency");
+                    require(InventoryHelper.count(player.getInventory(), Items.EMERALD) == 16 - campfirePrice() - price, "Duplicate registration consumed currency");
                     System.out.println("TOWN_CONNECTED_DUPLICATE_OK");
                     advance("map");
                 } else if (phase.equals("map")) {
@@ -119,6 +154,10 @@ public final class TownConnectedServerProbe implements ModInitializer {
                 throw new IllegalStateException("Connected Towns probe failed at " + phase, e);
             }
         });
+    }
+
+    private static int campfirePrice() {
+        return TownBuildingDefinition.get("campfire").registrationCurrency();
     }
 
     private void advance(String next) throws Exception {

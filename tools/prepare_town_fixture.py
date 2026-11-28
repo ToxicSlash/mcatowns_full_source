@@ -94,11 +94,7 @@ def ids_in(jar):
         return walk(z)
 
 
-def main():
-    records = [(p, metadata(p)) for p in discover()]
-    records = [(p, m) for p, m in records if m and m.get("environment") != "client"
-               and m.get("id") not in {"automodpack", "mcatowns"}]
-    roots = {"mca", "fabric-api"} | {m["id"] for _, m in records if m["id"] in OPTIONAL}
+def resolve_closure(records, roots):
     required = set(roots)
     provided = set(BUILTINS)
     chosen = {}
@@ -115,10 +111,22 @@ def main():
         chosen[p.name] = p
         provided.update(ids_in(p))
         required.update(m.get("depends", {}))
+    return chosen
+
+
+def main():
+    records = [(p, metadata(p)) for p in discover()]
+    records = [(p, m) for p, m in records if m and m.get("environment") != "client"
+               and m.get("id") not in {"automodpack", "mcatowns"}]
+    roots = {"mca", "fabric-api"} | {m["id"] for _, m in records if m["id"] in OPTIONAL}
+    # Create brings its own GameTests via Numismatics. Keep the original
+    # farming baseline separate; connected gameplay still includes Numismatics.
+    baseline = resolve_closure(records, roots - {"numismatics"})
+    chosen = resolve_closure(records, roots)
     if OUT.exists():
         shutil.rmtree(OUT)
     (OUT / "jars").mkdir(parents=True)
-    manifest = {"roots": sorted(roots), "jars": {}}
+    manifest = {"roots": sorted(roots), "baseline_jars": sorted(baseline), "jars": {}}
     for name, src in chosen.items():
         target = OUT / "jars" / name
         shutil.copy2(src, target)

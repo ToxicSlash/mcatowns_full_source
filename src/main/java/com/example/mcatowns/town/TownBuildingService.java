@@ -156,6 +156,15 @@ public final class TownBuildingService {
         TownSavedData data = TownSavedData.get(player.getServerWorld(), town.townId());
         BlueprintSessionService.SessionState session = BlueprintSessionService.get(player);
         BlockPos target = detectNearbyPlayer(player);
+        if (target != null && "farm".equals(session.inspectionType()) && session.inspectionPassed()
+                && !session.inspectionTarget().equals(BlockPos.ORIGIN)) {
+            var field = FarmFieldScanner.scan(world, target);
+            BlockPos inspected = FarmFieldScanner.farmlandAt(world, session.inspectionTarget());
+            if (inspected != null && field.tiles().contains(inspected)) {
+                // Keep the explicit inspection of this field while nearby automatic detection changes seed.
+                target = session.primaryDetected();
+            }
+        }
         if (target != null) {
             BlockPos detectedTarget = target;
             if (data.getRegisteredBuildings().stream()

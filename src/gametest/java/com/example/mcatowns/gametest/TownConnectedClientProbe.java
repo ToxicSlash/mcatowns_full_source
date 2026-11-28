@@ -35,8 +35,10 @@ public final class TownConnectedClientProbe implements ClientModInitializer {
                 if (!sent) {
                     switch (phase) {
                         case "deny", "found" -> ModNetworking.sendFoundTown();
-                        case "inspect", "duplicate_inspect" -> ModNetworking.sendInspectTownBuilding("farm");
-                        case "register", "duplicate_register" -> ModNetworking.sendRegisterTownBuilding("farm");
+                        case "inspect", "farm_inspect", "duplicate_inspect" -> ModNetworking.sendInspectTownBuilding("farm");
+                        case "blocked_register", "register", "duplicate_register" -> ModNetworking.sendRegisterTownBuilding("farm");
+                        case "campfire_inspect" -> ModNetworking.sendInspectTownBuilding("campfire");
+                        case "campfire_register" -> ModNetworking.sendRegisterTownBuilding("campfire");
                         case "map" -> ModNetworking.sendOpenTownBlueprint();
                         case "complete" -> {
                             done = true;
@@ -53,8 +55,8 @@ public final class TownConnectedClientProbe implements ClientModInitializer {
                 if (phase.equals("map") && ticks >= 60 && !Files.exists(shared.resolve("ack-map"))
                         && client.currentScreen instanceof TownBlueprintScreen) {
                     var view = McaBlueprintScreenBridge.getView();
-                    if (view == null || view.founding() || view.registeredBuildings().size() != 1) return;
-                    var farm = view.registeredBuildings().get(0);
+                    if (view == null || view.founding() || view.registeredBuildings().size() != 2) return;
+                    var farm = view.registeredBuildings().stream().filter(x -> x.type().equals("farm")).findFirst().orElseThrow();
                     if (!farm.type().equals("farm") || farm.enclosed() || farm.cropState() != 18
                             || farm.footprint().size() != 18 || !view.canManage()) {
                         throw new IllegalStateException("Server-fed farm view wrong: " + farm);

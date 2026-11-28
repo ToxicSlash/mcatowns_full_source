@@ -157,6 +157,13 @@ public final class TownWorldGameTests implements FabricGameTest {
     }
 
     @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE)
+    public void furnishedRoomKeepsWallFootprint(TestContext context) {
+        Set<BlockPos> interior = new HashSet<>();
+        for (int x = 2; x <= 5; x++) for (int z = 2; z <= 5; z++) interior.add(new BlockPos(x, 2, z));
+        assertRoom(context, interior, new BlockPos(3, 2, 3), 16, false, true);
+    }
+
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE)
     public void registeredFarmSaveDataAndDuplicateGuard(TestContext context) {
         for (int x = 1; x <= 6; x++) for (int z = 1; z <= 3; z++) {
             context.setBlockState(new BlockPos(x, 1, z), Blocks.DIRT);
@@ -185,6 +192,10 @@ public final class TownWorldGameTests implements FabricGameTest {
     }
 
     private static void assertRoom(TestContext context, Set<BlockPos> interior, BlockPos start, int perimeter, boolean openings) {
+        assertRoom(context, interior, start, perimeter, openings, false);
+    }
+
+    private static void assertRoom(TestContext context, Set<BlockPos> interior, BlockPos start, int perimeter, boolean openings, boolean furniture) {
         // Floor and roof deliberately extend outside the actual wall boundary.
         for (int x = 0; x < 8; x++) {
             for (int z = 0; z < 8; z++) {
@@ -208,6 +219,12 @@ public final class TownWorldGameTests implements FabricGameTest {
                     net.minecraft.block.enums.DoubleBlockHalf.UPPER));
             context.setBlockState(new BlockPos(3, 3, 1), Blocks.GLASS_PANE);
             for (int x = 0; x < 8; x++) context.setBlockState(new BlockPos(x, 4, 0), Blocks.OAK_SLAB);
+        }
+        if (furniture) {
+            context.setBlockState(new BlockPos(2, 2, 2), Blocks.CRAFTING_TABLE);
+            context.setBlockState(new BlockPos(3, 2, 2), Blocks.BARREL);
+            context.setBlockState(new BlockPos(4, 2, 2), Blocks.FURNACE);
+            context.setBlockState(new BlockPos(5, 2, 4), Blocks.BOOKSHELF);
         }
         var detected = TownBuildingService.describeDetectedStructure(context.getWorld(), context.getAbsolutePos(start));
         context.assertTrue(detected.isPresent(), "Enclosed building must be detected");
