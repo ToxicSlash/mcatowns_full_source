@@ -1,16 +1,16 @@
 # MCA Towns — current handoff
 
-Branch dev only; keep main unchanged. Fabric 1.20.1 / Java 17 compile, Java 21 reduced production fixture. Founding requires one Numismatics Crown currency and ten scraps; user confirmed retain.
+Branch dev only; keep main unchanged. Fabric 1.20.1 / Java 17 compile, Java 21 reduced production fixture. Founding requires one Numismatics Crown currency and ten scraps; retain.
 
 ## Verified checkpoint
-- 4a2b62b: Linux 46121911950 passed; DevHub 46121911910 visual passed actual owner and visitor sequential login, all founding/costs, campfire/farm/residence, duplicate farm and second-room duplicate residence rejection, server-fed map, visitor read-only and denial of founding, rename, tax, remove town, inspect/register/remove building, no currency loss. Background all 12 world tests passed, but remote restart failed after saved outline/no-load check passed: full building record changed after refresh. Same failure in 46121795657. Prior d82ca3e ordinary restart passed saved footprint and 12 world tests. MCA bell mca_0 binding verified; native house lookup still not-detected; mature native village unproved.
-- Verified crop compatibility: 13 crop and 6 soil types; weeds excluded. Rectangular/L/U, furnished, connected/disconnected rooms, doors and roof overhangs verified. Anchor recovery 17 crops, UUID preserved. External Create tests TestFluids.thresholdSwitch and TestItems.attributeFilters remain unresolved; split runtime fixture verified.
-- Read shared DEVHUB_RUNNER_STANDARD.md before modifying workflows. Original pack untouched.
+- 8d4df69: standard 46125938131 and DevHub 46125938080 both passed. All 13 production GameTests, actual remote farm restart with no chunk load while viewing or refreshing geometry, derived infrastructure transition while unloaded, real crops after load. Owner and visitor client runs passed including native bell candidate binding mca_0, founding costs, community/farm/residence progression, duplicate field and house rejection, real server-fed map, non-owner mutation denial. Native MCA house lookup still not-detected; mature village not verified.
+- 13 modded crop and 6 soil types; weeds excluded; rect/L/U, furnished, connected/disconnected rooms, doors and overhangs, persistent footprints, 17-crop anchor recovery with UUID preserved. External Create tests TestFluids.thresholdSwitch and TestItems.attributeFilters remain unresolved; split fixture verified.
+- Read shared DEVHUB_RUNNER_STANDARD.md; original pack untouched.
 
 ## Active batch
-- Remote restart created an ACTIVE farm with no community/workers; town-wide refresh legitimately changed its derived status. Initialize fixture with normal derived status before save, retain exact full-record and footprint equality when unchanged, add positive offline infrastructure transition assertion (blocked to understaffed, all other fields unchanged, no chunk load). Require both markers. Not a confirmed chunk-loading defect.
-- Production inspection skips all buildings with unloaded bounds, reuses farm scan for persisted geometry instead of scanning twice, only draws farm tiles for farms, excludes open structures from enclosure outlines; new open-structure marker regression. 13 required production world tests. Pending verification.
-- Outstanding: native MCA house recognition, mature village, multi-level/stepped outlines, broader stage 3 profiling and full-pack integration. Continue from latest actual run, not an earlier green run.
+- Stage 3 first optimisation pass: 67 primitive/String setters mark dirty only for actual changes; added dirty-state unit regression. Periodic detection checks blueprint before ownership lookup; nearest farm selection returns soil seed without redundant connected scan; nearby marker/furniture queries skip unloaded/out-of-border positions. Minecraft profiler sections for blueprint detection/town tick/town simulation. Staffed farm weed cache keyed by actual ServerWorld instead of reused dimension name, cleared on world unload; reuse refreshed list for maintenance rather than rebuilding it twice.
+- Pending consolidated tests. No measured TPS improvement yet; profiler sections enable next measurement. No change to weed chance, crop thresholds, town progression, currency or maintenance interval.
+- Outstanding: mature/native MCA building recognition, multi-level/stepped floor geometry, further profiling and cache invalidation, actual full-pack integration. Stages 1/2 core acceptance verified but native/vertical gaps still open.
 
 ## Stages
 1. Essential regression infrastructure, real MCA/player founding, authority and gameplay.

@@ -11,6 +11,24 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 
 class TownSavedDataTest {
     @Test
+    void unchangedValuesDoNotDirtyTownSave() {
+        TownSavedData data = TownSavedData.create();
+        data.setDirty(false);
+        data.setTreasury(data.getTreasury());
+        data.setPopulation(data.getPopulation());
+        data.setWorkforceAvailable(data.getWorkforceAvailable());
+        data.setWorkforceRequired(data.getWorkforceRequired());
+        data.setWorkforceEfficiencyPercent(data.getWorkforceEfficiencyPercent());
+        data.setLastCaravanType(data.getLastCaravanType());
+        org.junit.jupiter.api.Assertions.assertFalse(data.isDirty());
+        data.setTreasury(data.getTreasury() + 1);
+        org.junit.jupiter.api.Assertions.assertTrue(data.isDirty());
+        data.setDirty(false);
+        data.setLastCaravanType("test");
+        org.junit.jupiter.api.Assertions.assertTrue(data.isDirty());
+    }
+
+    @Test
     void malformedSavedEnumsAndUnsafeBuildingValuesFallBackSafely() {
         NbtCompound nbt = new NbtCompound();
         nbt.putString("TownRank", "NOT_A_REAL_RANK");

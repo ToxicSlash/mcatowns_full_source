@@ -430,76 +430,76 @@ public class TownSavedData extends PersistentState {
     }
 
     public int getTreasury() { return treasury; }
-    public void setTreasury(int treasury) { this.treasury = treasury; markDirty(); }
+    public void setTreasury(int treasury) { if (this.treasury != treasury) { this.treasury = treasury; markDirty(); } }
 
     public int getHappiness() { return happiness; }
-    public void setHappiness(int happiness) { this.happiness = happiness; markDirty(); }
+    public void setHappiness(int happiness) { if (this.happiness != happiness) { this.happiness = happiness; markDirty(); } }
 
     public int getFoodReserves() { return foodReserves; }
-    public void setFoodReserves(int foodReserves) { this.foodReserves = foodReserves; markDirty(); }
+    public void setFoodReserves(int foodReserves) { if (this.foodReserves != foodReserves) { this.foodReserves = foodReserves; markDirty(); } }
 
     public int getWeeklyTaxIncome() { return weeklyTaxIncome; }
-    public void setWeeklyTaxIncome(int weeklyTaxIncome) { this.weeklyTaxIncome = weeklyTaxIncome; markDirty(); }
+    public void setWeeklyTaxIncome(int weeklyTaxIncome) { if (this.weeklyTaxIncome != weeklyTaxIncome) { this.weeklyTaxIncome = weeklyTaxIncome; markDirty(); } }
 
     public int getPopulation() { return population; }
-    public void setPopulation(int population) { this.population = population; markDirty(); }
+    public void setPopulation(int population) { if (this.population != population) { this.population = population; markDirty(); } }
 
     public int getJobless() { return jobless; }
-    public void setJobless(int jobless) { this.jobless = jobless; markDirty(); }
+    public void setJobless(int jobless) { if (this.jobless != jobless) { this.jobless = jobless; markDirty(); } }
 
     public int getDefenseRating() { return defenseRating; }
-    public void setDefenseRating(int defenseRating) { this.defenseRating = defenseRating; markDirty(); }
+    public void setDefenseRating(int defenseRating) { if (this.defenseRating != defenseRating) { this.defenseRating = defenseRating; markDirty(); } }
 
     public int getUnrest() { return unrest; }
-    public void setUnrest(int unrest) { this.unrest = unrest; markDirty(); }
+    public void setUnrest(int unrest) { if (this.unrest != unrest) { this.unrest = unrest; markDirty(); } }
 
     public int getBarracksLevel() { return barracksLevel; }
-    public void setBarracksLevel(int barracksLevel) { this.barracksLevel = barracksLevel; markDirty(); }
+    public void setBarracksLevel(int barracksLevel) { if (this.barracksLevel != barracksLevel) { this.barracksLevel = barracksLevel; markDirty(); } }
 
     public int getTaxRate() { return taxRate; }
-    public void setTaxRate(int taxRate) { this.taxRate = taxRate; markDirty(); }
+    public void setTaxRate(int taxRate) { if (this.taxRate != taxRate) { this.taxRate = taxRate; markDirty(); } }
 
     public int getImmigrationChance() { return immigrationChance; }
-    public void setImmigrationChance(int immigrationChance) { this.immigrationChance = immigrationChance; markDirty(); }
+    public void setImmigrationChance(int immigrationChance) { if (this.immigrationChance != immigrationChance) { this.immigrationChance = immigrationChance; markDirty(); } }
 
     public int getBuildingBonusScore() { return buildingBonusScore; }
-    public void setBuildingBonusScore(int buildingBonusScore) { this.buildingBonusScore = buildingBonusScore; markDirty(); }
+    public void setBuildingBonusScore(int buildingBonusScore) { if (this.buildingBonusScore != buildingBonusScore) { this.buildingBonusScore = buildingBonusScore; markDirty(); } }
 
     public int getDailyFoodConsumed() { return dailyFoodConsumed; }
-    public void setDailyFoodConsumed(int dailyFoodConsumed) { this.dailyFoodConsumed = dailyFoodConsumed; markDirty(); }
+    public void setDailyFoodConsumed(int dailyFoodConsumed) { if (this.dailyFoodConsumed != dailyFoodConsumed) { this.dailyFoodConsumed = dailyFoodConsumed; markDirty(); } }
 
     public int getDailyFoodProduced() { return dailyFoodProduced; }
-    public void setDailyFoodProduced(int dailyFoodProduced) { this.dailyFoodProduced = dailyFoodProduced; markDirty(); }
+    public void setDailyFoodProduced(int dailyFoodProduced) { if (this.dailyFoodProduced != dailyFoodProduced) { this.dailyFoodProduced = dailyFoodProduced; markDirty(); } }
 
     public int getDetectedQuarryBuildings() { return detectedQuarryBuildings; }
-    public void setDetectedQuarryBuildings(int detectedQuarryBuildings) { this.detectedQuarryBuildings = detectedQuarryBuildings; markDirty(); }
+    public void setDetectedQuarryBuildings(int detectedQuarryBuildings) { if (this.detectedQuarryBuildings != detectedQuarryBuildings) { this.detectedQuarryBuildings = detectedQuarryBuildings; markDirty(); } }
 
     public int getDetectedWorkshopBuildings() { return detectedWorkshopBuildings; }
-    public void setDetectedWorkshopBuildings(int detectedWorkshopBuildings) { this.detectedWorkshopBuildings = detectedWorkshopBuildings; markDirty(); }
+    public void setDetectedWorkshopBuildings(int detectedWorkshopBuildings) { if (this.detectedWorkshopBuildings != detectedWorkshopBuildings) { this.detectedWorkshopBuildings = detectedWorkshopBuildings; markDirty(); } }
 
     public int getDetectedMarketBuildings() { return detectedMarketBuildings; }
-    public void setDetectedMarketBuildings(int detectedMarketBuildings) { this.detectedMarketBuildings = detectedMarketBuildings; markDirty(); }
+    public void setDetectedMarketBuildings(int detectedMarketBuildings) { if (this.detectedMarketBuildings != detectedMarketBuildings) { this.detectedMarketBuildings = detectedMarketBuildings; markDirty(); } }
 
     public int getDetectedTradingPostBuildings() { return detectedTradingPostBuildings; }
-    public void setDetectedTradingPostBuildings(int detectedTradingPostBuildings) { this.detectedTradingPostBuildings = detectedTradingPostBuildings; markDirty(); }
+    public void setDetectedTradingPostBuildings(int detectedTradingPostBuildings) { if (this.detectedTradingPostBuildings != detectedTradingPostBuildings) { this.detectedTradingPostBuildings = detectedTradingPostBuildings; markDirty(); } }
 
     public int getDetectedCropFarmBuildings() { return detectedCropFarmBuildings; }
-    public void setDetectedCropFarmBuildings(int detectedCropFarmBuildings) { this.detectedCropFarmBuildings = detectedCropFarmBuildings; markDirty(); }
+    public void setDetectedCropFarmBuildings(int detectedCropFarmBuildings) { if (this.detectedCropFarmBuildings != detectedCropFarmBuildings) { this.detectedCropFarmBuildings = detectedCropFarmBuildings; markDirty(); } }
 
     public int getInvalidCropFarmBuildings() { return invalidCropFarmBuildings; }
-    public void setInvalidCropFarmBuildings(int invalidCropFarmBuildings) { this.invalidCropFarmBuildings = invalidCropFarmBuildings; markDirty(); }
+    public void setInvalidCropFarmBuildings(int invalidCropFarmBuildings) { if (this.invalidCropFarmBuildings != invalidCropFarmBuildings) { this.invalidCropFarmBuildings = invalidCropFarmBuildings; markDirty(); } }
 
     public int getActiveBakeryBuildings() { return activeBakeryBuildings; }
-    public void setActiveBakeryBuildings(int activeBakeryBuildings) { this.activeBakeryBuildings = activeBakeryBuildings; markDirty(); }
+    public void setActiveBakeryBuildings(int activeBakeryBuildings) { if (this.activeBakeryBuildings != activeBakeryBuildings) { this.activeBakeryBuildings = activeBakeryBuildings; markDirty(); } }
 
     public int getInactiveBakeryBuildings() { return inactiveBakeryBuildings; }
-    public void setInactiveBakeryBuildings(int inactiveBakeryBuildings) { this.inactiveBakeryBuildings = inactiveBakeryBuildings; markDirty(); }
+    public void setInactiveBakeryBuildings(int inactiveBakeryBuildings) { if (this.inactiveBakeryBuildings != inactiveBakeryBuildings) { this.inactiveBakeryBuildings = inactiveBakeryBuildings; markDirty(); } }
 
     public int getDetectedButcherBuildings() { return detectedButcherBuildings; }
-    public void setDetectedButcherBuildings(int detectedButcherBuildings) { this.detectedButcherBuildings = detectedButcherBuildings; markDirty(); }
+    public void setDetectedButcherBuildings(int detectedButcherBuildings) { if (this.detectedButcherBuildings != detectedButcherBuildings) { this.detectedButcherBuildings = detectedButcherBuildings; markDirty(); } }
 
     public int getDetectedFishermansHutBuildings() { return detectedFishermansHutBuildings; }
-    public void setDetectedFishermansHutBuildings(int detectedFishermansHutBuildings) { this.detectedFishermansHutBuildings = detectedFishermansHutBuildings; markDirty(); }
+    public void setDetectedFishermansHutBuildings(int detectedFishermansHutBuildings) { if (this.detectedFishermansHutBuildings != detectedFishermansHutBuildings) { this.detectedFishermansHutBuildings = detectedFishermansHutBuildings; markDirty(); } }
 
     public boolean isTradingPostLinked() { return tradingPostLinked; }
     public void setTradingPostLinked(boolean tradingPostLinked) {
@@ -510,55 +510,55 @@ public class TownSavedData extends PersistentState {
     }
 
     public int getDailyQuarryYield() { return dailyQuarryYield; }
-    public void setDailyQuarryYield(int dailyQuarryYield) { this.dailyQuarryYield = dailyQuarryYield; markDirty(); }
+    public void setDailyQuarryYield(int dailyQuarryYield) { if (this.dailyQuarryYield != dailyQuarryYield) { this.dailyQuarryYield = dailyQuarryYield; markDirty(); } }
 
     public int getDailyFoodPotential() { return dailyFoodPotential; }
-    public void setDailyFoodPotential(int dailyFoodPotential) { this.dailyFoodPotential = dailyFoodPotential; markDirty(); }
+    public void setDailyFoodPotential(int dailyFoodPotential) { if (this.dailyFoodPotential != dailyFoodPotential) { this.dailyFoodPotential = dailyFoodPotential; markDirty(); } }
 
     public String getActiveRandomEvent() { return activeRandomEvent; }
-    public void setActiveRandomEvent(String activeRandomEvent) { this.activeRandomEvent = activeRandomEvent; markDirty(); }
+    public void setActiveRandomEvent(String activeRandomEvent) { if (!Objects.equals(this.activeRandomEvent, activeRandomEvent)) { this.activeRandomEvent = activeRandomEvent; markDirty(); } }
 
     public long getActiveRandomEventUntilDay() { return activeRandomEventUntilDay; }
-    public void setActiveRandomEventUntilDay(long activeRandomEventUntilDay) { this.activeRandomEventUntilDay = activeRandomEventUntilDay; markDirty(); }
+    public void setActiveRandomEventUntilDay(long activeRandomEventUntilDay) { if (this.activeRandomEventUntilDay != activeRandomEventUntilDay) { this.activeRandomEventUntilDay = activeRandomEventUntilDay; markDirty(); } }
 
     public long getLastRandomEventDay() { return lastRandomEventDay; }
-    public void setLastRandomEventDay(long lastRandomEventDay) { this.lastRandomEventDay = lastRandomEventDay; markDirty(); }
+    public void setLastRandomEventDay(long lastRandomEventDay) { if (this.lastRandomEventDay != lastRandomEventDay) { this.lastRandomEventDay = lastRandomEventDay; markDirty(); } }
 
     public long getNextRandomEventDay() { return nextRandomEventDay; }
-    public void setNextRandomEventDay(long nextRandomEventDay) { this.nextRandomEventDay = nextRandomEventDay; markDirty(); }
+    public void setNextRandomEventDay(long nextRandomEventDay) { if (this.nextRandomEventDay != nextRandomEventDay) { this.nextRandomEventDay = nextRandomEventDay; markDirty(); } }
 
     public int getEventFarmOutputPercent() { return eventFarmOutputPercent; }
-    public void setEventFarmOutputPercent(int eventFarmOutputPercent) { this.eventFarmOutputPercent = eventFarmOutputPercent; markDirty(); }
+    public void setEventFarmOutputPercent(int eventFarmOutputPercent) { if (this.eventFarmOutputPercent != eventFarmOutputPercent) { this.eventFarmOutputPercent = eventFarmOutputPercent; markDirty(); } }
 
     public int getEventQuarryOutputPercent() { return eventQuarryOutputPercent; }
-    public void setEventQuarryOutputPercent(int eventQuarryOutputPercent) { this.eventQuarryOutputPercent = eventQuarryOutputPercent; markDirty(); }
+    public void setEventQuarryOutputPercent(int eventQuarryOutputPercent) { if (this.eventQuarryOutputPercent != eventQuarryOutputPercent) { this.eventQuarryOutputPercent = eventQuarryOutputPercent; markDirty(); } }
 
     public int getEventTaxPercent() { return eventTaxPercent; }
-    public void setEventTaxPercent(int eventTaxPercent) { this.eventTaxPercent = eventTaxPercent; markDirty(); }
+    public void setEventTaxPercent(int eventTaxPercent) { if (this.eventTaxPercent != eventTaxPercent) { this.eventTaxPercent = eventTaxPercent; markDirty(); } }
 
     public int getEventWorkforcePercent() { return eventWorkforcePercent; }
-    public void setEventWorkforcePercent(int eventWorkforcePercent) { this.eventWorkforcePercent = eventWorkforcePercent; markDirty(); }
+    public void setEventWorkforcePercent(int eventWorkforcePercent) { if (this.eventWorkforcePercent != eventWorkforcePercent) { this.eventWorkforcePercent = eventWorkforcePercent; markDirty(); } }
 
     public int getEventDefenseBonus() { return eventDefenseBonus; }
-    public void setEventDefenseBonus(int eventDefenseBonus) { this.eventDefenseBonus = eventDefenseBonus; markDirty(); }
+    public void setEventDefenseBonus(int eventDefenseBonus) { if (this.eventDefenseBonus != eventDefenseBonus) { this.eventDefenseBonus = eventDefenseBonus; markDirty(); } }
 
     public int getEventHappinessModifier() { return eventHappinessModifier; }
-    public void setEventHappinessModifier(int eventHappinessModifier) { this.eventHappinessModifier = eventHappinessModifier; markDirty(); }
+    public void setEventHappinessModifier(int eventHappinessModifier) { if (this.eventHappinessModifier != eventHappinessModifier) { this.eventHappinessModifier = eventHappinessModifier; markDirty(); } }
 
     public int getEventExtraFoodDemand() { return eventExtraFoodDemand; }
-    public void setEventExtraFoodDemand(int eventExtraFoodDemand) { this.eventExtraFoodDemand = eventExtraFoodDemand; markDirty(); }
+    public void setEventExtraFoodDemand(int eventExtraFoodDemand) { if (this.eventExtraFoodDemand != eventExtraFoodDemand) { this.eventExtraFoodDemand = eventExtraFoodDemand; markDirty(); } }
 
     public int getRefugeePopulationBonus() { return refugeePopulationBonus; }
-    public void setRefugeePopulationBonus(int refugeePopulationBonus) { this.refugeePopulationBonus = refugeePopulationBonus; markDirty(); }
+    public void setRefugeePopulationBonus(int refugeePopulationBonus) { if (this.refugeePopulationBonus != refugeePopulationBonus) { this.refugeePopulationBonus = refugeePopulationBonus; markDirty(); } }
 
     public int getWorkforceAvailable() { return workforceAvailable; }
-    public void setWorkforceAvailable(int workforceAvailable) { this.workforceAvailable = workforceAvailable; markDirty(); }
+    public void setWorkforceAvailable(int workforceAvailable) { if (this.workforceAvailable != workforceAvailable) { this.workforceAvailable = workforceAvailable; markDirty(); } }
 
     public int getWorkforceRequired() { return workforceRequired; }
-    public void setWorkforceRequired(int workforceRequired) { this.workforceRequired = workforceRequired; markDirty(); }
+    public void setWorkforceRequired(int workforceRequired) { if (this.workforceRequired != workforceRequired) { this.workforceRequired = workforceRequired; markDirty(); } }
 
     public int getWorkforceEfficiencyPercent() { return workforceEfficiencyPercent; }
-    public void setWorkforceEfficiencyPercent(int workforceEfficiencyPercent) { this.workforceEfficiencyPercent = workforceEfficiencyPercent; markDirty(); }
+    public void setWorkforceEfficiencyPercent(int workforceEfficiencyPercent) { if (this.workforceEfficiencyPercent != workforceEfficiencyPercent) { this.workforceEfficiencyPercent = workforceEfficiencyPercent; markDirty(); } }
 
     public int getBusinessActivityScore() { return businessActivityScore; }
     public void setBusinessActivityScore(int businessActivityScore) {
@@ -569,43 +569,43 @@ public class TownSavedData extends PersistentState {
     }
 
     public int getBusinessTaxBonusPercent() { return businessTaxBonusPercent; }
-    public void setBusinessTaxBonusPercent(int businessTaxBonusPercent) { this.businessTaxBonusPercent = businessTaxBonusPercent; markDirty(); }
+    public void setBusinessTaxBonusPercent(int businessTaxBonusPercent) { if (this.businessTaxBonusPercent != businessTaxBonusPercent) { this.businessTaxBonusPercent = businessTaxBonusPercent; markDirty(); } }
 
     public long getLastCaravanDay() { return lastCaravanDay; }
-    public void setLastCaravanDay(long lastCaravanDay) { this.lastCaravanDay = lastCaravanDay; markDirty(); }
+    public void setLastCaravanDay(long lastCaravanDay) { if (this.lastCaravanDay != lastCaravanDay) { this.lastCaravanDay = lastCaravanDay; markDirty(); } }
 
     public long getNextCaravanDay() { return nextCaravanDay; }
-    public void setNextCaravanDay(long nextCaravanDay) { this.nextCaravanDay = nextCaravanDay; markDirty(); }
+    public void setNextCaravanDay(long nextCaravanDay) { if (this.nextCaravanDay != nextCaravanDay) { this.nextCaravanDay = nextCaravanDay; markDirty(); } }
 
     public String getLastCaravanType() { return lastCaravanType; }
-    public void setLastCaravanType(String lastCaravanType) { this.lastCaravanType = lastCaravanType; markDirty(); }
+    public void setLastCaravanType(String lastCaravanType) { if (!Objects.equals(this.lastCaravanType, lastCaravanType)) { this.lastCaravanType = lastCaravanType; markDirty(); } }
 
     public int getCaravanDefenseBonus() { return caravanDefenseBonus; }
-    public void setCaravanDefenseBonus(int caravanDefenseBonus) { this.caravanDefenseBonus = caravanDefenseBonus; markDirty(); }
+    public void setCaravanDefenseBonus(int caravanDefenseBonus) { if (this.caravanDefenseBonus != caravanDefenseBonus) { this.caravanDefenseBonus = caravanDefenseBonus; markDirty(); } }
 
     public long getCaravanDefenseUntilDay() { return caravanDefenseUntilDay; }
-    public void setCaravanDefenseUntilDay(long caravanDefenseUntilDay) { this.caravanDefenseUntilDay = caravanDefenseUntilDay; markDirty(); }
+    public void setCaravanDefenseUntilDay(long caravanDefenseUntilDay) { if (this.caravanDefenseUntilDay != caravanDefenseUntilDay) { this.caravanDefenseUntilDay = caravanDefenseUntilDay; markDirty(); } }
 
     public int getCaravanPopulationBonus() { return caravanPopulationBonus; }
-    public void setCaravanPopulationBonus(int caravanPopulationBonus) { this.caravanPopulationBonus = caravanPopulationBonus; markDirty(); }
+    public void setCaravanPopulationBonus(int caravanPopulationBonus) { if (this.caravanPopulationBonus != caravanPopulationBonus) { this.caravanPopulationBonus = caravanPopulationBonus; markDirty(); } }
 
     public long getCaravanPopulationUntilDay() { return caravanPopulationUntilDay; }
-    public void setCaravanPopulationUntilDay(long caravanPopulationUntilDay) { this.caravanPopulationUntilDay = caravanPopulationUntilDay; markDirty(); }
+    public void setCaravanPopulationUntilDay(long caravanPopulationUntilDay) { if (this.caravanPopulationUntilDay != caravanPopulationUntilDay) { this.caravanPopulationUntilDay = caravanPopulationUntilDay; markDirty(); } }
 
     public boolean hasTreasuryBuilding() { return hasTreasuryBuilding; }
-    public void setHasTreasuryBuilding(boolean hasTreasuryBuilding) { this.hasTreasuryBuilding = hasTreasuryBuilding; markDirty(); }
+    public void setHasTreasuryBuilding(boolean hasTreasuryBuilding) { if (this.hasTreasuryBuilding != hasTreasuryBuilding) { this.hasTreasuryBuilding = hasTreasuryBuilding; markDirty(); } }
 
     public int getDetectedTreasuryBuildings() { return detectedTreasuryBuildings; }
-    public void setDetectedTreasuryBuildings(int detectedTreasuryBuildings) { this.detectedTreasuryBuildings = detectedTreasuryBuildings; markDirty(); }
+    public void setDetectedTreasuryBuildings(int detectedTreasuryBuildings) { if (this.detectedTreasuryBuildings != detectedTreasuryBuildings) { this.detectedTreasuryBuildings = detectedTreasuryBuildings; markDirty(); } }
 
     public int getDetectedBarracksBuildings() { return detectedBarracksBuildings; }
-    public void setDetectedBarracksBuildings(int detectedBarracksBuildings) { this.detectedBarracksBuildings = detectedBarracksBuildings; markDirty(); }
+    public void setDetectedBarracksBuildings(int detectedBarracksBuildings) { if (this.detectedBarracksBuildings != detectedBarracksBuildings) { this.detectedBarracksBuildings = detectedBarracksBuildings; markDirty(); } }
 
     public int getDetectedArmoryBuildings() { return detectedArmoryBuildings; }
-    public void setDetectedArmoryBuildings(int detectedArmoryBuildings) { this.detectedArmoryBuildings = detectedArmoryBuildings; markDirty(); }
+    public void setDetectedArmoryBuildings(int detectedArmoryBuildings) { if (this.detectedArmoryBuildings != detectedArmoryBuildings) { this.detectedArmoryBuildings = detectedArmoryBuildings; markDirty(); } }
 
     public int getDetectedTownHallBuildings() { return detectedTownHallBuildings; }
-    public void setDetectedTownHallBuildings(int detectedTownHallBuildings) { this.detectedTownHallBuildings = detectedTownHallBuildings; markDirty(); }
+    public void setDetectedTownHallBuildings(int detectedTownHallBuildings) { if (this.detectedTownHallBuildings != detectedTownHallBuildings) { this.detectedTownHallBuildings = detectedTownHallBuildings; markDirty(); } }
 
     public TownRank getTownRank() { return townRank; }
     public String getTownName() { return townName; }
@@ -905,43 +905,43 @@ public class TownSavedData extends PersistentState {
     }
 
     public int getMcaNormalTaxIncome() { return mcaNormalTaxIncome; }
-    public void setMcaNormalTaxIncome(int mcaNormalTaxIncome) { this.mcaNormalTaxIncome = mcaNormalTaxIncome; markDirty(); }
+    public void setMcaNormalTaxIncome(int mcaNormalTaxIncome) { if (this.mcaNormalTaxIncome != mcaNormalTaxIncome) { this.mcaNormalTaxIncome = mcaNormalTaxIncome; markDirty(); } }
 
     public int getWeightedMcaTaxIncome() { return weightedMcaTaxIncome; }
-    public void setWeightedMcaTaxIncome(int weightedMcaTaxIncome) { this.weightedMcaTaxIncome = weightedMcaTaxIncome; markDirty(); }
+    public void setWeightedMcaTaxIncome(int weightedMcaTaxIncome) { if (this.weightedMcaTaxIncome != weightedMcaTaxIncome) { this.weightedMcaTaxIncome = weightedMcaTaxIncome; markDirty(); } }
 
     public int getAddonTaxIncomeBase() { return addonTaxIncomeBase; }
-    public void setAddonTaxIncomeBase(int addonTaxIncomeBase) { this.addonTaxIncomeBase = addonTaxIncomeBase; markDirty(); }
+    public void setAddonTaxIncomeBase(int addonTaxIncomeBase) { if (this.addonTaxIncomeBase != addonTaxIncomeBase) { this.addonTaxIncomeBase = addonTaxIncomeBase; markDirty(); } }
 
     public int getWeeklyAddonTaxContribution() { return weeklyAddonTaxContribution; }
-    public void setWeeklyAddonTaxContribution(int weeklyAddonTaxContribution) { this.weeklyAddonTaxContribution = weeklyAddonTaxContribution; markDirty(); }
+    public void setWeeklyAddonTaxContribution(int weeklyAddonTaxContribution) { if (this.weeklyAddonTaxContribution != weeklyAddonTaxContribution) { this.weeklyAddonTaxContribution = weeklyAddonTaxContribution; markDirty(); } }
 
     public int getWeeklyMcaTaxContribution() { return weeklyMcaTaxContribution; }
-    public void setWeeklyMcaTaxContribution(int weeklyMcaTaxContribution) { this.weeklyMcaTaxContribution = weeklyMcaTaxContribution; markDirty(); }
+    public void setWeeklyMcaTaxContribution(int weeklyMcaTaxContribution) { if (this.weeklyMcaTaxContribution != weeklyMcaTaxContribution) { this.weeklyMcaTaxContribution = weeklyMcaTaxContribution; markDirty(); } }
 
     public int getPendingEmeraldPayout() { return pendingEmeraldPayout; }
-    public void setPendingEmeraldPayout(int pendingEmeraldPayout) { this.pendingEmeraldPayout = pendingEmeraldPayout; markDirty(); }
+    public void setPendingEmeraldPayout(int pendingEmeraldPayout) { if (this.pendingEmeraldPayout != pendingEmeraldPayout) { this.pendingEmeraldPayout = pendingEmeraldPayout; markDirty(); } }
 
     public int getBonusSourceFlags() { return bonusSourceFlags; }
-    public void setBonusSourceFlags(int bonusSourceFlags) { this.bonusSourceFlags = bonusSourceFlags; markDirty(); }
+    public void setBonusSourceFlags(int bonusSourceFlags) { if (this.bonusSourceFlags != bonusSourceFlags) { this.bonusSourceFlags = bonusSourceFlags; markDirty(); } }
 
     public int getLastRaidId() { return lastRaidId; }
-    public void setLastRaidId(int lastRaidId) { this.lastRaidId = lastRaidId; markDirty(); }
+    public void setLastRaidId(int lastRaidId) { if (this.lastRaidId != lastRaidId) { this.lastRaidId = lastRaidId; markDirty(); } }
 
     public long getLastRaidImpactTick() { return lastRaidImpactTick; }
-    public void setLastRaidImpactTick(long lastRaidImpactTick) { this.lastRaidImpactTick = lastRaidImpactTick; markDirty(); }
+    public void setLastRaidImpactTick(long lastRaidImpactTick) { if (this.lastRaidImpactTick != lastRaidImpactTick) { this.lastRaidImpactTick = lastRaidImpactTick; markDirty(); } }
 
     public long getLastTaxCollectionDay() { return lastTaxCollectionDay; }
-    public void setLastTaxCollectionDay(long day) { this.lastTaxCollectionDay = day; markDirty(); }
+    public void setLastTaxCollectionDay(long day) { if (this.lastTaxCollectionDay != day) { this.lastTaxCollectionDay = day; markDirty(); } }
 
     public long getLastStatsRefreshDay() { return lastStatsRefreshDay; }
-    public void setLastStatsRefreshDay(long day) { this.lastStatsRefreshDay = day; markDirty(); }
+    public void setLastStatsRefreshDay(long day) { if (this.lastStatsRefreshDay != day) { this.lastStatsRefreshDay = day; markDirty(); } }
 
     public long getLastFoodCycleDay() { return lastFoodCycleDay; }
-    public void setLastFoodCycleDay(long day) { this.lastFoodCycleDay = day; markDirty(); }
+    public void setLastFoodCycleDay(long day) { if (this.lastFoodCycleDay != day) { this.lastFoodCycleDay = day; markDirty(); } }
 
     public long getLastFestivalDay() { return lastFestivalDay; }
-    public void setLastFestivalDay(long day) { this.lastFestivalDay = day; markDirty(); }
+    public void setLastFestivalDay(long day) { if (this.lastFestivalDay != day) { this.lastFestivalDay = day; markDirty(); } }
 
     public int getMaxTreasury() {
         return hasTreasuryBuilding ? 2500 : 1000;

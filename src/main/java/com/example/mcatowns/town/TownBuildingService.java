@@ -158,8 +158,11 @@ public final class TownBuildingService {
 
     /** Refreshes the map marker while a player is carrying the blueprint. */
     public static void periodicDetect(ServerPlayerEntity player) {
+        // Most players are not inspecting a town. Avoid ownership lookup
+        // and native MCA village queries on those players.
+        if (!isHoldingBlueprint(player)) return;
         TownContext town = editableTown(player);
-        if (!isHoldingBlueprint(player) || town == null) return;
+        if (town == null) return;
         ServerWorld world = player.getServerWorld();
         TownSavedData data = TownSavedData.get(world, town.townId());
         BlueprintSessionService.SessionState session = BlueprintSessionService.get(player);
@@ -914,19 +917,20 @@ public final class TownBuildingService {
     }
 
     private static BlockPos findNearbyFarm(ServerWorld world, BlockPos center, int radius) {
+        BlockPos direct = FarmFieldScanner.farmlandAt(world, center);
+        if (direct != null) return direct;
         BlockPos nearest = null;
         double nearestDistance = Double.MAX_VALUE;
         for (BlockPos pos : BlockPos.iterate(center.add(-radius, -2, -radius), center.add(radius, 2, radius))) {
-            if (!isFarmBlock(world, pos)) continue;
             double distance = pos.getSquaredDistance(center);
-            if (distance < nearestDistance) {
-                nearest = pos.toImmutable();
-                nearestDistance = distance;
-            }
+            if (distance >= nearestDistance || !isFarmBlock(world, pos)) continue;
+            nearest = pos.toImmutable();
+            nearestDistance = distance;
         }
-        if (nearest == null) return null;
-        FarmFieldScanner.Result field = FarmFieldScanner.scan(world, nearest);
-        return field.crops() > 0 ? field.anchor() : nearest;
+        // The old scan's anchor was the seed itself, not a canonical field
+        // identity. Normalize to soil directly and leave full scans to
+        // inspection/description/registration.
+        return nearest == null ? null : FarmFieldScanner.farmlandAt(world, nearest);
     }
 
     private static boolean isFarmBlock(ServerWorld world, BlockPos pos) {
@@ -940,7 +944,9 @@ public final class TownBuildingService {
         BlockPos nearest = null;
         double nearestDistance = Double.MAX_VALUE;
         for (BlockPos pos : BlockPos.iterate(center.add(-radius, -3, -radius), center.add(radius, 3, radius))) {
-            if (!marker.test(world.getBlockState(pos).getBlock()) || !validator.test(pos)) continue;
+            if (!world.isChunkLoaded(pos) || !world.getWorldBorder().contains(pos)
+                    || world.isOutOfHeightLimit(pos) || !marker.test(world.getBlockState(pos).getBlock())
+                    || !validator.test(pos)) continue;
             double distance = pos.getSquaredDistance(center);
             if (distance < nearestDistance) {
                 nearest = pos.toImmutable();
@@ -1075,7 +1081,8 @@ public final class TownBuildingService {
                                    java.util.function.Predicate<Block> predicate) {
         int count = 0;
         for (BlockPos pos : BlockPos.iterate(center.add(-radius, -3, -radius), center.add(radius, 3, radius))) {
-            if (predicate.test(world.getBlockState(pos).getBlock())) count++;
+            if (world.isChunkLoaded(pos) && world.getWorldBorder().contains(pos)
+                    && !world.isOutOfHeightLimit(pos) && predicate.test(world.getBlockState(pos).getBlock())) count++;
         }
         return count;
     }

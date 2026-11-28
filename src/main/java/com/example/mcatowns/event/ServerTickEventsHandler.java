@@ -46,14 +46,30 @@ public final class ServerTickEventsHandler {
 
     public static void register() {
         ServerTickEvents.END_WORLD_TICK.register(ServerTickEventsHandler::tickWorld);
+        net.fabricmc.fabric.api.event.lifecycle.v1.ServerWorldEvents.UNLOAD.register((server, world) ->
+                FarmWeedMaintenanceService.clearWorld(world));
     }
 
     private static void tickWorld(ServerWorld world) {
         if (world.getTime() % 40 == 0) {
-            world.getPlayers().forEach(TownBuildingService::periodicDetect);
+            world.getProfiler().push("mcatowns_blueprint_detection");
+            try {
+                world.getPlayers().forEach(TownBuildingService::periodicDetect);
+            } finally {
+                world.getProfiler().pop();
+            }
         }
         if (world.getTime() % TOWN_TICK_INTERVAL != 0) return;
 
+        world.getProfiler().push("mcatowns_town_tick");
+        try {
+            tickAllTowns(world);
+        } finally {
+            world.getProfiler().pop();
+        }
+    }
+
+    private static void tickAllTowns(ServerWorld world) {
         long day = TownManager.getDay(world);
         List<TownContext> contexts = TownManager.getTickContexts(world);
         Map<String, TownSavedData> dataByTown = new HashMap<>();
@@ -68,7 +84,12 @@ public final class ServerTickEventsHandler {
                     TownBanditSystem.tickActivity(world, context, data);
                     TownBanditSystem.tickEncounterReservations(world, context);
                 }
-                tickTown(world, day, context, contexts, dataByTown);
+                world.getProfiler().push("town_simulation");
+                try {
+                    tickTown(world, day, context, contexts, dataByTown);
+                } finally {
+                    world.getProfiler().pop();
+                }
             } catch (RuntimeException exception) {
                 MCATowns.LOGGER.error("Failed ticking town {} in {}", context.townId(), world.getRegistryKey().getValue(), exception);
             }

@@ -34,16 +34,22 @@ public final class FarmWeedMaintenanceService {
     private static final int MAX_REMOVALS_PER_FARM = 2;
     private static final int MAX_VERTICAL_SAMPLE = 16;
 
-    private static final Map<String, Map<String, List<FarmArea>>> STAFFED_FARMS = new ConcurrentHashMap<>();
-    private static final Set<String> BOOTSTRAPPED_PLAYER_TOWNS = ConcurrentHashMap.newKeySet();
+    // Dimension identifiers repeat between integrated-server saves.
+    // World identity keeps cached farms isolated across sessions.
+    private static final Map<ServerWorld, Map<String, List<FarmArea>>> STAFFED_FARMS = new ConcurrentHashMap<>();
+    private static final Set<ServerWorld> BOOTSTRAPPED_PLAYER_TOWNS = ConcurrentHashMap.newKeySet();
+
+    public static void clearWorld(ServerWorld world) {
+        STAFFED_FARMS.remove(world);
+        BOOTSTRAPPED_PLAYER_TOWNS.remove(world);
+    }
 
     private FarmWeedMaintenanceService() { }
 
     public static void refreshTown(ServerWorld world, TownContext context, TownSavedData data) {
         if (world == null || context == null || data == null) return;
-        String dimension = dimensionKey(world);
         List<FarmArea> farms = staffedFarms(data);
-        Map<String, List<FarmArea>> byTown = STAFFED_FARMS.computeIfAbsent(dimension, ignored -> new ConcurrentHashMap<>());
+        Map<String, List<FarmArea>> byTown = STAFFED_FARMS.computeIfAbsent(world, ignored -> new ConcurrentHashMap<>());
         if (farms.isEmpty()) {
             byTown.remove(context.townId());
         } else {
@@ -56,7 +62,7 @@ public final class FarmWeedMaintenanceService {
         if (world == null || chunkPos == null) return List.of();
         bootstrapPlayerCreatedTowns(world);
 
-        Map<String, List<FarmArea>> byTown = STAFFED_FARMS.get(dimensionKey(world));
+        Map<String, List<FarmArea>> byTown = STAFFED_FARMS.get(world);
         if (byTown == null || byTown.isEmpty()) return List.of();
 
         int minX = chunkPos.getStartX();
@@ -77,7 +83,9 @@ public final class FarmWeedMaintenanceService {
         if (!isMaintenanceTick(world, context)) return;
 
         Random random = world.random;
-        for (FarmArea farm : staffedFarms(data)) {
+        Map<String, List<FarmArea>> byTown = STAFFED_FARMS.get(world);
+        List<FarmArea> maintained = byTown == null ? List.of() : byTown.getOrDefault(context.townId(), List.of());
+        for (FarmArea farm : maintained) {
             int removed = 0;
             for (int sample = 0; sample < SAMPLES_PER_FARM && removed < MAX_REMOVALS_PER_FARM; sample++) {
                 int x = randomCoordinate(random, farm.minX(), farm.maxX());
@@ -100,8 +108,7 @@ public final class FarmWeedMaintenanceService {
     }
 
     private static void bootstrapPlayerCreatedTowns(ServerWorld world) {
-        String dimension = dimensionKey(world);
-        if (!BOOTSTRAPPED_PLAYER_TOWNS.add(dimension)) return;
+        if (!BOOTSTRAPPED_PLAYER_TOWNS.add(world)) return;
         PlayerTownRegistry registry = PlayerTownRegistry.get(world);
         for (TownContext context : registry.getAllContexts()) {
             refreshTown(world, context, TownSavedData.get(world, context.townId()));
@@ -130,10 +137,6 @@ public final class FarmWeedMaintenanceService {
         long span = (long) max - min + 1L;
         if (span <= Integer.MAX_VALUE) return min + random.nextInt((int) span);
         return min + random.nextInt(256);
-    }
-
-    private static String dimensionKey(ServerWorld world) {
-        return world.getRegistryKey().getValue().toString();
     }
 
     public record FarmArea(int minX, int minY, int minZ, int maxX, int maxY, int maxZ) {
