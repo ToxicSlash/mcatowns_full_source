@@ -172,6 +172,19 @@ public final class TownConnectedServerProbe implements ModInitializer {
                             16 - campfirePrice() - TownBuildingDefinition.get("farm").registrationCurrency()
                                     - TownBuildingDefinition.get("residence").registrationCurrency(), "Wrong residence currency");
                     System.out.println("TOWN_CONNECTED_RESIDENCE_OK " + home.id());
+                    require(data.getBuildingFootprint(home.id()).size() == 21, "Residence geometry not persisted");
+                    player.teleport(world, HOUSE.getX() + 6.5, HOUSE.getY(), HOUSE.getZ() + 2.5, 0, 0);
+                    BlueprintSessionService.clear(player.getUuid());
+                    advance("duplicate_home_inspect");
+                } else if (phase.equals("duplicate_home_inspect")) {
+                    require(BlueprintSessionService.get(player).inspectionPassed(), "Other room did not inspect");
+                    advance("duplicate_home_register");
+                } else if (phase.equals("duplicate_home_register")) {
+                    require(data.getRegisteredBuildings().size() == 3, "Same house was registered twice");
+                    require(InventoryHelper.count(player.getInventory(), Items.EMERALD) ==
+                            16 - campfirePrice() - TownBuildingDefinition.get("farm").registrationCurrency()
+                                    - TownBuildingDefinition.get("residence").registrationCurrency(), "Duplicate residence charged currency");
+                    System.out.println("TOWN_CONNECTED_DUPLICATE_HOME_OK");
                     advance("map");
                 } else if (phase.equals("map")) {
                     System.out.println("TOWN_CONNECTED_SERVER_OK");

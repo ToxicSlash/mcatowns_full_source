@@ -39,8 +39,8 @@ public final class TownConnectedClientProbe implements ClientModInitializer {
                         case "blocked_register", "register", "duplicate_register" -> ModNetworking.sendRegisterTownBuilding("farm");
                         case "campfire_inspect" -> ModNetworking.sendInspectTownBuilding("campfire");
                         case "campfire_register" -> ModNetworking.sendRegisterTownBuilding("campfire");
-                        case "residence_inspect" -> ModNetworking.sendInspectTownBuilding("residence");
-                        case "residence_register" -> ModNetworking.sendRegisterTownBuilding("residence");
+                        case "residence_inspect", "duplicate_home_inspect" -> ModNetworking.sendInspectTownBuilding("residence");
+                        case "residence_register", "duplicate_home_register" -> ModNetworking.sendRegisterTownBuilding("residence");
                         case "map" -> ModNetworking.sendOpenTownBlueprint();
                         case "complete" -> {
                             done = true;

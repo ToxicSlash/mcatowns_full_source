@@ -13,6 +13,8 @@ import java.util.UUID;
 /** Isolated production server start/stop probe, never active in normal gameplay. */
 public final class TownRestartProbe implements ModInitializer {
     private static final BlockPos SOIL = new BlockPos(2, 240, 2);
+    private static final BlockPos REMOTE = new BlockPos(16002, 240, 16002);
+    private static final UUID REMOTE_ID = UUID.fromString("c7159acf-3243-4b78-8b65-1de530779b12");
     private static final UUID FARM_ID = UUID.fromString("c7159acf-3243-4b78-8b65-1de530779b11");
     @Override public void onInitialize() {
         String phase = System.getProperty("town.test.restart", "");
@@ -21,6 +23,7 @@ public final class TownRestartProbe implements ModInitializer {
             var world = server.getOverworld();
             world.getChunk(SOIL);
             var data = TownSavedData.get(world, "ci_farm_restart");
+            var remote = TownSavedData.get(world, "ci_remote_farm_restart");
             if (phase.equals("create")) {
                 if (!data.getRegisteredBuildings().isEmpty()) throw new IllegalStateException("Restart fixture was not fresh");
                 world.getGameRules().get(GameRules.RANDOM_TICK_SPEED).set(0, server);
@@ -37,6 +40,22 @@ public final class TownRestartProbe implements ModInitializer {
                     throw new IllegalStateException("Could not register restart farm");
                 }
                 data.setBuildingFootprint(FARM_ID, field.tiles());
+                // A real field outside spawn tickets. Save it, then verify its
+                // shape before loading its chunk on the next server launch.
+                world.getChunk(REMOTE);
+                for (int x = 0; x < 6; x++) for (int z = 0; z < 3; z++) {
+                    BlockPos p = REMOTE.add(x, 0, z);
+                    world.setBlockState(p.down(), Blocks.DIRT.getDefaultState());
+                    world.setBlockState(p, Blocks.FARMLAND.getDefaultState().with(FarmlandBlock.MOISTURE, 7));
+                    world.setBlockState(p.up(), Blocks.WHEAT.getDefaultState());
+                }
+                var distant = FarmFieldScanner.scan(world, REMOTE);
+                if (distant.crops() != 18 || !remote.registerBuilding(new RegisteredTownBuilding(
+                        REMOTE_ID, "farm", distant.tier(), distant.anchor(), distant.min(), distant.max(),
+                        BuildingStatus.ACTIVE, 50, List.of(), 1L, distant.contributingCrops()))) {
+                    throw new IllegalStateException("Could not create distant saved field");
+                }
+                remote.setBuildingFootprint(REMOTE_ID, distant.tiles());
                 System.out.println("TOWN_RESTART_CREATE_OK");
             } else {
                 if (data.getRegisteredBuildings().size() != 1) throw new IllegalStateException("Missing saved farm");
@@ -48,6 +67,24 @@ public final class TownRestartProbe implements ModInitializer {
                         || !new java.util.HashSet<>(data.getBuildingFootprint(FARM_ID)).equals(new java.util.HashSet<>(field.tiles()))) {
                     throw new IllegalStateException("Restart changed farm state or duplicate protection: " + farm);
                 }
+                if (world.isChunkLoaded(REMOTE)) throw new IllegalStateException("Distant field was unexpectedly loaded");
+                var distant = remote.getRegisteredBuildings().get(0);
+                var stored = remote.getBuildingFootprint(REMOTE_ID);
+                if (!distant.id().equals(REMOTE_ID) || stored.size() != 18
+                        || !TownBuildingService.mapFootprint(world, remote, distant).equals(stored)
+                        || world.isChunkLoaded(REMOTE)) {
+                    throw new IllegalStateException("Unloaded map footprint lost or loaded its chunk");
+                }
+                TownBuildingService.refreshInspectionState(world, remote, 2L);
+                if (!distant.equals(remote.getRegisteredBuildings().get(0)) || world.isChunkLoaded(REMOTE)) {
+                    throw new IllegalStateException("Inspection changed unloaded building or loaded its chunk");
+                }
+                world.getChunk(REMOTE);
+                var live = FarmFieldScanner.scan(world, REMOTE);
+                if (live.crops() != 18 || !new java.util.HashSet<>(live.tiles()).equals(new java.util.HashSet<>(stored))) {
+                    throw new IllegalStateException("Remote field did not survive restart");
+                }
+                System.out.println("TOWN_RESTART_UNLOADED_FOOTPRINT_OK");
                 System.out.println("TOWN_RESTART_VERIFY_OK");
             }
             server.stop(false);

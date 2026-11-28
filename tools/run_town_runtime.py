@@ -81,9 +81,24 @@ def connected_probe(root, mods, binary, project):
                        "-PtownRuntimeMods=" + str(mods), "-PtownRunDir=" + str(live),
                        "-PtownConnectedDir=" + str(shared), "-PtownServerAddress=127.0.0.1:" + str(port),
                        "runTownClient"]
-            execute(command, root, client_log, 360)
+            # Retry only an explicitly observed pre-join login timeout; never
+            # replay a failed gameplay phase or a partially mutated world.
+            for attempt in (1, 2):
+                try:
+                    execute(command, root, client_log, 360)
+                    break
+                except (subprocess.TimeoutExpired, RuntimeError):
+                    server_text = server_log.read_text(encoding="utf-8", errors="replace")
+                    client_text = client_log.read_text(encoding="utf-8", errors="replace")
+                    if (attempt == 2 or server.poll() is not None
+                            or "TownVisualCI joined the game" in server_text
+                            or (shared / "phase").exists()
+                            or "ReadTimeoutException" not in client_text):
+                        raise
+                    shutil.copy2(client_log, OUT / "connected-client-first-attempt.log")
+                    print("TOWN_CONNECTED_RETRY pre-join read timeout", flush=True)
             server_text = server_log.read_text(encoding="utf-8", errors="replace")
-            for marker in ("FOUND_DENIED", "FOUNDED", "MCA_BOUND", "INFRASTRUCTURE_DENIED", "CAMPFIRE", "REGISTER", "DUPLICATE", "RESIDENCE", "SERVER"):
+            for marker in ("FOUND_DENIED", "FOUNDED", "MCA_BOUND", "INFRASTRUCTURE_DENIED", "CAMPFIRE", "REGISTER", "DUPLICATE", "RESIDENCE", "DUPLICATE_HOME", "SERVER"):
                 if "TOWN_CONNECTED_" + marker + "_OK" not in server_text:
                     raise RuntimeError("Missing connected server marker: " + marker)
             if not (shared / "town-connected-map.png").is_file() or not (shared / "ack-map").is_file():
@@ -186,6 +201,8 @@ def main():
                     finally:
                         if phase_log.is_file():
                             print(phase_log.read_text(encoding="utf-8", errors="replace")[-12000:])
+                if "TOWN_RESTART_UNLOADED_FOOTPRINT_OK" not in (OUT / "restart-verify.log").read_text(encoding="utf-8", errors="replace"):
+                    raise RuntimeError("Missing unloaded footprint proof")
                 print("TOWN_PRODUCTION_RESTART_OK")
             else:
                 (run / "options.txt").write_text("version:3465\nonboardAccessibility:false\npauseOnLostFocus:false\n", encoding="utf-8")
