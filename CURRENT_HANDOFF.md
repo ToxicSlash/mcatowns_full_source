@@ -3,14 +3,14 @@
 Branch dev only; keep main unchanged. Fabric 1.20.1 / Java 17 compile, Java 21 reduced production fixture. Founding requires one Numismatics Crown currency and ten scraps; retain.
 
 ## Verified checkpoint
-- 8d4df69: standard 46125938131 and DevHub 46125938080 both passed. All 13 production GameTests, actual remote farm restart with no chunk load while viewing or refreshing geometry, derived infrastructure transition while unloaded, real crops after load. Owner and visitor client runs passed including native bell candidate binding mca_0, founding costs, community/farm/residence progression, duplicate field and house rejection, real server-fed map, non-owner mutation denial. Native MCA house lookup still not-detected; mature village not verified.
-- 13 modded crop and 6 soil types; weeds excluded; rect/L/U, furnished, connected/disconnected rooms, doors and overhangs, persistent footprints, 17-crop anchor recovery with UUID preserved. External Create tests TestFluids.thresholdSwitch and TestItems.attributeFilters remain unresolved; split fixture verified.
+- 6e719cc: Linux 46129628623 and DevHub 46129628605 passed. All 13 production world tests, remote restart/no chunk force-load, owner/visitor permission and duplicate protection, server-fed map. Change-only setters, world-specific farm weed caches and early blueprint scan optimisations passed.
+- 8d4df69 verified original 13 world tests and remote derived infrastructure updates. 13 modded crop and 6 soil types; weeds excluded; rectangle/L/U, furnished, connected/disconnected rooms, doors and overhangs, persistent footprints and anchor recovery. MCA bell candidate binding mca_0 passed; native house lookup not-detected; mature native village unproved. External Create GameTests remain unresolved (split fixture verified).
 - Read shared DEVHUB_RUNNER_STANDARD.md; original pack untouched.
 
 ## Active batch
-- Stage 3 first optimisation pass: 67 primitive/String setters mark dirty only for actual changes; added dirty-state unit regression. Periodic detection checks blueprint before ownership lookup; nearest farm selection returns soil seed without redundant connected scan; nearby marker/furniture queries skip unloaded/out-of-border positions. Minecraft profiler sections for blueprint detection/town tick/town simulation. Staffed farm weed cache keyed by actual ServerWorld instead of reused dimension name, cleared on world unload; reuse refreshed list for maintenance rather than rebuilding it twice.
-- Pending consolidated tests. No measured TPS improvement yet; profiler sections enable next measurement. No change to weed chance, crop thresholds, town progression, currency or maintenance interval.
-- Outstanding: mature/native MCA building recognition, multi-level/stepped floor geometry, further profiling and cache invalidation, actual full-pack integration. Stages 1/2 core acceptance verified but native/vertical gaps still open.
+- Per-cycle trade link spatial index uses 3x3 neighbor buckets; preserves 3D distance and reads live eligibility, avoiding stale cached posts. Reference comparison across negative positions, ranges and mutations; real production stress regression with 1024 sparse towns, records reference and indexed timings including index construction (no hardware-dependent speed threshold). 14 required tests.
+- Session state bound to actual ServerWorld and cleared on disconnect/world unload. Reject out-of-bound/unloaded inspection targets before native building validation. No change to founding costs or trade range. Pending verification.
+- Outstanding: native MCA house recognition, multi-level/stepped geometry, broader stage 3 tick scheduling/profile/packet optimization, full-pack integration. Stages 1/2 core acceptance verified but native/vertical gaps still open.
 
 ## Stages
 1. Essential regression infrastructure, real MCA/player founding, authority and gameplay.

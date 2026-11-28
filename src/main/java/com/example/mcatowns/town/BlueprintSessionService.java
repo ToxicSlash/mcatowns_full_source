@@ -15,7 +15,13 @@ public final class BlueprintSessionService {
     }
 
     public static SessionState get(ServerPlayerEntity player) {
-        return STATES.computeIfAbsent(player.getUuid(), ignored -> new SessionState());
+        var world = player.getServerWorld();
+        return STATES.compute(player.getUuid(), (id, current) ->
+                current == null || current.world != world ? new SessionState(world) : current);
+    }
+
+    public static void clearWorld(net.minecraft.server.world.ServerWorld world) {
+        STATES.entrySet().removeIf(entry -> entry.getValue().world == world);
     }
 
     public static void clear(UUID playerId) {
@@ -61,6 +67,8 @@ public final class BlueprintSessionService {
     }
 
     public static final class SessionState {
+        private final net.minecraft.server.world.ServerWorld world;
+        private SessionState(net.minecraft.server.world.ServerWorld world) { this.world = world; }
         private List<BlockPos> detected = List.of();
         private BlockPos primaryDetected = BlockPos.ORIGIN;
         private long detectedAtTick;

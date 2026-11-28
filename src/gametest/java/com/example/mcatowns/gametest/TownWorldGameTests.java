@@ -28,6 +28,38 @@ import java.util.Set;
 /** Real server-world fixtures. The test mod is not included in the production jar. */
 public final class TownWorldGameTests implements FabricGameTest {
     @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE)
+    public void tradeLinkScaleAndParity(TestContext context) {
+        var towns = new java.util.ArrayList<com.example.mcatowns.town.TownContext>();
+        var data = new java.util.HashMap<String, TownSavedData>();
+        // Sparse 32 x 32 towns with no link inside 256 blocks: worst-case
+        // reference scan visits every eligible town, index visits neighbors.
+        for (int i = 0; i < 1024; i++) {
+            var p = new BlockPos((i % 32 - 16) * 400, 64, (i / 32 - 16) * 400);
+            String id = "scale_" + i;
+            towns.add(new com.example.mcatowns.town.TownContext(id, p, p, "player_created", false));
+            var saved = TownSavedData.create();
+            saved.setDetectedTradingPostBuildings(1);
+            data.put(id, saved);
+        }
+        boolean[] expected = new boolean[towns.size()];
+        long start = System.nanoTime();
+        for (int i = 0; i < towns.size(); i++) {
+            var town = towns.get(i);
+            expected[i] = com.example.mcatowns.town.TownTradeSystem.hasLinkedTradingPost(town, data.get(town.townId()), towns, data, 256);
+        }
+        long reference = System.nanoTime() - start;
+        start = System.nanoTime();
+        var index = new com.example.mcatowns.town.TownTradeSystem.LinkIndex(towns, data, 256);
+        for (int i = 0; i < towns.size(); i++) {
+            var town = towns.get(i);
+            context.assertTrue(expected[i] == index.hasLink(town, data.get(town.townId())), "Indexed trading links must match reference");
+        }
+        long indexed = System.nanoTime() - start;
+        System.out.println("TOWN_TRADE_SCALE towns=1024 reference_ns=" + reference + " index_build_and_query_ns=" + indexed);
+        context.complete();
+    }
+
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE)
     public void installedMcaAndFarmRegistry(TestContext context) {
         if (Boolean.getBoolean("town.test.mca")) {
             context.assertTrue(MCAIntegration.isMcaLoaded(), "MCA must be installed for the integration suite");

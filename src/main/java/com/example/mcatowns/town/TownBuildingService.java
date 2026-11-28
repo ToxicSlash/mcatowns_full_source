@@ -93,7 +93,13 @@ public final class TownBuildingService {
             return;
         }
 
-        BlockPos pos = validateAndLocate(world, session.inspectionTarget(), definition);
+        BlockPos inspectionTarget = session.inspectionTarget();
+        if (!validInspectionTarget(world, town, inspectionTarget)) {
+            BlueprintSessionService.clear(player.getUuid());
+            player.sendMessage(Text.translatable("text.mcatowns.outside_town_boundary"), true);
+            return;
+        }
+        BlockPos pos = validateAndLocate(world, inspectionTarget, definition);
         if (pos == null || data.getRegisteredBuildings().stream()
                 .anyMatch(building -> building.pos().getSquaredDistance(pos) < 9.0)) {
             player.sendMessage(Text.translatable("text.mcatowns.invalid_building", definition.displayName()), true);
@@ -101,7 +107,7 @@ public final class TownBuildingService {
         }
         // Inspection sessions can outlive a player's movement. Recheck the actual
         // target, not only the player's position, before charging or registering.
-        if (pos.getSquaredDistance(town.center()) > 64.0 * 64.0 || !world.isChunkLoaded(pos)) {
+        if (!validInspectionTarget(world, town, pos)) {
             player.sendMessage(Text.translatable("text.mcatowns.outside_town_boundary"), true);
             return;
         }
@@ -255,6 +261,11 @@ public final class TownBuildingService {
                 : session.primaryDetected();
         if (target == null) {
             player.sendMessage(Text.literal("No supported structure could be detected here."), true);
+            return;
+        }
+        if (!validInspectionTarget(player.getServerWorld(), town, target)) {
+            BlueprintSessionService.clear(player.getUuid());
+            player.sendMessage(Text.translatable("text.mcatowns.outside_town_boundary"), true);
             return;
         }
         // Inspection is also a detection action. This makes the map show the
@@ -445,6 +456,11 @@ public final class TownBuildingService {
             refreshDerivedValues(data);
             player.sendMessage(Text.literal("Removed building: " + target.type()), true);
         }
+    }
+
+    private static boolean validInspectionTarget(ServerWorld world, TownContext town, BlockPos pos) {
+        return pos != null && pos.getSquaredDistance(town.center()) <= 64.0 * 64.0
+                && !world.isOutOfHeightLimit(pos) && world.getWorldBorder().contains(pos) && world.isChunkLoaded(pos);
     }
 
     private static BlockPos validateAndLocate(ServerWorld world, BlockPos target, TownBuildingDefinition definition) {

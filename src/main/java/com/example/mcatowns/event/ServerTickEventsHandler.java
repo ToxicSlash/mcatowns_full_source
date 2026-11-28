@@ -46,8 +46,12 @@ public final class ServerTickEventsHandler {
 
     public static void register() {
         ServerTickEvents.END_WORLD_TICK.register(ServerTickEventsHandler::tickWorld);
-        net.fabricmc.fabric.api.event.lifecycle.v1.ServerWorldEvents.UNLOAD.register((server, world) ->
-                FarmWeedMaintenanceService.clearWorld(world));
+        net.fabricmc.fabric.api.event.lifecycle.v1.ServerWorldEvents.UNLOAD.register((server, world) -> {
+            FarmWeedMaintenanceService.clearWorld(world);
+            com.example.mcatowns.town.BlueprintSessionService.clearWorld(world);
+        });
+        net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents.DISCONNECT.register((handler, server) ->
+                com.example.mcatowns.town.BlueprintSessionService.clear(handler.player.getUuid()));
     }
 
     private static void tickWorld(ServerWorld world) {
@@ -77,6 +81,7 @@ public final class ServerTickEventsHandler {
             dataByTown.put(context.townId(), TownSavedData.get(world, context.townId()));
         }
 
+        var links = new TownTradeSystem.LinkIndex(contexts, dataByTown, MCATownsConfig.get().tradingPostLinkRange);
         for (TownContext context : contexts) {
             try {
                 TownSavedData data = dataByTown.get(context.townId());
@@ -86,7 +91,7 @@ public final class ServerTickEventsHandler {
                 }
                 world.getProfiler().push("town_simulation");
                 try {
-                    tickTown(world, day, context, contexts, dataByTown);
+                    tickTown(world, day, context, links, dataByTown);
                 } finally {
                     world.getProfiler().pop();
                 }
@@ -97,7 +102,7 @@ public final class ServerTickEventsHandler {
     }
 
     private static void tickTown(ServerWorld world, long day, TownContext context,
-                                 List<TownContext> contexts, Map<String, TownSavedData> dataByTown) {
+                                 TownTradeSystem.LinkIndex links, Map<String, TownSavedData> dataByTown) {
         BlockPos anchor = context.center();
         TownSavedData data = dataByTown.get(context.townId());
         if (data == null || !world.getWorldBorder().contains(anchor) || !world.isChunkLoaded(anchor)) return;
@@ -141,8 +146,7 @@ public final class ServerTickEventsHandler {
             data.setLastStatsRefreshDay(day);
         }
 
-        data.setTradingPostLinked(TownTradeSystem.hasLinkedTradingPost(
-                context, data, contexts, dataByTown, config.tradingPostLinkRange));
+        data.setTradingPostLinked(links.hasLink(context, data));
 
         if (isGuardRefreshTick(world, context)) {
             GuardStatIntegration.applyTownDefenceBonuses(world, anchor, data, effectiveGuardRadius);
