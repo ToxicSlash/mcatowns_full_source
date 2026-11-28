@@ -26,6 +26,8 @@ public final class TownConnectedClientProbe implements ClientModInitializer {
                 if (!Files.exists(shared.resolve("phase"))) return;
                 String phase = Files.readString(shared.resolve("phase")).trim();
                 if (phase.isEmpty()) return;
+                boolean visitor = client.player.getGameProfile().getName().equals("TownVisitorCI");
+                if (visitor && !phase.startsWith("visitor_") && !phase.equals("complete")) return;
                 if (!phase.equals(current)) {
                     current = phase;
                     ticks = 0;
@@ -41,8 +43,16 @@ public final class TownConnectedClientProbe implements ClientModInitializer {
                         case "campfire_register" -> ModNetworking.sendRegisterTownBuilding("campfire");
                         case "residence_inspect", "duplicate_home_inspect" -> ModNetworking.sendInspectTownBuilding("residence");
                         case "residence_register", "duplicate_home_register" -> ModNetworking.sendRegisterTownBuilding("residence");
-                        case "map" -> ModNetworking.sendOpenTownBlueprint();
-                        case "complete" -> {
+                        case "map", "visitor_map" -> ModNetworking.sendOpenTownBlueprint();
+                        case "visitor_found" -> ModNetworking.sendFoundTown();
+                        case "visitor_rename" -> ModNetworking.sendRenameTown(McaBlueprintScreenBridge.getView().anchorPos(), "UnauthorizedName");
+                        case "visitor_tax" -> ModNetworking.sendBlueprintTaxRate(McaBlueprintScreenBridge.getView().anchorPos(),
+                                McaBlueprintScreenBridge.getView().taxRate() == 3 ? 0 : 3);
+                        case "visitor_remove_town" -> ModNetworking.sendRemoveTown(McaBlueprintScreenBridge.getView().anchorPos());
+                        case "visitor_inspect" -> ModNetworking.sendInspectTownBuilding("farm");
+                        case "visitor_register" -> ModNetworking.sendRegisterTownBuilding("farm");
+                        case "visitor_remove_building" -> ModNetworking.sendRemoveTownBuilding();
+                        case "owner_complete", "complete" -> {
                             done = true;
                             client.scheduleStop();
                             return;
@@ -51,8 +61,16 @@ public final class TownConnectedClientProbe implements ClientModInitializer {
                     }
                     sent = true;
                     System.out.println("TOWN_CONNECTED_PACKET " + phase);
-                    if (!phase.equals("map")) Files.writeString(shared.resolve("ack-" + phase), "sent");
+                    if (!phase.equals("map") && !phase.equals("visitor_map")) Files.writeString(shared.resolve("ack-" + phase), "sent");
                     return;
+                }
+                if (phase.equals("visitor_map") && ticks >= 60 && !Files.exists(shared.resolve("ack-visitor_map"))
+                        && client.currentScreen instanceof TownBlueprintScreen) {
+                    var view = McaBlueprintScreenBridge.getView();
+                    if (view == null || view.founding() || view.registeredBuildings().size() != 3) return;
+                    if (view.canManage() || view.canRemove()) throw new IllegalStateException("Visitor received management permissions");
+                    Files.writeString(shared.resolve("ack-visitor_map"), "verified");
+                    System.out.println("TOWN_CONNECTED_VISITOR_MAP_OK");
                 }
                 if (phase.equals("map") && ticks >= 60 && !Files.exists(shared.resolve("ack-map"))
                         && client.currentScreen instanceof TownBlueprintScreen) {

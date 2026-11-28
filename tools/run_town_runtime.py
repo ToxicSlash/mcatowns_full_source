@@ -98,7 +98,32 @@ def connected_probe(root, mods, binary, project):
                     shutil.copy2(client_log, OUT / "connected-client-first-attempt.log")
                     print("TOWN_CONNECTED_RETRY pre-join read timeout", flush=True)
             server_text = server_log.read_text(encoding="utf-8", errors="replace")
-            for marker in ("FOUND_DENIED", "FOUNDED", "MCA_BOUND", "INFRASTRUCTURE_DENIED", "CAMPFIRE", "REGISTER", "DUPLICATE", "RESIDENCE", "DUPLICATE_HOME", "SERVER"):
+            if "TOWN_CONNECTED_PHASE owner_complete" not in server_text:
+                raise RuntimeError("Owner client did not complete before visitor")
+            visitor_dir = root / "visitor"
+            visitor_dir.mkdir()
+            (visitor_dir / "options.txt").write_text("version:3465\nonboardAccessibility:false\npauseOnLostFocus:false\n", encoding="utf-8")
+            visitor_log = OUT / "connected-visitor.log"
+            visitor_command = [str(binary), "-p", str(project), "--no-daemon", "--console=plain",
+                               "-PtownRuntimeMods=" + str(mods), "-PtownRunDir=" + str(visitor_dir),
+                               "-PtownConnectedDir=" + str(shared), "-PtownServerAddress=127.0.0.1:" + str(port),
+                               "-PtownProbePlayer=TownVisitorCI", "runTownClient"]
+            for attempt in (1, 2):
+                try:
+                    execute(visitor_command, root, visitor_log, 360)
+                    break
+                except (subprocess.TimeoutExpired, RuntimeError):
+                    server_text = server_log.read_text(encoding="utf-8", errors="replace")
+                    visitor_text = visitor_log.read_text(encoding="utf-8", errors="replace")
+                    if (attempt == 2 or server.poll() is not None or "TownVisitorCI joined the game" in server_text
+                            or "TOWN_CONNECTED_PHASE visitor_" in server_text or "ReadTimeoutException" not in visitor_text):
+                        raise
+                    shutil.copy2(visitor_log, OUT / "connected-visitor-first-attempt.log")
+                    print("TOWN_CONNECTED_VISITOR_RETRY pre-join read timeout", flush=True)
+            server_text = server_log.read_text(encoding="utf-8", errors="replace")
+            if "TOWN_CONNECTED_VISITOR_MAP_OK" not in visitor_log.read_text(encoding="utf-8", errors="replace"):
+                raise RuntimeError("Visitor read-only UI proof missing")
+            for marker in ("FOUND_DENIED", "FOUNDED", "MCA_BOUND", "INFRASTRUCTURE_DENIED", "CAMPFIRE", "REGISTER", "DUPLICATE", "RESIDENCE", "DUPLICATE_HOME", "SERVER", "VISITOR"):
                 if "TOWN_CONNECTED_" + marker + "_OK" not in server_text:
                     raise RuntimeError("Missing connected server marker: " + marker)
             if not (shared / "town-connected-map.png").is_file() or not (shared / "ack-map").is_file():
@@ -113,7 +138,7 @@ def connected_probe(root, mods, binary, project):
                     server.wait(timeout=30)
             if (shared / "town-connected-map.png").is_file():
                 shutil.copy2(shared / "town-connected-map.png", OUT)
-            for log in (server_log, client_log):
+            for log in (server_log, client_log, OUT / "connected-visitor.log"):
                 if log.is_file():
                     value = log.read_text(encoding="utf-8", errors="replace")
                     print(log.name, value[:4000], "\n--- tail ---\n", value[-20000:])

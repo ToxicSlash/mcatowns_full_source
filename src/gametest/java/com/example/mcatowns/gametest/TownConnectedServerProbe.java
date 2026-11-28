@@ -30,14 +30,30 @@ public final class TownConnectedServerProbe implements ModInitializer {
     private int age;
     private int acknowledged;
     private Item crown;
+    private String foundedTownId;
+    private String foundedName;
+    private int foundedTax;
+    private java.util.Set<java.util.UUID> foundedBuildings;
 
     @Override public void onInitialize() {
         String path = System.getProperty("town.test.connected");
         if (path == null) return;
         shared = Path.of(path);
         ServerTickEvents.END_SERVER_TICK.register(server -> {
+            if (phase.equals("complete")) return;
+            if (phase.equals("owner_complete") || phase.startsWith("visitor_")) {
+                var visitor = server.getPlayerManager().getPlayer("TownVisitorCI");
+                if (visitor != null) {
+                    try {
+                        visitorPhase(visitor);
+                    } catch (Exception e) {
+                        throw new IllegalStateException("Visitor probe failed at " + phase, e);
+                    }
+                }
+                return;
+            }
             var player = server.getPlayerManager().getPlayer("TownVisualCI");
-            if (player == null || phase.equals("complete")) return;
+            if (player == null) return;
             try {
                 if (++age > 900) throw new IllegalStateException("Connected phase timed out: " + phase);
                 var world = player.getServerWorld();
@@ -187,13 +203,67 @@ public final class TownConnectedServerProbe implements ModInitializer {
                     System.out.println("TOWN_CONNECTED_DUPLICATE_HOME_OK");
                     advance("map");
                 } else if (phase.equals("map")) {
+                    foundedTownId = town.townId();
+                    foundedName = data.getTownName();
+                    foundedTax = data.getTaxRate();
+                    foundedBuildings = data.getRegisteredBuildings().stream().map(RegisteredTownBuilding::id)
+                            .collect(java.util.stream.Collectors.toSet());
                     System.out.println("TOWN_CONNECTED_SERVER_OK");
-                    advance("complete");
+                    advance("owner_complete");
                 }
             } catch (Exception e) {
                 throw new IllegalStateException("Connected Towns probe failed at " + phase, e);
             }
         });
+    }
+
+    private void visitorPhase(ServerPlayerEntity visitor) throws Exception {
+        if (++age > 900) throw new IllegalStateException("Visitor phase timed out");
+        var world = visitor.getServerWorld();
+        var registry = PlayerTownRegistry.get(world);
+        var town = registry.getTownById(foundedTownId).orElseThrow(() -> new IllegalStateException("Visitor removed town"));
+        var data = TownSavedData.get(world, foundedTownId);
+        if (phase.equals("owner_complete")) {
+            visitor.changeGameMode(GameMode.SURVIVAL);
+            require(!visitor.hasPermissionLevel(2) && !registry.isOwner(foundedTownId, visitor), "Visitor must not be privileged");
+            visitor.getInventory().clear();
+            visitor.getInventory().selectedSlot = 0;
+            visitor.getInventory().setStack(0, new ItemStack(Registries.ITEM.get(new Identifier("mca", "blueprint"))));
+            visitor.getInventory().setStack(1, new ItemStack(Items.EMERALD, 16));
+            visitor.getInventory().setStack(2, new ItemStack(crown));
+            visitor.getInventory().setStack(3, new ItemStack(ModItems.BLUEPRINT_SCRAP, 10));
+            visitor.teleport(world, BASE.getX() + .5, BASE.getY(), BASE.getZ() + .5, 0, 0);
+            BlueprintSessionService.clear(visitor.getUuid());
+            advance("visitor_map");
+            return;
+        }
+        if (!Files.exists(shared.resolve("ack-" + phase))) return;
+        if (++acknowledged < 30) return;
+        require(registry.getOwnedTown(visitor.getUuid()).isEmpty(), "Visitor founded another town inside an existing town");
+        require(data.getTownName().equals(foundedName) && data.getTaxRate() == foundedTax, "Visitor changed town name or tax");
+        require(data.getRegisteredBuildings().stream().map(RegisteredTownBuilding::id)
+                .collect(java.util.stream.Collectors.toSet()).equals(foundedBuildings), "Visitor changed town buildings");
+        require(InventoryHelper.count(visitor.getInventory(), Items.EMERALD) == 16
+                && InventoryHelper.count(visitor.getInventory(), crown) == 1
+                && InventoryHelper.count(visitor.getInventory(), ModItems.BLUEPRINT_SCRAP) == 10, "Rejected visitor action charged currency");
+        require(!BlueprintSessionService.get(visitor).inspectionPassed(), "Unauthorized inspection succeeded");
+        switch (phase) {
+            case "visitor_map" -> advance("visitor_found");
+            case "visitor_found" -> advance("visitor_rename");
+            case "visitor_rename" -> advance("visitor_tax");
+            case "visitor_tax" -> advance("visitor_remove_town");
+            case "visitor_remove_town" -> {
+                visitor.teleport(world, FARM.getX() + .5, FARM.getY(), FARM.getZ() + .5, 0, 0);
+                advance("visitor_inspect");
+            }
+            case "visitor_inspect" -> advance("visitor_register");
+            case "visitor_register" -> advance("visitor_remove_building");
+            case "visitor_remove_building" -> {
+                System.out.println("TOWN_CONNECTED_VISITOR_OK");
+                advance("complete");
+            }
+            default -> throw new IllegalStateException("Unexpected visitor phase " + phase);
+        }
     }
 
     private static void buildHouse(net.minecraft.server.world.ServerWorld world) {

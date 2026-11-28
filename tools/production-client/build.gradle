@@ -13,7 +13,7 @@ tasks.register('runTownClient', ClientProductionRunTask) {
     mods.setFrom(fileTree(providers.gradleProperty('townRuntimeMods').get()) { include '*.jar' })
     runDir.set(file(providers.gradleProperty('townRunDir').get()))
     jvmArgs.addAll(['-Dtown.test.visual=true'])
-    programArgs.addAll(['--username', 'TownVisualCI', '--width', '1280', '--height', '720'])
+    programArgs.addAll(['--username', providers.gradleProperty('townProbePlayer').getOrElse('TownVisualCI'), '--width', '1280', '--height', '720'])
     outputs.upToDateWhen { false }
     def connected = providers.gradleProperty('townConnectedDir').orNull
     if (connected != null) {
