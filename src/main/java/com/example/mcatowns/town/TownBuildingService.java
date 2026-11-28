@@ -111,6 +111,12 @@ public final class TownBuildingService {
             return;
         }
         DetectedStructure detected = describeDetectedStructure(world, pos).orElse(null);
+        List<BlockPos> footprint = farm != null ? farm.tiles()
+                : detected != null && detected.enclosed() ? detected.footprint() : List.of();
+        if (!footprint.isEmpty() && overlapsRegisteredStructure(world, data, footprint, null)) {
+            player.sendMessage(Text.literal("This structure overlaps an already registered building."), true);
+            return;
+        }
         MCAIntegration.BuildingBounds detectedBounds = farm != null
                 ? new MCAIntegration.BuildingBounds(farm.min(), farm.max())
                 : detected != null && detected.enclosed() && !detected.footprint().isEmpty()
@@ -124,6 +130,7 @@ public final class TownBuildingService {
                 detectedBounds.min(), detectedBounds.max(), BuildingStatus.ACTIVE, 0, List.of(),
                 TownManager.getDay(world), cropState);
         if (!data.registerBuilding(registered)) return;
+        data.setBuildingFootprint(registered.id(), footprint);
 
         // The structure is now represented by the registered entry. Remove
         // the temporary inspection marker so it is not drawn twice.
@@ -276,8 +283,59 @@ public final class TownBuildingService {
     }
 
     public static boolean isFarmAlreadyRegistered(TownSavedData data, FarmFieldScanner.Result field) {
+        Set<BlockPos> cells = new HashSet<>(field.tiles());
         return data.getRegisteredBuildings().stream()
-                .anyMatch(building -> "farm".equals(building.type()) && field.tiles().contains(building.anchor()));
+                .anyMatch(building -> "farm".equals(building.type()) && (cells.contains(building.anchor())
+                        || data.getBuildingFootprint(building.id()).stream().anyMatch(cells::contains)));
+    }
+
+    public static boolean overlapsRegisteredStructure(ServerWorld world, TownSavedData data, List<BlockPos> footprint, UUID except) {
+        Set<BlockPos> cells = new HashSet<>(footprint);
+        for (RegisteredTownBuilding building : data.getRegisteredBuildings()) {
+            if (building.id().equals(except)) continue;
+            List<BlockPos> saved = data.getBuildingFootprint(building.id());
+            if (saved.isEmpty() && farmBoundsLoaded(building, world::isChunkLoaded)) {
+                saved = describeDetectedStructure(world, building.anchor())
+                        .filter(s -> s.enclosed() || "farm".equals(building.type()) && "farm".equals(s.type()))
+                        .map(DetectedStructure::footprint).orElse(List.of());
+            }
+            if (saved.stream().anyMatch(cells::contains)) return true;
+        }
+        return false;
+    }
+
+    public static List<BlockPos> mapFootprint(ServerWorld world, TownSavedData data, RegisteredTownBuilding building) {
+        if (!farmBoundsLoaded(building, world::isChunkLoaded)) return data.getBuildingFootprint(building.id());
+        return describeDetectedStructure(world, building.anchor())
+                .filter(s -> s.enclosed() || "farm".equals(building.type()) && "farm".equals(s.type()))
+                .map(DetectedStructure::footprint).orElse(List.of());
+    }
+
+    public static boolean buildingBoundsLoaded(ServerWorld world, RegisteredTownBuilding building) {
+        return farmBoundsLoaded(building, world::isChunkLoaded);
+    }
+
+    private static FarmFieldScanner.Result recoverFarm(ServerWorld world, TownSavedData data, RegisteredTownBuilding building) {
+        FarmFieldScanner.Result current = FarmFieldScanner.scan(world, building.anchor());
+        if (!current.tiles().isEmpty()) return current;
+        List<BlockPos> old = data.getBuildingFootprint(building.id());
+        if (old.isEmpty()) return current;
+        Set<BlockPos> visited = new HashSet<>();
+        Set<BlockPos> previous = new HashSet<>(old);
+        FarmFieldScanner.Result best = current;
+        long bestOverlap = 0;
+        for (BlockPos seed : old) {
+            if (!visited.add(seed)) continue;
+            FarmFieldScanner.Result candidate = FarmFieldScanner.scan(world, seed);
+            visited.addAll(candidate.tiles());
+            long overlap = candidate.tiles().stream().filter(previous::contains).count();
+            if (candidate.valid() && overlap > bestOverlap
+                    && !overlapsRegisteredStructure(world, data, candidate.tiles(), building.id())) {
+                best = candidate;
+                bestOverlap = overlap;
+            }
+        }
+        return best;
     }
 
     // Do not overwrite known field bounds/crop counts from a partially unloaded field.
@@ -301,17 +359,20 @@ public final class TownBuildingService {
                 RegisteredTownBuilding updated = building;
                 if ("farm".equals(building.type())) {
                     if (!farmBoundsLoaded(building, world::isChunkLoaded)) continue;
-                    FarmFieldScanner.Result field = FarmFieldScanner.scan(world, building.anchor());
-                    // A damaged anchor must not permanently erase the old field bounds.
+                    FarmFieldScanner.Result field = recoverFarm(world, data, building);
                     BlockPos min = field.tiles().isEmpty() ? building.minPos() : field.min();
                     BlockPos max = field.tiles().isEmpty() ? building.maxPos() : field.max();
-                    updated = new RegisteredTownBuilding(building.id(), building.type(), field.tier(), building.anchor(),
+                    BlockPos anchor = field.tiles().isEmpty() ? building.anchor() : field.anchor();
+                    updated = new RegisteredTownBuilding(building.id(), building.type(), field.tier(), anchor,
                             min, max, field.valid() ? BuildingStatus.ACTIVE : BuildingStatus.NEEDS_INSPECTION,
                             building.output(), building.workers(), day, field.contributingCrops());
                 }
                 int output = BuildingPerformance.calculateOutput(world, data, updated);
                 updated = updated.inspected(day, output, updated.cropState(), updated.tier());
-                data.replaceBuilding(updated);
+                if (data.replaceBuilding(updated) && farmBoundsLoaded(updated, world::isChunkLoaded)) {
+                    List<BlockPos> verified = mapFootprint(world, data, updated);
+                    if (!verified.isEmpty()) data.setBuildingFootprint(updated.id(), verified);
+                }
             } catch (RuntimeException exception) {
                 com.example.mcatowns.MCATowns.LOGGER.warn("Could not inspect town building {} at {}",
                         building.id(), building.anchor(), exception);

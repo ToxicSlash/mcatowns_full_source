@@ -214,12 +214,9 @@ public final class BlueprintTownCreationHandler {
                                                                   String name, String icon) {
         TownBuildingDefinition definition = TownBuildingDefinition.get(building.type());
         boolean enclosed = isEnclosedType(building.type());
-        var detected = TownBuildingService.describeDetectedStructure(world, building.anchor());
-        boolean structureValid = !enclosed || detected.map(TownBuildingService.DetectedStructure::enclosed).orElse(false);
-        java.util.List<BlockPos> footprint = detected
-                .filter(structure -> enclosed ? structure.enclosed() : "farm".equals(building.type()) && "farm".equals(structure.type()))
-                .map(TownBuildingService.DetectedStructure::footprint)
-                .orElse(java.util.List.of());
+        boolean loaded = TownBuildingService.buildingBoundsLoaded(world, building);
+        java.util.List<BlockPos> footprint = TownBuildingService.mapFootprint(world, data, building);
+        boolean structureValid = !enclosed || !loaded || !footprint.isEmpty();
         BuildingPerformance.OutputBreakdown breakdown = BuildingPerformance.calculateBreakdown(world, data, building);
         return new TownBlueprintView.BuildingEntry(building.id(), building.type(), name, building.anchor(), icon,
                 building.minPos(), building.maxPos(), building.tier(),

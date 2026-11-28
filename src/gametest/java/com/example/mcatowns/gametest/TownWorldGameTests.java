@@ -194,6 +194,16 @@ public final class TownWorldGameTests implements FabricGameTest {
                     "Room grouping or exterior roof boundary incorrect: " + structure.footprint().size());
             context.assertTrue(BuildingFootprint.boundary(structure.footprint()).size() == (connected ? 20 : 12),
                     "Incorrect external wall perimeter");
+            if (startX == 2) {
+                var saved = TownSavedData.create();
+                var home = RegisteredTownBuilding.legacy("residence", context.getAbsolutePos(new BlockPos(2, 2, 2)));
+                context.assertTrue(saved.registerBuilding(home), "Fixture home registration");
+                saved.setBuildingFootprint(home.id(), structure.footprint());
+                var other = TownBuildingService.describeDetectedStructure(world,
+                        context.getAbsolutePos(new BlockPos(6, 2, 2))).orElseThrow();
+                context.assertTrue(TownBuildingService.overlapsRegisteredStructure(world, saved, other.footprint(), null) == connected,
+                        "Only the same connected residence should overlap");
+            }
         }
         context.complete();
     }
@@ -230,11 +240,41 @@ public final class TownWorldGameTests implements FabricGameTest {
                 field.min(), field.max(), BuildingStatus.ACTIVE, 50, List.of(), 1L, field.contributingCrops());
         context.assertTrue(!TownBuildingService.isFarmAlreadyRegistered(data, field), "New farm must not be duplicate");
         context.assertTrue(data.registerBuilding(farm), "Farm must register in town save");
+        data.setBuildingFootprint(farm.id(), field.tiles());
         context.assertTrue(TownBuildingService.isFarmAlreadyRegistered(data, otherEnd), "Other end of same field must be duplicate");
         var restored = TownSavedData.fromNbt(((net.minecraft.world.PersistentState) data).writeNbt(new NbtCompound()));
         context.assertTrue(restored.getRegisteredBuildings().size() == 1, "Exactly one farm must persist");
         context.assertTrue(farm.equals(restored.getRegisteredBuildings().get(0)), "Saved farm properties must round-trip");
         context.assertTrue(TownBuildingService.isFarmAlreadyRegistered(restored, otherEnd), "Duplicate guard must survive save/load");
+        context.assertTrue(new HashSet<>(restored.getBuildingFootprint(farm.id())).equals(new HashSet<>(field.tiles())),
+                "Verified shape must survive save/load");
+        context.complete();
+    }
+
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE)
+    public void damagedFarmAnchorRecoversWithinKnownField(TestContext context) {
+        for (int x = 1; x <= 6; x++) for (int z = 1; z <= 3; z++) {
+            context.setBlockState(new BlockPos(x, 1, z), Blocks.DIRT);
+            context.setBlockState(new BlockPos(x, 2, z), Blocks.FARMLAND);
+            context.setBlockState(new BlockPos(x, 3, z), Blocks.WHEAT);
+        }
+        var world = context.getWorld();
+        var field = FarmFieldScanner.scan(world, context.getAbsolutePos(new BlockPos(1, 2, 1)));
+        var data = TownSavedData.create();
+        var farm = new RegisteredTownBuilding(UUID.randomUUID(), "farm", field.tier(), field.anchor(),
+                field.min(), field.max(), BuildingStatus.ACTIVE, 50, List.of(), 1L, field.contributingCrops());
+        context.assertTrue(data.registerBuilding(farm), "Fixture must register");
+        data.setBuildingFootprint(farm.id(), field.tiles());
+        context.setBlockState(new BlockPos(1, 3, 1), Blocks.AIR);
+        context.setBlockState(new BlockPos(1, 2, 1), Blocks.STONE);
+        TownBuildingService.refreshInspectionState(world, data, 2L);
+        var repaired = data.getRegisteredBuildings().get(0);
+        context.assertTrue(repaired.id().equals(farm.id()), "Recovery must keep identity");
+        context.assertTrue(!repaired.anchor().equals(farm.anchor()), "Broken anchor must move");
+        context.assertTrue(repaired.cropState() == 17 && data.getBuildingFootprint(farm.id()).size() == 17,
+                "Recovery must preserve the other 17 field tiles");
+        context.assertTrue(TownBuildingService.isFarmAlreadyRegistered(data, FarmFieldScanner.scan(world, repaired.anchor())),
+                "Recovered farm must still reject duplicate registration");
         context.complete();
     }
 

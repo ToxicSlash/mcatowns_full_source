@@ -10,7 +10,8 @@ import net.minecraft.world.PersistentState;
 import java.util.*;
 
 public class TownSavedData extends PersistentState {
-    private static final int DATA_VERSION = 2;
+    private static final int DATA_VERSION = 3;
+    public static final int MAX_BUILDING_FOOTPRINT = 2048;
     private static final int MAX_SAVED_BUILDINGS = 256;
     private static final int MAX_SAVED_WORKERS_PER_BUILDING = 16;
     private String townId = "default";
@@ -80,6 +81,7 @@ public class TownSavedData extends PersistentState {
     private int populationCapacity = 0;
     private int foodCapacity = 0;
     private final Map<Long, RegisteredTownBuilding> registeredBuildings = new LinkedHashMap<>();
+    private final Map<UUID, List<BlockPos>> buildingFootprints = new HashMap<>();
     private final Set<String> researchUnlocks = new HashSet<>();
     private final Set<UUID> residents = new HashSet<>();
     private final Map<UUID, String> specialists = new HashMap<>();
@@ -200,6 +202,9 @@ public class TownSavedData extends PersistentState {
                 int cropState = building.getInt("CropState");
                 data.registeredBuildings.put(anchor.asLong(), new RegisteredTownBuilding(id, type, tier, anchor,
                         min, max, status, output, workers, inspected, cropState));
+                List<BlockPos> footprint = Arrays.stream(building.getLongArray("Footprint"))
+                        .limit(MAX_BUILDING_FOOTPRINT).mapToObj(BlockPos::fromLong).toList();
+                data.putBuildingFootprint(id, footprint);
             }
         }
         for (String unlock : nbt.getList("ResearchUnlocks", NbtElement.STRING_TYPE).stream()
@@ -336,6 +341,8 @@ public class TownSavedData extends PersistentState {
             building.put("Workers", writeUuids(registered.workers()));
             building.putLong("LastInspectionDay", registered.lastInspectionDay());
             building.putInt("CropState", registered.cropState());
+            List<BlockPos> footprint = getBuildingFootprint(registered.id());
+            if (!footprint.isEmpty()) building.putLongArray("Footprint", footprint.stream().mapToLong(BlockPos::asLong).toArray());
             buildings.add(building);
         });
         nbt.put("TypedBuildings", buildings);
@@ -782,6 +789,7 @@ public class TownSavedData extends PersistentState {
         townTokens = 0;
         specialistCount = 0;
         registeredBuildings.clear();
+        buildingFootprints.clear();
         researchUnlocks.clear();
         residents.clear();
         specialists.clear();
@@ -845,10 +853,31 @@ public class TownSavedData extends PersistentState {
         return true;
     }
 
+    public List<BlockPos> getBuildingFootprint(UUID id) {
+        return buildingFootprints.getOrDefault(id, List.of());
+    }
+
+    public void setBuildingFootprint(UUID id, List<BlockPos> cells) {
+        if (id == null || registeredBuildings.values().stream().noneMatch(b -> b.id().equals(id))) return;
+        if (putBuildingFootprint(id, cells)) markDirty();
+    }
+
+    private boolean putBuildingFootprint(UUID id, List<BlockPos> cells) {
+        List<BlockPos> normalized = cells == null ? List.of() : cells.stream()
+                .filter(Objects::nonNull).map(BlockPos::toImmutable).distinct().limit(MAX_BUILDING_FOOTPRINT)
+                .sorted(Comparator.comparingLong(BlockPos::asLong)).toList();
+        if (getBuildingFootprint(id).equals(normalized)) return false;
+        if (normalized.isEmpty()) buildingFootprints.remove(id);
+        else buildingFootprints.put(id, normalized);
+        return true;
+    }
+
     public boolean unregisterBuilding(BlockPos pos) {
-        boolean removed = registeredBuildings.remove(pos.asLong()) != null;
-        if (removed) markDirty();
-        return removed;
+        RegisteredTownBuilding removed = registeredBuildings.remove(pos.asLong());
+        if (removed == null) return false;
+        buildingFootprints.remove(removed.id());
+        markDirty();
+        return true;
     }
 
     public int getInfrastructureProvided(InfrastructureType type) {

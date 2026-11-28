@@ -162,7 +162,7 @@ def main():
                     raise RuntimeError("No production GameTest report")
                 xml = ET.parse(report)
                 cases = xml.findall(".//testcase")
-                if len(cases) < 11 or xml.findall(".//failure") or xml.findall(".//error"):
+                if len(cases) < 12 or xml.findall(".//failure") or xml.findall(".//error"):
                     raise RuntimeError("Production GameTest failure or incomplete report")
                 if "TOWN_MCA_WORLD_OK" not in log.read_text(encoding="utf-8", errors="replace"):
                     raise RuntimeError("MCA world marker absent")

@@ -36,6 +36,7 @@ public final class TownRestartProbe implements ModInitializer {
                         field.min(), field.max(), BuildingStatus.ACTIVE, 50, List.of(), 1L, field.contributingCrops()))) {
                     throw new IllegalStateException("Could not register restart farm");
                 }
+                data.setBuildingFootprint(FARM_ID, field.tiles());
                 System.out.println("TOWN_RESTART_CREATE_OK");
             } else {
                 if (data.getRegisteredBuildings().size() != 1) throw new IllegalStateException("Missing saved farm");
@@ -43,7 +44,8 @@ public final class TownRestartProbe implements ModInitializer {
                 var field = FarmFieldScanner.scan(world, SOIL.add(5, 0, 2));
                 if (!farm.id().equals(FARM_ID) || farm.cropState() != 18 || !farm.anchor().equals(SOIL)
                         || !farm.minPos().equals(SOIL) || !farm.maxPos().equals(SOIL.add(5, 1, 2))
-                        || field.crops() != 18 || !TownBuildingService.isFarmAlreadyRegistered(data, field)) {
+                        || field.crops() != 18 || !TownBuildingService.isFarmAlreadyRegistered(data, field)
+                        || !new java.util.HashSet<>(data.getBuildingFootprint(FARM_ID)).equals(new java.util.HashSet<>(field.tiles()))) {
                     throw new IllegalStateException("Restart changed farm state or duplicate protection: " + farm);
                 }
                 System.out.println("TOWN_RESTART_VERIFY_OK");
