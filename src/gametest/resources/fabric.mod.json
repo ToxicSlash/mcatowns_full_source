@@ -9,10 +9,12 @@
       "com.example.mcatowns.gametest.TownWorldGameTests"
     ],
     "client": [
-      "com.example.mcatowns.gametest.TownVisualProbe"
+      "com.example.mcatowns.gametest.TownVisualProbe",
+      "com.example.mcatowns.gametest.TownConnectedClientProbe"
     ],
     "main": [
-      "com.example.mcatowns.gametest.TownRestartProbe"
+      "com.example.mcatowns.gametest.TownRestartProbe",
+      "com.example.mcatowns.gametest.TownConnectedServerProbe"
     ]
   },
   "depends": {

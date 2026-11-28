@@ -99,6 +99,12 @@ public final class TownBuildingService {
             player.sendMessage(Text.translatable("text.mcatowns.invalid_building", definition.displayName()), true);
             return;
         }
+        // Inspection sessions can outlive a player's movement. Recheck the actual
+        // target, not only the player's position, before charging or registering.
+        if (pos.getSquaredDistance(town.center()) > 64.0 * 64.0 || !world.isChunkLoaded(pos)) {
+            player.sendMessage(Text.translatable("text.mcatowns.outside_town_boundary"), true);
+            return;
+        }
         FarmFieldScanner.Result farm = "farm".equals(type) ? FarmFieldScanner.scan(world, pos) : null;
         if (farm != null && isFarmAlreadyRegistered(data, farm)) {
             player.sendMessage(Text.literal("This connected farm is already registered."), true);

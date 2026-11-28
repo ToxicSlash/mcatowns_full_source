@@ -8,6 +8,8 @@ import sys
 import tempfile
 import urllib.request
 import zipfile
+import socket
+import time
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from prepare_town_fixture import ROOT, metadata, sha
@@ -40,6 +42,71 @@ def execute(command, cwd, log, timeout):
                 subprocess.run(["taskkill", "/PID", str(proc.pid), "/T", "/F"],
                                stdout=output, stderr=subprocess.STDOUT, timeout=30)
                 proc.wait(timeout=30)
+
+def connected_probe(root, mods, binary, project):
+    # A disposable server and client on the same interactive runner; no external access.
+    shared = root / "connected"
+    shared.mkdir()
+    server_dir = root / "server"
+    server_dir.mkdir()
+    shutil.copytree(mods, server_dir / "mods")
+    launcher = server_dir / "server.jar"
+    with urllib.request.urlopen("https://meta.fabricmc.net/v2/versions/loader/1.20.1/0.19.5/1.0.3/server/jar", timeout=90) as r, launcher.open("wb") as f:
+        shutil.copyfileobj(r, f)
+    with socket.socket() as listener:
+        listener.bind(("127.0.0.1", 0))
+        port = listener.getsockname()[1]
+    (server_dir / "eula.txt").write_text("eula=true\n")
+    (server_dir / "server.properties").write_text(
+        f"server-ip=127.0.0.1\nserver-port={port}\nonline-mode=false\nlevel-type=minecraft:flat\ngenerate-structures=false\nview-distance=3\nsimulation-distance=3\nspawn-protection=0\n")
+    live = root / "live"
+    live.mkdir()
+    (live / "options.txt").write_text("version:3465\nonboardAccessibility:false\npauseOnLostFocus:false\n", encoding="utf-8")
+    server_log = OUT / "connected-server.log"
+    client_log = OUT / "connected-client.log"
+    with server_log.open("w", encoding="utf-8") as output:
+        server = subprocess.Popen(["java", "-Xmx3G", "-Dtown.test.connected=" + str(shared),
+                                   "-jar", str(launcher), "nogui"], cwd=server_dir,
+                                  stdin=subprocess.PIPE, stdout=output, stderr=subprocess.STDOUT)
+        try:
+            for _ in range(180):
+                if "Done (" in server_log.read_text(encoding="utf-8", errors="replace"):
+                    break
+                if server.poll() is not None:
+                    raise RuntimeError("Connected fixture server exited")
+                time.sleep(1)
+            else:
+                raise RuntimeError("Connected fixture startup timeout")
+            command = [str(binary), "-p", str(project), "--no-daemon", "--console=plain",
+                       "-PtownRuntimeMods=" + str(mods), "-PtownRunDir=" + str(live),
+                       "-PtownConnectedDir=" + str(shared), "-PtownServerAddress=127.0.0.1:" + str(port),
+                       "runTownClient"]
+            execute(command, root, client_log, 360)
+            server_text = server_log.read_text(encoding="utf-8", errors="replace")
+            for marker in ("FOUND_DENIED", "FOUNDED", "REGISTER", "DUPLICATE", "SERVER"):
+                if "TOWN_CONNECTED_" + marker + "_OK" not in server_text:
+                    raise RuntimeError("Missing connected server marker: " + marker)
+            if not (shared / "town-connected-map.png").is_file() or not (shared / "ack-map").is_file():
+                raise RuntimeError("No server-fed map evidence")
+            print("TOWN_CONNECTED_END_TO_END_OK")
+        finally:
+            if server.poll() is None:
+                try:
+                    server.communicate(b"stop\n", timeout=45)
+                except subprocess.TimeoutExpired:
+                    subprocess.run(["taskkill", "/PID", str(server.pid), "/T", "/F"], timeout=30)
+                    server.wait(timeout=30)
+            if (shared / "town-connected-map.png").is_file():
+                shutil.copy2(shared / "town-connected-map.png", OUT)
+            for log in (server_log, client_log):
+                if log.is_file():
+                    value = log.read_text(encoding="utf-8", errors="replace")
+                    print(log.name, value[:4000], "\n--- tail ---\n", value[-20000:])
+            for name, directory in (("connected-client-crashes", live), ("connected-server-crashes", server_dir)):
+                if (directory / "crash-reports").is_dir():
+                    shutil.copytree(directory / "crash-reports", OUT / name, dirs_exist_ok=True)
+    if server.returncode != 0:
+        raise RuntimeError("Connected fixture server did not stop cleanly")
 
 def main():
     mode = sys.argv[1]
@@ -130,6 +197,7 @@ def main():
                     raise RuntimeError("Invalid blueprint map marker")
                 print(marker.read_text())
                 print(map_marker.read_text())
+                connected_probe(root, mods, binary, project)
         finally:
             for name in ("gametest-results.xml", "town-title-ready.txt", "town-title.png", "town-map-ready.txt", "town-map.png", "logs/latest.log"):
                 src = run / name

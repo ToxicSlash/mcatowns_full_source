@@ -22,7 +22,7 @@ public final class TownVisualProbe implements ClientModInitializer {
     private int stage;
 
     @Override public void onInitializeClient() {
-        if (!Boolean.getBoolean("town.test.visual")) return;
+        if (!Boolean.getBoolean("town.test.visual") || System.getProperty("town.test.connected") != null) return;
         if (!FabricLoader.getInstance().isModLoaded("mca") || !FabricLoader.getInstance().isModLoaded("mcatowns")) {
             throw new IllegalStateException("MCA and Towns must both load");
         }

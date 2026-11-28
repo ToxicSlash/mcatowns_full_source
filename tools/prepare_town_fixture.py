@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "build" / "town-desktop-inputs"
 # Core dependencies already pinned by the existing Loom build.
 BUILTINS = {"minecraft", "java", "fabricloader"}
-OPTIONAL = {"farmersdelight", "farm_and_charm", "bountifulfares", "immersive_weathering"}
+OPTIONAL = {"farmersdelight", "farm_and_charm", "bountifulfares", "immersive_weathering", "numismatics"}
 
 def sha(path):
     with path.open("rb") as f:

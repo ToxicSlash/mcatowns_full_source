@@ -15,5 +15,10 @@ tasks.register('runTownClient', ClientProductionRunTask) {
     jvmArgs.addAll(['-Dtown.test.visual=true'])
     programArgs.addAll(['--username', 'TownVisualCI', '--width', '1280', '--height', '720'])
     outputs.upToDateWhen { false }
+    def connected = providers.gradleProperty('townConnectedDir').orNull
+    if (connected != null) {
+        jvmArgs.add("-Dtown.test.connected=" + connected)
+        programArgs.addAll(['--quickPlayMultiplayer', providers.gradleProperty('townServerAddress').get()])
+    }
     useXVFB = false
 }
