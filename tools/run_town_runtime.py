@@ -90,6 +90,26 @@ def main():
                 if "TOWN_MCA_WORLD_OK" not in log.read_text(encoding="utf-8", errors="replace"):
                     raise RuntimeError("MCA world marker absent")
                 print("TOWN_PRODUCTION_SERVER_OK", len(cases))
+                # Separate normal server world, same remapped production jars; two genuine launches.
+                restart = root / "restart"
+                (restart / "mods").mkdir(parents=True)
+                for p in selected:
+                    if metadata(p).get("id") != "fabric-gametest-api-v1":
+                        shutil.copy2(p, restart / "mods" / p.name)
+                shutil.copy2(launcher, restart / "server.jar")
+                (restart / "eula.txt").write_text("eula=true\n")
+                (restart / "server.properties").write_text("server-ip=127.0.0.1\nserver-port=0\nonline-mode=true\nlevel-type=minecraft:flat\ngenerate-structures=false\nview-distance=3\nsimulation-distance=3\n")
+                for phase in ("create", "verify"):
+                    phase_log = OUT / ("restart-" + phase + ".log")
+                    try:
+                        execute(["java", "-Xmx3G", "-Dtown.test.restart=" + phase, "-jar",
+                                 str(restart / "server.jar"), "nogui"], restart, phase_log, 240)
+                        if "TOWN_RESTART_" + phase.upper() + "_OK" not in phase_log.read_text(encoding="utf-8", errors="replace"):
+                            raise RuntimeError("Missing restart marker " + phase)
+                    finally:
+                        if phase_log.is_file():
+                            print(phase_log.read_text(encoding="utf-8", errors="replace")[-12000:])
+                print("TOWN_PRODUCTION_RESTART_OK")
             else:
                 (run / "options.txt").write_text("version:3465\nonboardAccessibility:false\npauseOnLostFocus:false\n", encoding="utf-8")
                 project = root / "probe"

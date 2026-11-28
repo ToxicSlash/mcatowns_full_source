@@ -30,7 +30,7 @@ public final class TownVisualProbe implements ClientModInitializer {
             if (stage == 2) return;
             boolean ready = stage == 0 ? client.currentScreen instanceof TitleScreen
                     : client.currentScreen instanceof TownBlueprintScreen;
-            if (!ready) { ticks = 0; return; }
+            if (!ready || client.getOverlay() != null) { ticks = 0; return; }
             if (++ticks < 40) return;
             ticks = 0;
             Path dir = client.runDirectory.toPath();
@@ -43,7 +43,18 @@ public final class TownVisualProbe implements ClientModInitializer {
                     stage = 1;
                     client.setScreen(new TownBlueprintScreen(fixture()));
                 } else {
+                    // Screen state alone can pass while the loading overlay still covers the framebuffer.
+                    int mapBackground = 0, outline = 0;
+                    for (int y = 0; y < image.getHeight(); y++) for (int x = 0; x < image.getWidth(); x++) {
+                        int rgb = image.getColor(x, y) & 0xFFFFFF;
+                        if (rgb == 0x151515) mapBackground++;
+                        if (rgb == 0xD0D8D8 || rgb == 0x60C0E0) outline++;
+                    }
                     image.writeTo(dir.resolve("town-map.png"));
+                    if (mapBackground < 500 || outline < 20) {
+                        throw new IllegalStateException("Blueprint not visible in framebuffer: background=" + mapBackground + " outline=" + outline);
+                    }
+                    System.out.println("TOWN_MAP_PIXELS " + mapBackground + " " + outline);
                     Files.writeString(dir.resolve("town-map-ready.txt"),
                             "TOWN_BLUEPRINT_MAP_OK " + image.getWidth() + "x" + image.getHeight());
                     System.out.println("TOWN_BLUEPRINT_MAP_OK");

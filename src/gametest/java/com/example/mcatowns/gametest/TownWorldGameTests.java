@@ -51,13 +51,28 @@ public final class TownWorldGameTests implements FabricGameTest {
                 BlockPos absolute = context.getAbsolutePos(soil.up());
                 if (!state.canPlaceAt(context.getWorld(), absolute)) continue;
                 context.setBlockState(soil.up(), state);
-                var result = FarmFieldScanner.scan(context.getWorld(), absolute);
-                context.assertTrue(result.crops() == 1, "Installed crop not detected: " + id);
+                var result = FarmFieldScanner.scan(context.getWorld(), context.getAbsolutePos(soil));
+                boolean weed = id.equals(new Identifier("immersive_weathering", "weeds"));
+                context.assertTrue(result.crops() == (weed ? 0 : 1), "Incorrect crop contribution: " + id);
                 context.setBlockState(soil.up(), Blocks.AIR);
-                verified++;
-                System.out.println("TOWN_INSTALLED_CROP_OK " + id);
+                if (!weed) verified++;
+                System.out.println((weed ? "TOWN_WEED_EXCLUDED " : "TOWN_INSTALLED_CROP_OK ") + id);
             }
             context.assertTrue(verified > 0, "No installed farmland-compatible crop was exercised");
+            int soilTypes = 0;
+            for (var id : Registries.BLOCK.getIds()) {
+                var block = Registries.BLOCK.get(id);
+                if (id.getNamespace().equals("minecraft") || !(block instanceof FarmlandBlock)) continue;
+                context.setBlockState(soil, block.getDefaultState());
+                context.setBlockState(soil.up(), Blocks.WHEAT);
+                var result = FarmFieldScanner.scan(context.getWorld(), context.getAbsolutePos(soil));
+                context.assertTrue(result.tiles().size() == 1 && result.crops() == 1,
+                        "Installed farmland not detected: " + id);
+                context.setBlockState(soil.up(), Blocks.AIR);
+                soilTypes++;
+                System.out.println("TOWN_INSTALLED_SOIL_OK " + id);
+            }
+            context.assertTrue(soilTypes > 0, "No installed farmland variants exercised");
             System.out.println("TOWN_MCA_WORLD_OK " + verified);
         }
         context.complete();
@@ -158,7 +173,7 @@ public final class TownWorldGameTests implements FabricGameTest {
         context.assertTrue(!TownBuildingService.isFarmAlreadyRegistered(data, field), "New farm must not be duplicate");
         context.assertTrue(data.registerBuilding(farm), "Farm must register in town save");
         context.assertTrue(TownBuildingService.isFarmAlreadyRegistered(data, otherEnd), "Other end of same field must be duplicate");
-        var restored = TownSavedData.fromNbt(data.writeNbt(new NbtCompound()));
+        var restored = TownSavedData.fromNbt(((net.minecraft.world.PersistentState) data).writeNbt(new NbtCompound()));
         context.assertTrue(restored.getRegisteredBuildings().size() == 1, "Exactly one farm must persist");
         context.assertTrue(farm.equals(restored.getRegisteredBuildings().get(0)), "Saved farm properties must round-trip");
         context.assertTrue(TownBuildingService.isFarmAlreadyRegistered(restored, otherEnd), "Duplicate guard must survive save/load");

@@ -14,5 +14,6 @@ tasks.register('runTownClient', ClientProductionRunTask) {
     runDir.set(file(providers.gradleProperty('townRunDir').get()))
     jvmArgs.addAll(['-Dtown.test.visual=true'])
     programArgs.addAll(['--username', 'TownVisualCI', '--width', '1280', '--height', '720'])
+    outputs.upToDateWhen { false }
     useXVFB = false
 }

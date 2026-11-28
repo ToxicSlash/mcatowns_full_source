@@ -29,6 +29,7 @@ public final class FarmFieldScanner {
     // Registry-dependent initialization is deferred until a real world crop query.
     private static final class CropTags {
         private static final TagKey<Block> COMMON_CROPS = TagKey.of(RegistryKeys.BLOCK, new Identifier("c", "crops"));
+        private static final TagKey<Block> NON_PRODUCTIVE = TagKey.of(RegistryKeys.BLOCK, new Identifier("mcatowns", "non_productive_crops"));
     }
 
     private FarmFieldScanner() { }
@@ -123,6 +124,7 @@ public final class FarmFieldScanner {
         if (!loaded(world, pos)) return false;
         var state = world.getBlockState(pos);
         Block block = state.getBlock();
+        if (state.isIn(CropTags.NON_PRODUCTIVE)) return false;
         return block instanceof CropBlock || block instanceof StemBlock || block instanceof AttachedStemBlock
                 || block instanceof NetherWartBlock || state.isIn(CropTags.COMMON_CROPS);
     }

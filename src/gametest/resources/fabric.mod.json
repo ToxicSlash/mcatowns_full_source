@@ -10,6 +10,9 @@
     ],
     "client": [
       "com.example.mcatowns.gametest.TownVisualProbe"
+    ],
+    "main": [
+      "com.example.mcatowns.gametest.TownRestartProbe"
     ]
   },
   "depends": {
