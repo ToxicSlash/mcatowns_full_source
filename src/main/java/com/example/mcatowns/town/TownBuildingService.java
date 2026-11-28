@@ -112,7 +112,7 @@ public final class TownBuildingService {
         }
         DetectedStructure detected = describeDetectedStructure(world, pos).orElse(null);
         List<BlockPos> footprint = farm != null ? farm.tiles()
-                : detected != null && detected.enclosed() ? detected.footprint() : List.of();
+                : !OPEN_STRUCTURE_TYPES.contains(type) && detected != null && detected.enclosed() ? detected.footprint() : List.of();
         if (!footprint.isEmpty() && overlapsRegisteredStructure(world, data, footprint, null)) {
             player.sendMessage(Text.literal("This structure overlaps an already registered building."), true);
             return;
@@ -305,14 +305,18 @@ public final class TownBuildingService {
     }
 
     public static List<BlockPos> mapFootprint(ServerWorld world, TownSavedData data, RegisteredTownBuilding building) {
-        if (!farmBoundsLoaded(building, world::isChunkLoaded)) return data.getBuildingFootprint(building.id());
+        if (OPEN_STRUCTURE_TYPES.contains(building.type())) return List.of();
+        if (!world.isChunkLoaded(building.anchor()) || !farmBoundsLoaded(building, world::isChunkLoaded)) {
+            return data.getBuildingFootprint(building.id());
+        }
+        if ("farm".equals(building.type())) return FarmFieldScanner.scan(world, building.anchor()).tiles();
         return describeDetectedStructure(world, building.anchor())
-                .filter(s -> s.enclosed() || "farm".equals(building.type()) && "farm".equals(s.type()))
+                .filter(DetectedStructure::enclosed)
                 .map(DetectedStructure::footprint).orElse(List.of());
     }
 
     public static boolean buildingBoundsLoaded(ServerWorld world, RegisteredTownBuilding building) {
-        return farmBoundsLoaded(building, world::isChunkLoaded);
+        return world.isChunkLoaded(building.anchor()) && farmBoundsLoaded(building, world::isChunkLoaded);
     }
 
     private static FarmFieldScanner.Result recoverFarm(ServerWorld world, TownSavedData data, RegisteredTownBuilding building) {
@@ -354,12 +358,13 @@ public final class TownBuildingService {
 
     public static void refreshInspectionState(ServerWorld world, TownSavedData data, long day) {
         for (RegisteredTownBuilding building : data.getRegisteredBuildings()) {
-            if (!world.isChunkLoaded(building.anchor())) continue;
+            if (!buildingBoundsLoaded(world, building)) continue;
             try {
                 RegisteredTownBuilding updated = building;
+                List<BlockPos> verified = null;
                 if ("farm".equals(building.type())) {
-                    if (!farmBoundsLoaded(building, world::isChunkLoaded)) continue;
                     FarmFieldScanner.Result field = recoverFarm(world, data, building);
+                    verified = field.tiles();
                     BlockPos min = field.tiles().isEmpty() ? building.minPos() : field.min();
                     BlockPos max = field.tiles().isEmpty() ? building.maxPos() : field.max();
                     BlockPos anchor = field.tiles().isEmpty() ? building.anchor() : field.anchor();
@@ -369,8 +374,10 @@ public final class TownBuildingService {
                 }
                 int output = BuildingPerformance.calculateOutput(world, data, updated);
                 updated = updated.inspected(day, output, updated.cropState(), updated.tier());
-                if (data.replaceBuilding(updated) && farmBoundsLoaded(updated, world::isChunkLoaded)) {
-                    List<BlockPos> verified = mapFootprint(world, data, updated);
+                if (data.replaceBuilding(updated) && buildingBoundsLoaded(world, updated)) {
+                    // Reuse the farm scan from the physical inspection, rather
+                    // than traversing the entire field a second time.
+                    if (verified == null) verified = mapFootprint(world, data, updated);
                     if (!verified.isEmpty()) data.setBuildingFootprint(updated.id(), verified);
                 }
             } catch (RuntimeException exception) {

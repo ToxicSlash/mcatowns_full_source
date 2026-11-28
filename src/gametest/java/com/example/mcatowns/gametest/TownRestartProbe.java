@@ -56,6 +56,12 @@ public final class TownRestartProbe implements ModInitializer {
                     throw new IllegalStateException("Could not create distant saved field");
                 }
                 remote.setBuildingFootprint(REMOTE_ID, distant.tiles());
+                // Match the normal registration workflow: derive workforce
+                // and infrastructure state before recording the saved fixture.
+                TownBuildingService.refreshDerivedValues(remote);
+                if (remote.getRegisteredBuildings().get(0).status() != BuildingStatus.INFRASTRUCTURE_BLOCKED) {
+                    throw new IllegalStateException("Missing community infrastructure should block the remote farm");
+                }
                 System.out.println("TOWN_RESTART_CREATE_OK");
             } else {
                 if (data.getRegisteredBuildings().size() != 1) throw new IllegalStateException("Missing saved farm");
@@ -76,9 +82,26 @@ public final class TownRestartProbe implements ModInitializer {
                     throw new IllegalStateException("Unloaded map footprint lost or loaded its chunk");
                 }
                 TownBuildingService.refreshInspectionState(world, remote, 2L);
-                if (!distant.equals(remote.getRegisteredBuildings().get(0)) || world.isChunkLoaded(REMOTE)) {
-                    throw new IllegalStateException("Inspection changed unloaded building or loaded its chunk");
+                var unchanged = remote.getRegisteredBuildings().get(0);
+                if (!distant.equals(unchanged) || !remote.getBuildingFootprint(REMOTE_ID).equals(stored)
+                        || world.isChunkLoaded(REMOTE)) {
+                    throw new IllegalStateException("Inspection changed unloaded building or loaded its chunk: before="
+                            + distant + " after=" + unchanged + " loaded=" + world.isChunkLoaded(REMOTE));
                 }
+                // A legitimate town-wide infrastructure change still applies to
+                // unloaded buildings, without reading or altering their world.
+                if (!remote.registerBuilding("campfire", REMOTE.add(0, 0, 8))) {
+                    throw new IllegalStateException("Could not add community infrastructure");
+                }
+                TownBuildingService.refreshDerivedValues(remote);
+                var unblocked = remote.getRegisteredBuildings().stream().filter(b -> b.id().equals(REMOTE_ID)).findFirst().orElseThrow();
+                if (unblocked.status() != BuildingStatus.UNDERSTAFFED
+                        || !unblocked.equals(distant.withStatus(BuildingStatus.UNDERSTAFFED))
+                        || !remote.getBuildingFootprint(REMOTE_ID).equals(stored)
+                        || world.isChunkLoaded(REMOTE)) {
+                    throw new IllegalStateException("Offline infrastructure update changed physical inspection: " + unblocked);
+                }
+                System.out.println("TOWN_RESTART_UNLOADED_DERIVED_OK");
                 world.getChunk(REMOTE);
                 var live = FarmFieldScanner.scan(world, REMOTE);
                 if (live.crops() != 18 || !new java.util.HashSet<>(live.tiles()).equals(new java.util.HashSet<>(stored))) {

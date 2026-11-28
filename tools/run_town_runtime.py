@@ -202,7 +202,7 @@ def main():
                     raise RuntimeError("No production GameTest report")
                 xml = ET.parse(report)
                 cases = xml.findall(".//testcase")
-                if len(cases) < 12 or xml.findall(".//failure") or xml.findall(".//error"):
+                if len(cases) < 13 or xml.findall(".//failure") or xml.findall(".//error"):
                     raise RuntimeError("Production GameTest failure or incomplete report")
                 if "TOWN_MCA_WORLD_OK" not in log.read_text(encoding="utf-8", errors="replace"):
                     raise RuntimeError("MCA world marker absent")
@@ -226,8 +226,10 @@ def main():
                     finally:
                         if phase_log.is_file():
                             print(phase_log.read_text(encoding="utf-8", errors="replace")[-12000:])
-                if "TOWN_RESTART_UNLOADED_FOOTPRINT_OK" not in (OUT / "restart-verify.log").read_text(encoding="utf-8", errors="replace"):
-                    raise RuntimeError("Missing unloaded footprint proof")
+                restart_text = (OUT / "restart-verify.log").read_text(encoding="utf-8", errors="replace")
+                for marker in ("TOWN_RESTART_UNLOADED_FOOTPRINT_OK", "TOWN_RESTART_UNLOADED_DERIVED_OK"):
+                    if marker not in restart_text:
+                        raise RuntimeError("Missing restart proof: " + marker)
                 print("TOWN_PRODUCTION_RESTART_OK")
             else:
                 (run / "options.txt").write_text("version:3465\nonboardAccessibility:false\npauseOnLostFocus:false\n", encoding="utf-8")

@@ -252,6 +252,20 @@ public final class TownWorldGameTests implements FabricGameTest {
     }
 
     @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE)
+    public void openStructureHasNoEnclosedFootprint(TestContext context) {
+        var world = context.getWorld();
+        BlockPos anchor = context.getAbsolutePos(new BlockPos(3, 2, 3));
+        var data = TownSavedData.create();
+        var campfire = RegisteredTownBuilding.legacy("campfire", anchor);
+        context.assertTrue(data.registerBuilding(campfire), "Campfire fixture registration");
+        // Even a stale saved shape must not make an open structure draw walls.
+        data.setBuildingFootprint(campfire.id(), List.of(anchor, anchor.east()));
+        context.assertTrue(TownBuildingService.mapFootprint(world, data, campfire).isEmpty(),
+                "Open campfire must use a marker, not an enclosed outline");
+        context.complete();
+    }
+
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE)
     public void damagedFarmAnchorRecoversWithinKnownField(TestContext context) {
         for (int x = 1; x <= 6; x++) for (int z = 1; z <= 3; z++) {
             context.setBlockState(new BlockPos(x, 1, z), Blocks.DIRT);
